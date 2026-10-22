@@ -117,6 +117,8 @@ audio{width:100%;margin:6px 0 10px}
 .msg.user{align-self:flex-end;max-width:88%;background:var(--accent-soft)}
 .msg.bot{background:var(--bg);border:1px solid var(--line)}
 .msg ul{margin:.3em 0;padding-left:1.2em}
+.msg ul ul{margin:.2em 0}
+.msg h4{margin:1em 0 .3em;font-size:1.02rem}
 .chat-form{display:flex;gap:8px;align-items:flex-end}
 .chat-form textarea{flex:1;min-width:0}
 .err{color:var(--warn);font-size:.9rem;margin:6px 0}
@@ -197,10 +199,10 @@ details.terms small{display:block;color:var(--muted);margin-top:4px}
     <div class="card">
       <div class="card-head"><h2>Assistant</h2><span class="meta" id="d-ctx"></span></div>
       <div class="chips" id="quick">
-        <button class="chip" data-q="Summarize this recording: a short overview first, then the main points, decisions and follow-up tasks.">Summary</button>
+        <button class="chip" data-q="Give me the big picture as a teacher would, so I can study from it. Start with two or three sentences on what this recording is about. Then go through every main idea in order. For each one, explain it in plain language, then explain each of its sub-ideas in a sentence or two, including the speaker's key example. Do not skip any main idea or sub-idea. Keep it compact but complete.">Summary</button>
+        <button class="chip" data-q="Teach me this recording as a patient teacher and coach, so I can study from your answer alone. Go through every main idea in the order the speaker raised it. For each main idea give: a heading with its timestamp; what it means in plain language and why it matters; each sub-idea explained fully with the speaker's example or story; how to apply it; and a quick check question. Add a Teacher's note only where background knowledge truly helps. Do not skip any main idea or sub-idea. End with a one-page review sheet and eight practice questions with answers.">Teach me</button>
+        <button class="chip" data-q="Break this recording into chapters in the order they happen. For each chapter give a title and start timestamp, then detailed bullet notes with the specific points, definitions, steps, examples, stories and advice the speaker gave, so someone who never heard it could learn the material.">Chapters</button>
         <button class="chip" data-q="List every action item and commitment, with who owns it if the transcript says, and the timestamp.">Action items</button>
-        <button class="chip" data-q="Turn this into clear study notes: key concepts, definitions, examples and anything the speaker stressed. Add timestamps.">Study notes</button>
-        <button class="chip" data-q="Write a chapter-style outline of the recording with a timestamp and one line per chapter.">Outline</button>
       </div>
       <details class="terms" id="d-terms-box">
         <summary>Names and terms for this recording</summary>
@@ -652,8 +654,8 @@ $('#d-del').onclick=async()=>{
 };
 
 /* ---------- assistant ---------- */
-const SYS='You are the assistant inside a voice-recorder app. The user recorded audio and the app produced the transcript with automatic speech recognition, so it can contain misheard words, missing punctuation and gaps. Answer using only the transcript. When you point to a moment, cite its timestamp in the form [hh:mm:ss]. If the transcript does not contain the answer, say so. Keep answers compact and well organised.';
-const CONDENSE='You condense one part of a long speech-recognition transcript into detailed notes. Keep names, numbers, decisions, definitions and tasks. Keep the [hh:mm:ss] timestamp on every point. Output the notes only.';
+const SYS='You are the teacher and coach built into a voice-recorder app. People use it to study and to learn from lectures, meetings and talks. Be warm, clear and encouraging, like an excellent teacher who also coaches: explain ideas in plain language, define jargon, and say why each idea matters and how to use it. The user recorded audio and the app produced the transcript with automatic speech recognition, so it can contain misheard words, missing punctuation and gaps. Quietly correct obvious recognition errors from context and do not point them out. Only if a passage is truly unclear, say so in one short note.\n\nEverything you attribute to the speaker must come from the transcript. When you teach, cover every main idea and every sub-idea the speaker raised, in order, and be specific: give the real points, steps, definitions, examples, stories, names, numbers and advice, never just that the speaker discusses a topic. Write so a reader who never heard the recording could learn the material from your answer alone.\n\nYou may add background knowledge only as a short line that starts with \"Teacher\'s note:\", so the reader can tell what the speaker said from what you added. If the speaker says something oversimplified, disputed or likely wrong, say so gently in a Teacher\'s note. Never present your own addition as something the speaker said.\n\nFormat with Markdown: ## headings, bullets with \"-\" (indent sub-bullets by two spaces) and **bold** for key terms. Do not use tables. Cite moments as [hh:mm:ss]. If the transcript does not contain the answer, say so. For a simple question, answer it directly and briefly without a lesson. For notes, summaries, lessons and chapters, be thorough. If a recording is too long to cover in one reply, cover it in order, say where you stopped, and offer to continue.';
+const CONDENSE='You condense one part of a long speech-recognition transcript into detailed notes that must still teach the material. Keep the specific content in the speaker\'s order: ideas, definitions, steps, examples, stories, advice, names, numbers, decisions and tasks. Never describe a topic when you can state what was said. Quietly fix obvious recognition errors. Keep the [hh:mm:ss] timestamp on every point. Output the notes only.';
 const LIMIT=300000;
 
 async function callClaude({system,messages,max,signal,onText}){
@@ -697,7 +699,7 @@ async function contextText(onProgress,signal){
   const out=[];
   for(let i=0;i<parts.length;i++){
     onProgress(i+1,parts.length);
-    out.push(await callClaude({system:sysPrompt(CONDENSE),messages:[{role:'user',content:parts[i]}],max:2500,signal}));
+    out.push(await callClaude({system:sysPrompt(CONDENSE),messages:[{role:'user',content:parts[i]}],max:6000,signal}));
   }
   D.digest=out.join('\n\n');D.digestLen=full.length;
   return {text:D.digest,condensed:true};
@@ -706,16 +708,23 @@ const persistNotes=()=>idb.put('notes',{sid:D.sid,messages:D.chat,digest:D.diges
 
 function md(src){
   const inline=t=>t.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/\[(\d{1,2}):(\d{2}):(\d{2})\]/g,(m,h,mi,s)=>`<button class="ts inl" data-t="${((+h)*3600+(+mi)*60+(+s))*1000}">${m}</button>`);
-  let html='',list=false;
+  let html='';const lv=[];
+  const closeAll=()=>{while(lv.length){html+='</li></ul>';lv.pop()}};
   for(const raw of esc(src).split('\n')){
-    const l=raw.trimEnd(),li=l.match(/^\s*[-*•]\s+(.*)/);
-    if(li){if(!list){html+='<ul>';list=true}html+='<li>'+inline(li[1])+'</li>';continue}
-    if(list){html+='</ul>';list=false}
+    const l=raw.trimEnd(),li=l.match(/^(\s*)[-*\u2022]\s+(.*)/);
+    if(li){
+      const ind=li[1].replace(/\t/g,'  ').length;
+      if(!lv.length||ind>lv[lv.length-1]){html+='<ul><li>';lv.push(ind)}
+      else{while(lv.length>1&&ind<lv[lv.length-1]){html+='</li></ul>';lv.pop()}html+='</li><li>'}
+      html+=inline(li[2]);continue;
+    }
+    closeAll();
     if(!l.trim())continue;
     const h=l.match(/^#{1,4}\s+(.*)/);
     html+=h?'<h4>'+inline(h[1])+'</h4>':'<p>'+inline(l)+'</p>';
   }
-  return html+(list?'</ul>':'');
+  closeAll();
+  return html;
 }
 function renderChat(stream){
   const box=$('#chat');
@@ -727,7 +736,7 @@ function setBusy(b){
   $$('#quick .chip').forEach(c=>c.disabled=b);
 }
 function showErr(m){const e=$('#chat-err');e.textContent=m||'';e.hidden=!m}
-async function ask(q){
+async function ask(q,opt){
   if(D.busy||!q.trim())return;
   showErr('');
   if(!settings.apiKey){showErr(friendlyErr(new Error('NOKEY')));return}
@@ -740,7 +749,7 @@ async function ask(q){
     reply.content='';
     $('#d-ctx').textContent=ctx.condensed?'Long recording: working from condensed notes':'';
     const msgs=D.chat.slice(0,-1).map((m,i)=>({role:m.role,content:i===0?`<transcript${ctx.condensed?' condensed="true"':''}>\n${ctx.text}\n</transcript>\n\n${m.content}`:m.content}));
-    await callClaude({system:sysPrompt(SYS),messages:msgs,max:2000,signal,onText:t=>{reply.content=t;renderChat(true)}});
+    await callClaude({system:sysPrompt(SYS),messages:msgs,max:(opt&&opt.long)?8000:3000,signal,onText:t=>{reply.content=t;renderChat(true)}});
   }catch(e){
     if(e.name==='AbortError'){if(!reply.content){D.chat.splice(-2,2)}}
     else{D.chat.splice(-2,2);showErr(friendlyErr(e));$('#chat-input').value=q}
@@ -749,7 +758,7 @@ async function ask(q){
 $('#chat-form').addEventListener('submit',e=>{e.preventDefault();const i=$('#chat-input'),q=i.value;if(!q.trim())return;i.value='';ask(q)});
 $('#chat-send').addEventListener('click',()=>{if(D.busy&&D.abort)D.abort.abort()});
 $('#chat-input').addEventListener('keydown',e=>{if(e.key==='Enter'&&(e.metaKey||e.ctrlKey)){e.preventDefault();$('#chat-form').requestSubmit()}});
-$('#quick').addEventListener('click',e=>{const c=e.target.closest('.chip');if(c)ask(c.dataset.q)});
+$('#quick').addEventListener('click',e=>{const c=e.target.closest('.chip');if(c)ask(c.dataset.q,{long:true})});
 
 /* ---------- settings view ---------- */
 const LANGS=[['','Device language'],['en-US','English (US)'],['en-GB','English (UK)'],['es-ES','Spanish (Spain)'],['es-MX','Spanish (Mexico)'],['fr-FR','French'],['de-DE','German'],['it-IT','Italian'],['pt-BR','Portuguese (Brazil)'],['hi-IN','Hindi'],['ja-JP','Japanese'],['ko-KR','Korean'],['zh-CN','Chinese (Mandarin)']];
