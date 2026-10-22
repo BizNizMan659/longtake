@@ -121,6 +121,27 @@ audio{width:100%;margin:6px 0 10px}
 .chat-form textarea{flex:1;min-width:0}
 .err{color:var(--warn);font-size:.9rem;margin:6px 0}
 
+/* Transcript editing and terms */
+textarea.seg-edit{min-height:0;padding:6px 10px;border-radius:8px;line-height:1.4}
+.find-row{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px}
+.find-row input{flex:1 1 140px;min-width:0}
+.check{display:flex;align-items:center;gap:8px;font-size:.88rem;color:var(--muted);margin-bottom:10px}
+.check input{width:auto}
+#d-editbar{border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:10px;background:var(--bg)}
+details.terms{margin-bottom:10px}
+details.terms summary{cursor:pointer;font-weight:600;font-size:.9rem;color:var(--accent)}
+details.terms textarea{margin-top:8px;min-height:72px}
+details.terms small{display:block;color:var(--muted);margin-top:4px}
+
+/* Cloud transcription */
+.improve{border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:10px;background:var(--bg)}
+.improve .btns{margin-bottom:8px}
+.prog .bar{height:6px;border-radius:3px;background:var(--line);overflow:hidden;margin:8px 0 4px}
+.prog .bar span{display:block;height:100%;width:0;background:var(--accent);transition:width .3s}
+.prog .bar.ind span{width:40%;animation:slide 1.4s ease-in-out infinite alternate}
+@keyframes slide{from{margin-left:0}to{margin-left:60%}}
+@media (prefers-reduced-motion:reduce){.prog .bar.ind span{animation:none;width:100%;opacity:.5}.prog .bar span{transition:none}}
+
 /* Tabs and toast */
 .tabs{position:fixed;left:0;right:0;bottom:0;display:grid;grid-template-columns:repeat(3,1fr);background:var(--surface);border-top:1px solid var(--line);padding:6px max(8px,env(safe-area-inset-right,0px)) calc(6px + env(safe-area-inset-bottom,0px)) max(8px,env(safe-area-inset-left,0px));z-index:5}
 .tab{background:none;border:0;padding:10px 4px;color:var(--muted);font-weight:600;border-radius:10px}
@@ -181,6 +202,11 @@ audio{width:100%;margin:6px 0 10px}
         <button class="chip" data-q="Turn this into clear study notes: key concepts, definitions, examples and anything the speaker stressed. Add timestamps.">Study notes</button>
         <button class="chip" data-q="Write a chapter-style outline of the recording with a timestamp and one line per chapter.">Outline</button>
       </div>
+      <details class="terms" id="d-terms-box">
+        <summary>Names and terms for this recording</summary>
+        <textarea id="d-terms" rows="3" placeholder="Prof. Kowalski, mitochondria, Krebs cycle, BIO 201" aria-label="Names and terms for this recording" spellcheck="false"></textarea>
+        <small>One per line or separated by commas. The assistant uses these spellings and treats close misspellings in the transcript as these.</small>
+      </details>
       <div id="chat" aria-live="polite"></div>
       <div class="err" id="chat-err" hidden></div>
       <form class="chat-form" id="chat-form">
@@ -189,7 +215,26 @@ audio{width:100%;margin:6px 0 10px}
       </form>
     </div>
     <div class="card">
-      <div class="card-head"><h2>Transcript</h2></div>
+      <div class="card-head"><h2>Transcript</h2><button class="btn" id="d-edit">Edit</button></div>
+      <div class="improve">
+        <div class="btns">
+          <button class="btn primary" id="d-improve">Improve with AssemblyAI</button>
+          <button class="btn" id="d-restore" hidden>Switch version</button>
+        </div>
+        <label class="check"><input type="checkbox" id="d-speakers"> Label speakers (meetings and interviews)</label>
+        <div class="meta" id="d-improve-note"></div>
+        <div class="prog" id="d-prog" hidden><div class="bar"><span id="d-bar"></span></div><div class="meta" id="d-prog-text"></div></div>
+        <div class="err" id="d-improve-err" hidden></div>
+      </div>
+      <div id="d-editbar" hidden>
+        <p class="meta" style="margin:0 0 8px">Tap a line to fix it. Changes save when you tap away. Clearing a line removes it. Edits update the transcript the assistant reads and the one you download.</p>
+        <div class="find-row">
+          <input type="text" id="d-find" placeholder="Misheard word" aria-label="Misheard word" autocapitalize="off" spellcheck="false">
+          <input type="text" id="d-repl" placeholder="Correct spelling" aria-label="Correct spelling" autocapitalize="off" spellcheck="false">
+          <button class="btn" id="d-replace">Replace all</button>
+        </div>
+        <label class="check"><input type="checkbox" id="d-whole" checked> Match whole words only</label>
+      </div>
       <div class="field" style="margin-bottom:8px"><input type="text" id="d-search" placeholder="Search the transcript" aria-label="Search the transcript"></div>
       <div class="tx" id="d-tx"></div>
     </div>
@@ -203,8 +248,15 @@ audio{width:100%;margin:6px 0 10px}
         <input type="password" id="s-key" autocomplete="off" placeholder="sk-ant-..." spellcheck="false">
         <small>Powers the assistant. Stored only in this browser and sent only to api.anthropic.com.</small></div>
       <div class="field"><label for="s-model">Model</label><input type="text" id="s-model" spellcheck="false"></div>
+      <div class="field"><label for="s-aai">AssemblyAI API key (optional)</label>
+        <input type="password" id="s-aai" autocomplete="off" placeholder="Paste your AssemblyAI key" spellcheck="false">
+        <small>Used by Improve with AssemblyAI on a saved recording. That button uploads the recording's audio to AssemblyAI and is billed to your AssemblyAI account. Stored only in this browser.</small>
+        <div class="btns" style="margin-top:6px"><button class="btn" id="s-aai-test" type="button">Check key</button></div></div>
       <div class="field"><label for="s-lang">Transcript language</label><select id="s-lang"></select>
         <small>Live transcription uses your browser's speech recognition. In Chrome that audio is processed by Google's servers.</small></div>
+      <div class="field"><label for="s-terms">Names and terms for every recording</label>
+        <textarea id="s-terms" rows="3" placeholder="Your name, your school, course codes, recurring terms" spellcheck="false"></textarea>
+        <small>Sent to the assistant with every question so it spells these correctly. You can also add terms to a single recording.</small></div>
       <div class="field" style="margin-bottom:0"><label for="s-kbps">Audio quality</label><select id="s-kbps"></select><small id="s-kbps-note"></small></div>
     </div>
     <div class="card">
@@ -241,7 +293,7 @@ let toastT;
 function toast(m){const t=$('#toast');t.textContent=m;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>{t.hidden=true},4500)}
 
 /* ---------- settings ---------- */
-const DEF={apiKey:'',model:'claude-sonnet-5-5',lang:'',kbps:32};
+const DEF={apiKey:'',model:'claude-sonnet-5-5',lang:'',kbps:32,terms:'',aaiKey:''};
 const settings=Object.assign({},DEF);
 try{Object.assign(settings,JSON.parse(localStorage.getItem('longtake.settings')||'{}'))}catch(e){}
 function saveSettings(){try{localStorage.setItem('longtake.settings',JSON.stringify(settings))}catch(e){}}
@@ -521,7 +573,7 @@ async function renderLibrary(){
 $('#lib-list').addEventListener('click',e=>{const r=e.target.closest('.row');if(r)openDetail(r.dataset.id)});
 
 /* ---------- detail ---------- */
-const D={sid:null,session:null,segs:[],url:null,blob:null,chat:[],digest:null,digestLen:0,abort:null,busy:false,delArm:false,delT:0};
+const D={sid:null,session:null,segs:[],url:null,blob:null,chat:[],digest:null,digestLen:0,abort:null,busy:false,delArm:false,delT:0,edit:false};
 const audio=$('#d-audio');
 async function openDetail(sid){
   show('detail');
@@ -530,14 +582,18 @@ async function openDetail(sid){
   const [txr,notes,ch]=await Promise.all([idb.get('tx',sid),idb.get('notes',sid),idb.chunks(sid)]);
   Object.assign(D,{sid,session:s,segs:(txr&&txr.segments)||[],chat:(notes&&notes.messages)||[],digest:(notes&&notes.digest)||null,digestLen:(notes&&notes.digestLen)||0,busy:false});
   $('#d-title').value=s.title;
-  $('#d-meta').textContent=fmtDate(s.startedAt)+' · '+fmtDur(s.durationMs)+' · '+fmtBytes(s.bytes)+' · '+(s.words||0)+' words'+(s.status==='recovered'?' · recovered after an interruption':'');
+  $('#d-meta').textContent=metaText();
   if(D.url)URL.revokeObjectURL(D.url);
   D.blob=new Blob(ch.map(c=>c.blob),{type:String(s.mime||'audio/webm').split(';')[0]});
   D.url=URL.createObjectURL(D.blob);audio.src=D.url;
   $('#d-search').value='';$('#chat-err').hidden=true;$('#d-ctx').textContent='';
+  D.edit=false;$('#d-find').value='';$('#d-repl').value='';
+  D.prev=(txr&&txr.prev)||null;J.arm=false;$('#d-prog').hidden=true;$('#d-improve-err').hidden=true;updateImproveUI();
+  $('#d-terms').value=s.terms||'';$('#d-terms-box').open=!!s.terms;
   renderTx();renderChat();setBusy(false);
 }
 function leaveDetail(){
+  if(J.ctl)try{J.ctl.abort()}catch(e){}
   if(D.abort)try{D.abort.abort()}catch(e){}
   try{audio.pause()}catch(e){}
   if(D.url){audio.removeAttribute('src');audio.load();URL.revokeObjectURL(D.url);D.url=null}
@@ -555,10 +611,16 @@ $('#d-title').addEventListener('change',async e=>{
 });
 function renderTx(){
   const box=$('#d-tx'),q=$('#d-search').value.trim().toLowerCase();
+  $('#d-edit').textContent=D.edit?'Done':'Edit';$('#d-editbar').hidden=!D.edit;
   if(!D.segs.length){box.innerHTML='<p class="empty">No transcript was captured for this recording. Live transcription depends on the browser; see the pill on the Record tab.</p>';return}
-  const segs=D.segs.filter(s=>!q||(!s.mark&&s.text.toLowerCase().includes(q)));
+  const segs=D.segs.map((s,i)=>({s,i})).filter(({s})=>!q||(!s.mark&&s.text.toLowerCase().includes(q)));
   if(!segs.length){box.innerHTML='<p class="empty">No matches.</p>';return}
-  box.innerHTML=segs.map(s=>`<div class="seg${s.mark?' mark':''}"><button class="ts" data-t="${Math.round(s.t)}">${fmtDur(s.t)}</button><span class="t">${s.mark?'Marked moment':esc(s.text)}</span></div>`).join('');
+  box.innerHTML=segs.map(({s,i})=>{
+    const ts=`<button class="ts" data-t="${Math.round(s.t)}">${fmtDur(s.t)}</button>`;
+    if(s.mark)return `<div class="seg mark">${ts}<span class="t">Marked moment</span></div>`;
+    if(D.edit)return `<div class="seg">${ts}<textarea class="seg-edit" data-i="${i}" rows="${Math.max(2,Math.ceil(s.text.length/34))}" aria-label="Transcript text at ${fmtDur(s.t)}">${esc(s.text)}</textarea></div>`;
+    return `<div class="seg">${ts}<span class="t">${esc(s.text)}</span></div>`;
+  }).join('');
 }
 $('#d-search').addEventListener('input',renderTx);
 document.addEventListener('click',e=>{
@@ -590,7 +652,7 @@ $('#d-del').onclick=async()=>{
 };
 
 /* ---------- assistant ---------- */
-const SYS='You are the assistant inside a voice-recorder app. The user recorded audio and the app produced the transcript with browser speech recognition, so it can contain misheard words, missing punctuation and gaps. Answer using only the transcript. When you point to a moment, cite its timestamp in the form [hh:mm:ss]. If the transcript does not contain the answer, say so. Keep answers compact and well organised.';
+const SYS='You are the assistant inside a voice-recorder app. The user recorded audio and the app produced the transcript with automatic speech recognition, so it can contain misheard words, missing punctuation and gaps. Answer using only the transcript. When you point to a moment, cite its timestamp in the form [hh:mm:ss]. If the transcript does not contain the answer, say so. Keep answers compact and well organised.';
 const CONDENSE='You condense one part of a long speech-recognition transcript into detailed notes. Keep names, numbers, decisions, definitions and tasks. Keep the [hh:mm:ss] timestamp on every point. Output the notes only.';
 const LIMIT=300000;
 
@@ -635,7 +697,7 @@ async function contextText(onProgress,signal){
   const out=[];
   for(let i=0;i<parts.length;i++){
     onProgress(i+1,parts.length);
-    out.push(await callClaude({system:CONDENSE,messages:[{role:'user',content:parts[i]}],max:2500,signal}));
+    out.push(await callClaude({system:sysPrompt(CONDENSE),messages:[{role:'user',content:parts[i]}],max:2500,signal}));
   }
   D.digest=out.join('\n\n');D.digestLen=full.length;
   return {text:D.digest,condensed:true};
@@ -678,7 +740,7 @@ async function ask(q){
     reply.content='';
     $('#d-ctx').textContent=ctx.condensed?'Long recording: working from condensed notes':'';
     const msgs=D.chat.slice(0,-1).map((m,i)=>({role:m.role,content:i===0?`<transcript${ctx.condensed?' condensed="true"':''}>\n${ctx.text}\n</transcript>\n\n${m.content}`:m.content}));
-    await callClaude({system:SYS,messages:msgs,max:2000,signal,onText:t=>{reply.content=t;renderChat(true)}});
+    await callClaude({system:sysPrompt(SYS),messages:msgs,max:2000,signal,onText:t=>{reply.content=t;renderChat(true)}});
   }catch(e){
     if(e.name==='AbortError'){if(!reply.content){D.chat.splice(-2,2)}}
     else{D.chat.splice(-2,2);showErr(friendlyErr(e));$('#chat-input').value=q}
@@ -694,7 +756,7 @@ const LANGS=[['','Device language'],['en-US','English (US)'],['en-GB','English (
 const QUALITY=[24,32,64];
 const eightHr=k=>fmtBytes(k*125*28800);
 function renderSettings(){
-  $('#s-key').value=settings.apiKey;$('#s-model').value=settings.model;
+  $('#s-key').value=settings.apiKey;$('#s-model').value=settings.model;$('#s-terms').value=settings.terms||'';$('#s-aai').value=settings.aaiKey||'';
   $('#s-lang').innerHTML=LANGS.map(([v,n])=>`<option value="${v}"${v===settings.lang?' selected':''}>${n}</option>`).join('');
   $('#s-kbps').innerHTML=QUALITY.map(k=>`<option value="${k}"${k===settings.kbps?' selected':''}>${k} kbps · about ${eightHr(k)} per 8 hours</option>`).join('');
   $('#s-kbps-note').textContent='Speech stays clear at 32 kbps. Applies to the next recording.';
@@ -720,6 +782,190 @@ $('#s-clear').onclick=async()=>{
   clearTimeout(clearT);clearArm=false;b.textContent='Delete all recordings';
   try{await idb.clear();toast('All recordings deleted.')}catch(e){toast('Could not delete the recordings.')}
   renderSettings();
+};
+
+/* ---------- transcript editing ---------- */
+function metaText(){
+  const s=D.session;
+  return fmtDate(s.startedAt)+' · '+fmtDur(s.durationMs)+' · '+fmtBytes(s.bytes)+' · '+(s.words||0)+' words'+(s.status==='recovered'?' · recovered after an interruption':'');
+}
+const liveGuard=()=>{if(R.active&&R.sid===D.sid){toast('Stop the recording before editing it.');return true}return false};
+async function saveEdits(){
+  D.digest=null;D.digestLen=0; /* long recordings get condensed again from the corrected text */
+  D.session.words=countWords(D.segs);
+  try{await idb.put('tx',{sid:D.sid,segments:D.segs,prev:D.prev||null});await idb.put('sessions',D.session);await persistNotes()}catch(e){storageFail(e)}
+  $('#d-meta').textContent=metaText();
+}
+$('#d-edit').onclick=()=>{if(!D.edit&&liveGuard())return;D.edit=!D.edit;renderTx()};
+$('#d-tx').addEventListener('change',async e=>{
+  const ta=e.target.closest('textarea.seg-edit');if(!ta)return;
+  const i=+ta.dataset.i,seg=D.segs[i];if(!seg||liveGuard())return;
+  const v=ta.value.replace(/\s+/g,' ').trim();
+  if(v===seg.text)return;
+  if(!v){D.segs.splice(i,1);await saveEdits();renderTx();return}
+  seg.text=v;ta.value=v;await saveEdits();
+});
+$('#d-replace').onclick=async()=>{
+  if(liveGuard())return;
+  const f=$('#d-find').value.trim(),r=$('#d-repl').value.trim();
+  if(!f){toast('Type the misheard word first.');return}
+  const e=f.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+  let re;
+  try{re=new RegExp($('#d-whole').checked?'(?<![\\p{L}\\p{N}])'+e+'(?![\\p{L}\\p{N}])':e,'giu')}catch(err){re=new RegExp(e,'gi')}
+  let n=0;
+  D.segs.forEach(s=>{if(!s.mark)s.text=s.text.replace(re,()=>{n++;return r})});
+  if(!n){toast('No matches for "'+f+'".');return}
+  await saveEdits();renderTx();toast('Replaced '+n+(n===1?' match.':' matches.'));
+};
+
+/* ---------- names and terms ---------- */
+function termsList(){return [settings.terms,D.session&&D.session.terms].map(t=>(t||'').trim()).filter(Boolean).join('\n')}
+function sysPrompt(base){
+  const t=termsList();
+  return t?base+'\n\nThe user supplied these names, terms and spellings. The transcript may have them wrong. Use these spellings in your answers, and treat close misspellings in the transcript as these terms:\n'+t:base;
+}
+$('#d-terms').addEventListener('change',async e=>{
+  if(!D.session)return;
+  D.session.terms=e.target.value.trim().slice(0,2000);
+  try{await idb.put('sessions',D.session);toast('Saved for this recording.')}catch(err){storageFail(err)}
+});
+$('#s-terms').addEventListener('change',e=>{settings.terms=e.target.value.trim().slice(0,2000);saveSettings();toast('Saved. The assistant will use these for every recording.')});
+
+/* ---------- cloud transcription (AssemblyAI) ---------- */
+const AAI='https://api.assemblyai.com/v2';
+const J={arm:false,armT:0,running:false,ctl:null};
+const waitMs=(ms,signal)=>new Promise((res,rej)=>{
+  const t=setTimeout(res,ms);
+  signal.addEventListener('abort',()=>{clearTimeout(t);const e=new Error('ABORT');e.name='AbortError';rej(e)},{once:true});
+});
+function termsPhrases(){ /* AssemblyAI keyterms: short phrases, at most 6 words each */
+  const out=[],seen=new Set();
+  for(const raw of termsList().split(/[\n,;]+/)){
+    const p=raw.trim().split(/\s+/).slice(0,6).join(' '),k=p.toLowerCase();
+    if(p&&!seen.has(k)){seen.add(k);out.push(p)}
+  }
+  return out.slice(0,200);
+}
+async function aaiFetch(path,opt){
+  const {method='GET',body,signal}=opt||{};
+  let r;
+  try{r=await fetch(AAI+path,{method,signal,headers:Object.assign({authorization:settings.aaiKey},body?{'content-type':'application/json'}:{}),body:body?JSON.stringify(body):undefined})}
+  catch(e){if(e.name==='AbortError')throw e;const n=new Error('NETWORK');n.network=true;throw n}
+  let j=null;try{j=await r.json()}catch(e){}
+  if(!r.ok){const err=new Error((j&&j.error)||('AssemblyAI returned status '+r.status));err.status=r.status;throw err}
+  return j;
+}
+function aaiUpload(blob,onProgress,ctl){
+  return new Promise((res,rej)=>{
+    const x=new XMLHttpRequest();
+    x.open('POST',AAI+'/upload');
+    x.setRequestHeader('authorization',settings.aaiKey);
+    x.setRequestHeader('content-type','application/octet-stream');
+    x.upload.onprogress=e=>{if(e.lengthComputable)onProgress(e.loaded/e.total)};
+    x.onload=()=>{
+      let j=null;try{j=JSON.parse(x.responseText)}catch(e){}
+      if(x.status>=200&&x.status<300&&j&&j.upload_url)res(j.upload_url);
+      else{const err=new Error((j&&j.error)||('AssemblyAI returned status '+x.status));err.status=x.status;rej(err)}
+    };
+    x.onerror=()=>{const e=new Error('NETWORK');e.network=true;rej(e)};
+    x.onabort=()=>{const e=new Error('ABORT');e.name='AbortError';rej(e)};
+    ctl.signal.addEventListener('abort',()=>x.abort(),{once:true});
+    x.send(blob);
+  });
+}
+function aaiErr(e){
+  if(e.network)return 'Could not reach AssemblyAI. Check your connection and try again. If your connection is fine, AssemblyAI may not allow requests directly from a web page.';
+  if(e.status===401||e.status===403)return 'AssemblyAI rejected the key. Check it in Settings.';
+  return e.message||'Something went wrong.';
+}
+function prog(label,frac){
+  const has=typeof frac==='number',bar=$('#d-bar');
+  $('#d-prog').hidden=false;$('#d-prog-text').textContent=label+(has?' · '+Math.round(frac*100)+'%':'');
+  bar.parentElement.classList.toggle('ind',!has);bar.style.width=has?Math.round(frac*100)+'%':'';
+}
+function updateImproveUI(){
+  const s=D.session;if(!s)return;
+  const pending=!!(s.aai&&!s.aai.done),b=$('#d-improve');
+  b.textContent=J.running?'Cancel':J.arm?'Tap again to upload '+fmtBytes(D.blob?D.blob.size:0):pending?'Check AssemblyAI result':s.improvedAt?'Improve again with AssemblyAI':'Improve with AssemblyAI';
+  b.classList.toggle('primary',!J.running);
+  $('#d-restore').hidden=!D.prev;
+  $('#d-speakers').disabled=J.running||pending;
+  $('#d-improve-note').textContent='Sends this recording\'s audio to AssemblyAI for a more accurate transcript, using your names and terms as hints.'
+    +(D.prev?' Your earlier version is kept. Switch version swaps between them.':'')+(settings.aaiKey?'':' Add your AssemblyAI key in Settings first.');
+}
+async function improve(){
+  const eb=$('#d-improve-err'),err=m=>{eb.textContent=m||'';eb.hidden=!m};
+  err('');
+  if(liveGuard())return;
+  if(!settings.aaiKey){err('Add your AssemblyAI key in Settings first.');return}
+  const sess=D.session,sid=D.sid,pending=!!(sess.aai&&!sess.aai.done);
+  if(!pending){
+    if(!D.blob||!D.blob.size){err('This recording has no saved audio to send.');return}
+    if(!J.arm){J.arm=true;updateImproveUI();J.armT=setTimeout(()=>{J.arm=false;updateImproveUI()},4000);return}
+  }
+  clearTimeout(J.armT);J.arm=false;J.running=true;J.ctl=new AbortController();
+  const ctl=J.ctl,signal=ctl.signal;updateImproveUI();
+  try{
+    let id=pending?sess.aai.id:null;
+    if(!id){
+      prog('Uploading audio',0);
+      const url=await aaiUpload(D.blob,p=>prog('Uploading audio',p),ctl);
+      prog('Starting transcription');
+      const body={audio_url:url,speech_models:['universal-3-5-pro','universal-2'],language_detection:true};
+      if($('#d-speakers').checked)body.speaker_labels=true;
+      const kt=termsPhrases();if(kt.length)body.keyterms_prompt=kt;
+      const j=await aaiFetch('/transcript',{method:'POST',body,signal});
+      id=j.id;sess.aai={id,at:Date.now(),done:false};
+      await idb.put('sessions',sess);
+    }
+    const t0=Date.now();let last=null;
+    for(;;){
+      last=await aaiFetch('/transcript/'+id,{signal});
+      if(last.status==='completed')break;
+      if(last.status==='error')throw Object.assign(new Error(last.error||'AssemblyAI could not transcribe this audio.'),{fatal:true});
+      prog('Transcribing · '+fmtDur(Date.now()-t0));
+      await waitMs(4000,signal);
+    }
+    prog('Fetching the transcript');
+    const sj=await aaiFetch('/transcript/'+id+'/sentences',{signal});
+    let prevSp=null;const fresh=[];
+    for(const x of (sj.sentences||[])){
+      let text=(x.text||'').trim();if(!text)continue;
+      if(x.speaker&&x.speaker!==prevSp)text='Speaker '+x.speaker+': '+text;
+      prevSp=x.speaker||null;fresh.push({t:x.start,text});
+    }
+    if(!fresh.length&&last.text)fresh.push({t:0,text:last.text.trim()});
+    if(!fresh.length)throw Object.assign(new Error('AssemblyAI found no speech in this recording.'),{fatal:true});
+    if(D.sid!==sid)return;
+    const marks=D.segs.filter(s=>s.mark);
+    D.prev=D.segs;D.segs=fresh.concat(marks).sort((a,b)=>a.t-b.t);
+    sess.aai.done=true;sess.improvedAt=Date.now();
+    await saveEdits();renderTx();
+    toast('Transcript improved. Your earlier version is kept.');
+  }catch(e){
+    if(e.name==='AbortError'){
+      toast(sess.aai&&!sess.aai.done?'Stopped checking. The job keeps running at AssemblyAI. Tap Check AssemblyAI result later.':'Cancelled.');
+    }else{
+      if(e.fatal||e.status===404){sess.aai=null;try{await idb.put('sessions',sess)}catch(x){}}
+      err(aaiErr(e));
+    }
+  }finally{J.running=false;J.ctl=null;$('#d-prog').hidden=true;updateImproveUI()}
+}
+$('#d-improve').onclick=()=>{if(J.running){if(J.ctl)J.ctl.abort();return}improve()};
+$('#d-restore').onclick=async()=>{
+  if(!D.prev||liveGuard())return;
+  const other=D.segs;D.segs=D.prev;D.prev=other;
+  await saveEdits();renderTx();updateImproveUI();toast('Switched to the other version.');
+};
+$('#s-aai').addEventListener('change',e=>{settings.aaiKey=e.target.value.trim();saveSettings();toast('AssemblyAI key saved on this device.')});
+$('#s-aai-test').onclick=async()=>{
+  const k=$('#s-aai').value.trim();
+  if(!k){toast('Paste your AssemblyAI key first.');return}
+  settings.aaiKey=k;saveSettings();
+  try{
+    const r=await fetch(AAI+'/transcript?limit=1',{headers:{authorization:k}});
+    toast(r.ok?'AssemblyAI accepted the key.':(r.status===401||r.status===403)?'AssemblyAI was reached, but it rejected the key.':'AssemblyAI answered with status '+r.status+'.');
+  }catch(e){toast('Could not reach AssemblyAI from this page. Check your connection. AssemblyAI may not allow requests from web pages.')}
 };
 
 /* ---------- start ---------- */
