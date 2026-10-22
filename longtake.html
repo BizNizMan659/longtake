@@ -1,0 +1,731 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>Longtake</title>
+<style>
+/* Layout: one column, three tabs (Record, Library, Settings); a recording opens as a detail page under Library. */
+:root{
+  --bg:#edf1f0; --surface:#fafcfb; --ink:#13201e; --muted:#586a67; --line:#d2dcda;
+  --accent:#0d7a6e; --accent-ink:#ffffff; --accent-soft:#d8ece8;
+  --rec:#d93a25; --warn:#9a5b00;
+  --font-ui:"Avenir Next","Segoe UI",system-ui,-apple-system,sans-serif;
+  --font-num:ui-monospace,"SF Mono","Cascadia Mono",Menlo,Consolas,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --bg:#0c1413; --surface:#131f1e; --ink:#e4eeec; --muted:#8aa09c; --line:#243634;
+    --accent:#3dc2b0; --accent-ink:#06201c; --accent-soft:#17312e;
+    --rec:#ff6a55; --warn:#e0a24a;
+    color-scheme:dark;
+  }
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0; background:var(--bg); color:var(--ink); font:16px/1.5 var(--font-ui);
+  padding-block:max(16px,env(safe-area-inset-top,0px)) calc(88px + env(safe-area-inset-bottom,0px));
+  padding-left:max(16px,env(safe-area-inset-left,0px));
+  padding-right:max(16px,env(safe-area-inset-right,0px));
+}
+main{max-width:720px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+h1{font-size:1.35rem;margin:0;letter-spacing:-.01em}
+h2{font-size:.78rem;margin:0;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);font-weight:600}
+h4{margin:.9em 0 .3em;font-size:1rem}
+p{margin:.4em 0}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.top{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+.meta{color:var(--muted);font-size:.85rem}
+.num{font-family:var(--font-num);font-variant-numeric:tabular-nums}
+.empty{color:var(--muted);margin:8px 0}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px}
+.card-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}
+.pills{display:flex;flex-wrap:wrap;gap:6px}
+.pill{font-size:.78rem;padding:3px 10px;border:1px solid var(--line);border-radius:999px;color:var(--muted);background:var(--surface)}
+.pill.ok{color:var(--accent);border-color:var(--accent)}
+.pill.bad{color:var(--warn);border-color:var(--warn)}
+
+/* Recorder */
+.rec-card{display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center}
+.timer{font-family:var(--font-num);font-variant-numeric:tabular-nums;font-size:clamp(44px,14vw,76px);letter-spacing:-.03em;line-height:1.05}
+.state{font-size:.9rem;color:var(--muted);min-height:1.4em}
+.state.live{color:var(--rec)}
+#meter{width:100%;height:56px;color:var(--accent);display:block}
+.controls{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:12px;width:100%;margin-top:6px}
+.controls .l{justify-self:start}.controls .r{justify-self:end}
+.side{min-width:84px;height:46px;padding:0 16px;border-radius:23px;border:1px solid var(--line);background:var(--surface)}
+.side:disabled{opacity:.4;cursor:default}
+.main{width:88px;height:88px;border-radius:50%;border:3px solid var(--rec);background:transparent;display:grid;place-items:center;padding:0}
+.main .dot{width:62px;height:62px;border-radius:50%;background:var(--rec);transition:width .18s,height .18s,border-radius .18s}
+.main.on .dot{width:30px;height:30px;border-radius:8px}
+.main.on.run{animation:pulse 2.2s ease-out infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--rec) 45%,transparent)}100%{box-shadow:0 0 0 16px transparent}}
+@media (prefers-reduced-motion:reduce){.main.on.run{animation:none}.main .dot{transition:none}}
+.cap{font-size:.85rem;color:var(--muted);min-height:1.3em}
+.cap.arm{color:var(--ink);font-weight:600}
+.note{font-size:.82rem;color:var(--muted);max-width:46ch;margin:2px 0 0}
+
+/* Transcript */
+.live,.tx{max-height:46vh;overflow:auto;overscroll-behavior:contain}
+.seg{display:grid;grid-template-columns:66px minmax(0,1fr);gap:8px;padding:5px 0;border-top:1px solid var(--line)}
+.seg:first-child{border-top:0}
+.seg .ts{font-family:var(--font-num);font-size:.78rem;color:var(--muted);padding-top:2px;text-align:left}
+.seg .t{overflow-wrap:anywhere}
+.seg.interim .t{color:var(--muted);font-style:italic}
+.seg.mark .t{color:var(--accent);font-weight:600}
+button.ts{background:none;border:0;padding:2px 0 0;cursor:pointer}
+button.ts:hover{color:var(--accent)}
+button.ts.inl{display:inline;font-family:var(--font-num);font-size:.82em;color:var(--accent);padding:0;text-decoration:underline}
+
+/* Lists and rows */
+.list{display:flex;flex-direction:column;gap:8px}
+.row{display:flex;justify-content:space-between;align-items:center;gap:12px;width:100%;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.row-main,.row-side{display:flex;flex-direction:column;min-width:0}
+.row-main strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row-side{align-items:flex-end;flex-shrink:0}
+.tag{font-size:.72rem;color:var(--warn);border:1px solid var(--warn);border-radius:999px;padding:0 8px;margin-top:2px}
+
+/* Buttons and fields */
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:8px 14px}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:600}
+.btn.danger{color:var(--rec);border-color:var(--rec)}
+.btn:disabled{opacity:.5;cursor:default}
+.btns{display:flex;flex-wrap:wrap;gap:8px}
+.field{display:flex;flex-direction:column;gap:4px;margin-bottom:14px}
+.field label{font-size:.85rem;font-weight:600}
+.field small{color:var(--muted)}
+input[type=text],input[type=password],select,textarea{width:100%;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:9px 12px}
+textarea{resize:vertical;min-height:44px}
+.title-input{font-size:1.2rem;font-weight:600;background:transparent;border:1px solid transparent;padding:4px 8px;margin:-4px -8px;width:calc(100% + 16px)}
+.title-input:hover,.title-input:focus{border-color:var(--line);background:var(--surface)}
+audio{width:100%;margin:6px 0 10px}
+.back{align-self:flex-start;background:none;border:0;color:var(--accent);padding:4px 0;font-weight:600}
+
+/* Assistant */
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px}
+.chip{border:1px solid var(--accent);color:var(--accent);background:transparent;border-radius:999px;padding:5px 12px;font-size:.88rem}
+.chip:disabled{opacity:.45;cursor:default}
+#chat{display:flex;flex-direction:column;gap:10px;margin-bottom:10px}
+.msg{padding:10px 12px;border-radius:12px;overflow-wrap:anywhere}
+.msg.user{align-self:flex-end;max-width:88%;background:var(--accent-soft)}
+.msg.bot{background:var(--bg);border:1px solid var(--line)}
+.msg ul{margin:.3em 0;padding-left:1.2em}
+.chat-form{display:flex;gap:8px;align-items:flex-end}
+.chat-form textarea{flex:1;min-width:0}
+.err{color:var(--warn);font-size:.9rem;margin:6px 0}
+
+/* Tabs and toast */
+.tabs{position:fixed;left:0;right:0;bottom:0;display:grid;grid-template-columns:repeat(3,1fr);background:var(--surface);border-top:1px solid var(--line);padding:6px max(8px,env(safe-area-inset-right,0px)) calc(6px + env(safe-area-inset-bottom,0px)) max(8px,env(safe-area-inset-left,0px));z-index:5}
+.tab{background:none;border:0;padding:10px 4px;color:var(--muted);font-weight:600;border-radius:10px}
+.tab.on{color:var(--accent)}
+#toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(86px + env(safe-area-inset-bottom,0px));max-width:min(92vw,520px);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:12px;font-size:.9rem;z-index:9;text-align:center}
+</style>
+</head>
+<body>
+<main>
+  <!-- RECORD -->
+  <section id="view-record" class="view" style="display:flex;flex-direction:column;gap:16px">
+    <div class="top"><h1>Longtake</h1><div class="pills"><span class="pill" id="pill-awake">Screen awake: off</span><span class="pill" id="pill-size">&nbsp;</span></div></div>
+    <div class="card rec-card">
+      <div class="timer" id="timer" role="timer">00:00:00</div>
+      <div class="state" id="state">Ready</div>
+      <canvas id="meter" width="600" height="56" aria-hidden="true"></canvas>
+      <div class="controls">
+        <button class="side l" id="btn-pause" disabled>Pause</button>
+        <button class="main" id="btn-main" aria-label="Start recording"><span class="dot"></span></button>
+        <button class="side r" id="btn-mark" disabled>Mark</button>
+      </div>
+      <div class="cap" id="cap">Record</div>
+      <p class="note">Audio is saved to this device every 10 seconds, so a crash or dead battery loses only the last few seconds. Keep this page open with the screen on.</p>
+    </div>
+    <div class="card">
+      <div class="card-head"><h2>Live transcript</h2><span class="pill" id="pill-tx">Transcript: idle</span></div>
+      <div class="live" id="live"></div>
+    </div>
+  </section>
+
+  <!-- LIBRARY -->
+  <section id="view-library" class="view" hidden style="flex-direction:column;gap:16px">
+    <div class="top"><h1>Library</h1></div>
+    <div class="list" id="lib-list"></div>
+  </section>
+
+  <!-- DETAIL -->
+  <section id="view-detail" class="view" hidden style="flex-direction:column;gap:16px">
+    <button class="back" id="d-back">&larr; Library</button>
+    <div>
+      <input type="text" class="title-input" id="d-title" aria-label="Recording title">
+      <div class="meta" id="d-meta"></div>
+    </div>
+    <div class="card">
+      <audio id="d-audio" controls preload="metadata"></audio>
+      <div class="btns">
+        <button class="btn" id="d-dl-audio">Download audio</button>
+        <button class="btn" id="d-dl-tx">Download transcript</button>
+        <button class="btn" id="d-copy">Copy transcript</button>
+        <button class="btn danger" id="d-del">Delete</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head"><h2>Assistant</h2><span class="meta" id="d-ctx"></span></div>
+      <div class="chips" id="quick">
+        <button class="chip" data-q="Summarize this recording: a short overview first, then the main points, decisions and follow-up tasks.">Summary</button>
+        <button class="chip" data-q="List every action item and commitment, with who owns it if the transcript says, and the timestamp.">Action items</button>
+        <button class="chip" data-q="Turn this into clear study notes: key concepts, definitions, examples and anything the speaker stressed. Add timestamps.">Study notes</button>
+        <button class="chip" data-q="Write a chapter-style outline of the recording with a timestamp and one line per chapter.">Outline</button>
+      </div>
+      <div id="chat" aria-live="polite"></div>
+      <div class="err" id="chat-err" hidden></div>
+      <form class="chat-form" id="chat-form">
+        <textarea id="chat-input" rows="1" placeholder="Ask about this recording" aria-label="Ask about this recording"></textarea>
+        <button class="btn primary" id="chat-send" type="submit">Ask</button>
+      </form>
+    </div>
+    <div class="card">
+      <div class="card-head"><h2>Transcript</h2></div>
+      <div class="field" style="margin-bottom:8px"><input type="text" id="d-search" placeholder="Search the transcript" aria-label="Search the transcript"></div>
+      <div class="tx" id="d-tx"></div>
+    </div>
+  </section>
+
+  <!-- SETTINGS -->
+  <section id="view-settings" class="view" hidden style="flex-direction:column;gap:16px">
+    <div class="top"><h1>Settings</h1></div>
+    <div class="card">
+      <div class="field"><label for="s-key">Anthropic API key</label>
+        <input type="password" id="s-key" autocomplete="off" placeholder="sk-ant-..." spellcheck="false">
+        <small>Powers the assistant. Stored only in this browser and sent only to api.anthropic.com.</small></div>
+      <div class="field"><label for="s-model">Model</label><input type="text" id="s-model" spellcheck="false"></div>
+      <div class="field"><label for="s-lang">Transcript language</label><select id="s-lang"></select>
+        <small>Live transcription uses your browser's speech recognition. In Chrome that audio is processed by Google's servers.</small></div>
+      <div class="field" style="margin-bottom:0"><label for="s-kbps">Audio quality</label><select id="s-kbps"></select><small id="s-kbps-note"></small></div>
+    </div>
+    <div class="card">
+      <div class="field"><label>Device storage</label><div id="s-store" class="meta">Checking…</div></div>
+      <div class="btns">
+        <button class="btn" id="s-persist">Ask the browser to keep my recordings</button>
+        <button class="btn danger" id="s-clear">Delete all recordings</button>
+      </div>
+    </div>
+  </section>
+</main>
+
+<nav class="tabs" aria-label="Sections">
+  <button class="tab on" data-view="record">Record</button>
+  <button class="tab" data-view="library">Library</button>
+  <button class="tab" data-view="settings">Settings</button>
+</nav>
+<div id="toast" role="status" hidden></div>
+
+<script>
+(function(){
+'use strict';
+
+/* ---------- helpers ---------- */
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const pad=n=>String(n).padStart(2,'0');
+const fmtDur=ms=>{const s=Math.max(0,Math.floor(ms/1000));return pad(Math.floor(s/3600))+':'+pad(Math.floor(s%3600/60))+':'+pad(s%60)};
+const fmtBytes=b=>b>=1e9?(b/1e9).toFixed(2)+' GB':b>=1e6?(b/1e6).toFixed(1)+' MB':Math.max(0,Math.round(b/1e3))+' KB';
+const fmtDate=t=>new Date(t).toLocaleString([],{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const countWords=segs=>segs.filter(s=>!s.mark).reduce((n,s)=>n+s.text.split(/\s+/).filter(Boolean).length,0);
+let toastT;
+function toast(m){const t=$('#toast');t.textContent=m;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>{t.hidden=true},4500)}
+
+/* ---------- settings ---------- */
+const DEF={apiKey:'',model:'claude-sonnet-5-5',lang:'',kbps:32};
+const settings=Object.assign({},DEF);
+try{Object.assign(settings,JSON.parse(localStorage.getItem('longtake.settings')||'{}'))}catch(e){}
+function saveSettings(){try{localStorage.setItem('longtake.settings',JSON.stringify(settings))}catch(e){}}
+
+/* ---------- storage (IndexedDB) ---------- */
+let dbp;
+function openDb(){
+  return dbp||(dbp=new Promise((res,rej)=>{
+    const r=indexedDB.open('longtake',1);
+    r.onupgradeneeded=()=>{const d=r.result;
+      d.createObjectStore('sessions',{keyPath:'id'});
+      d.createObjectStore('chunks',{keyPath:['sid','idx']});
+      d.createObjectStore('tx',{keyPath:'sid'});
+      d.createObjectStore('notes',{keyPath:'sid'});};
+    r.onsuccess=()=>res(r.result);
+    r.onerror=()=>rej(r.error);
+  }));
+}
+function run(stores,mode,fn){
+  return openDb().then(d=>new Promise((res,rej)=>{
+    const t=d.transaction(stores,mode);
+    const out=fn(t);
+    t.oncomplete=()=>res(out instanceof IDBRequest?out.result:out);
+    t.onerror=()=>rej(t.error);
+    t.onabort=()=>rej(t.error||new Error('Transaction aborted'));
+  }));
+}
+const range=sid=>IDBKeyRange.bound([sid,0],[sid,Infinity]);
+const idb={
+  put:(s,v)=>run([s],'readwrite',t=>{t.objectStore(s).put(v)}),
+  get:(s,k)=>run([s],'readonly',t=>t.objectStore(s).get(k)),
+  all:s=>run([s],'readonly',t=>t.objectStore(s).getAll()),
+  del:(s,k)=>run([s],'readwrite',t=>{t.objectStore(s).delete(k)}),
+  chunks:sid=>run(['chunks'],'readonly',t=>t.objectStore('chunks').getAll(range(sid))),
+  delChunks:sid=>run(['chunks'],'readwrite',t=>{t.objectStore('chunks').delete(range(sid))}),
+  clear:()=>run(['sessions','chunks','tx','notes'],'readwrite',t=>{['sessions','chunks','tx','notes'].forEach(n=>t.objectStore(n).clear())})
+};
+let warnedStore=false;
+function storageFail(e){
+  if(warnedStore)return;warnedStore=true;
+  toast((e&&e.name==='QuotaExceededError'?'This device is out of storage space.':'A piece of audio could not be saved.')+' Stop and export what you have.');
+}
+
+/* ---------- recorder ---------- */
+const R={active:false,paused:false,stopping:false,accMs:0,segStart:0,rec:null,stream:null,ctx:null,an:null,sid:null,idx:0,bytes:0,inflight:0,
+  segments:[],dirty:false,session:null,levels:[],interim:'',wake:null,recogWanted:false,recog:null,recogTimer:0,raf:0,timer:0,lastDraw:0,stopArm:false,stopArmT:0,txState:'idle',tick:0};
+const elapsed=()=>R.accMs+((R.active&&!R.paused)?performance.now()-R.segStart:0);
+
+function pickMime(){
+  if(!window.MediaRecorder||!MediaRecorder.isTypeSupported)return '';
+  return ['audio/webm;codecs=opus','audio/mp4;codecs=mp4a.40.2','audio/mp4','audio/webm','audio/ogg;codecs=opus'].find(m=>MediaRecorder.isTypeSupported(m))||'';
+}
+const extFor=m=>/mp4/.test(m)?'m4a':/ogg/.test(m)?'ogg':'webm';
+const defaultTitle=()=>'Recording '+new Date().toLocaleString([],{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
+
+async function startRecording(){
+  if(R.active||R.stopping)return;
+  if(!window.MediaRecorder||!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){
+    toast('Recording needs a browser with microphone support, opened over https or localhost.');return;
+  }
+  let stream;
+  try{stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}})}
+  catch(e){toast('The microphone is blocked. Allow it for this page, then try again.');return}
+  const mime=pickMime();
+  let rec;
+  try{rec=new MediaRecorder(stream,Object.assign({audioBitsPerSecond:settings.kbps*1000},mime?{mimeType:mime}:{}))}
+  catch(e){stream.getTracks().forEach(t=>t.stop());toast('This browser could not start the recorder.');return}
+  const sid='s'+Date.now().toString(36);
+  Object.assign(R,{active:true,paused:false,stopping:false,accMs:0,segStart:performance.now(),rec,stream,sid,idx:0,bytes:0,inflight:0,segments:[],dirty:false,interim:'',levels:[],stopArm:false});
+  R.session={id:sid,title:defaultTitle(),startedAt:Date.now(),durationMs:0,bytes:0,mime:rec.mimeType||mime||'audio/webm',chunks:0,words:0,status:'recording'};
+  try{await idb.put('sessions',R.session);await idb.put('tx',{sid,segments:[]})}
+  catch(e){storageFail(e);stream.getTracks().forEach(t=>t.stop());R.active=false;return}
+
+  rec.ondataavailable=e=>{
+    if(!e.data||!e.data.size)return;
+    const i=R.idx++;R.bytes+=e.data.size;const t=elapsed();R.inflight++;
+    idb.put('chunks',{sid,idx:i,blob:e.data,t})
+      .then(()=>{if(R.sid===sid){R.session.durationMs=t;R.session.bytes=R.bytes;R.session.chunks=R.idx;return idb.put('sessions',R.session)}})
+      .catch(storageFail).finally(()=>{R.inflight--});
+  };
+  rec.onerror=()=>stopRecording('The recorder reported an error. What was captured has been saved.');
+  const track=stream.getAudioTracks()[0];
+  if(track)track.onended=()=>stopRecording('The microphone was taken by the system (a call, another app or screen lock). What was captured has been saved.');
+
+  try{const AC=window.AudioContext||window.webkitAudioContext;R.ctx=new AC();
+    const src=R.ctx.createMediaStreamSource(stream);R.an=R.ctx.createAnalyser();R.an.fftSize=512;src.connect(R.an)}
+  catch(e){R.an=null}
+  sizeMeter();
+  rec.start(10000);
+  keepAwake();
+  startRecog();
+  R.timer=setInterval(tick,500);
+  cancelAnimationFrame(R.raf);R.raf=requestAnimationFrame(drawMeter);
+  updateRecUI();renderLive();
+}
+
+async function stopRecording(note){
+  if(!R.active||R.stopping)return;
+  R.stopping=true;
+  const rec=R.rec,sid=R.sid,session=R.session;
+  R.recogWanted=false;clearTimeout(R.recogTimer);try{R.recog&&R.recog.stop()}catch(e){}
+  const dur=elapsed();R.accMs=dur;R.active=false;
+  $('#state').textContent='Saving…';
+  if(rec.state!=='inactive'){
+    const done=new Promise(r=>rec.addEventListener('stop',r,{once:true}));
+    try{rec.stop()}catch(e){}
+    await Promise.race([done,sleep(4000)]);
+  }
+  for(let i=0;i<200&&R.inflight>0;i++)await sleep(50);
+  R.stream.getTracks().forEach(t=>{t.onended=null;t.stop()});
+  try{R.ctx&&R.ctx.close()}catch(e){}
+  cancelAnimationFrame(R.raf);clearInterval(R.timer);
+  try{R.wake&&R.wake.release()}catch(e){}
+  R.dirty=true;await saveTx();
+  Object.assign(session,{durationMs:dur,bytes:R.bytes,chunks:R.idx,words:countWords(R.segments),status:'done'});
+  try{await idb.put('sessions',session)}catch(e){storageFail(e)}
+  R.stopping=false;R.paused=false;R.stopArm=false;R.txState='idle';
+  updateRecUI();
+  toast(typeof note==='string'?note:'Saved to your library.');
+  openDetail(sid);
+}
+
+function togglePause(){
+  if(!R.active)return;
+  if(!R.paused){
+    try{R.rec.pause()}catch(e){return}
+    R.accMs=elapsed();R.paused=true;R.recogWanted=false;clearTimeout(R.recogTimer);try{R.recog&&R.recog.stop()}catch(e){}
+  }else{
+    try{R.rec.resume()}catch(e){return}
+    R.segStart=performance.now();R.paused=false;startRecog();
+  }
+  updateRecUI();
+}
+function markMoment(){
+  if(!R.active)return;
+  R.segments.push({t:elapsed(),mark:true,text:''});R.dirty=true;renderLive();toast('Marked at '+fmtDur(elapsed()));
+}
+async function saveTx(){
+  if(!R.dirty||!R.sid)return;
+  R.dirty=false;
+  try{await idb.put('tx',{sid:R.sid,segments:R.segments})}catch(e){R.dirty=true;storageFail(e)}
+}
+setInterval(saveTx,5000);
+
+function tick(){
+  $('#timer').textContent=fmtDur(elapsed());
+  R.tick++;
+  if(R.tick%4===0)updateChips();
+}
+
+/* wake lock */
+async function keepAwake(){
+  try{if('wakeLock' in navigator){R.wake=await navigator.wakeLock.request('screen');R.wake.addEventListener('release',()=>{R.wake=null;updateChips()})}}catch(e){}
+  updateChips();
+}
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&R.active&&!R.wake)keepAwake()});
+window.addEventListener('beforeunload',e=>{if(R.active){e.preventDefault();e.returnValue=''}});
+
+/* level meter */
+function sizeMeter(){const c=$('#meter'),w=c.clientWidth||600,d=window.devicePixelRatio||1;c.width=Math.round(w*d);c.height=Math.round(56*d)}
+function drawMeter(){
+  R.raf=requestAnimationFrame(drawMeter);
+  const now=performance.now();if(now-R.lastDraw<66||document.hidden)return;R.lastDraw=now;
+  let lvl=0;
+  if(R.an&&!R.paused){const b=new Uint8Array(R.an.fftSize);R.an.getByteTimeDomainData(b);let s=0;for(let i=0;i<b.length;i++){const d=(b[i]-128)/128;s+=d*d}lvl=Math.min(1,Math.sqrt(s/b.length)*3.2)}
+  R.levels.push(lvl);if(R.levels.length>90)R.levels.shift();
+  const c=$('#meter'),g=c.getContext('2d'),W=c.width,H=c.height;
+  g.clearRect(0,0,W,H);g.fillStyle=getComputedStyle(c).color;
+  const bw=W/90;
+  for(let i=0;i<R.levels.length;i++){const h=Math.max(2,R.levels[i]*H);g.fillRect((90-R.levels.length+i)*bw+bw*.2,(H-h)/2,bw*.6,h)}
+}
+
+/* live transcription (browser speech recognition) */
+function setTx(s){R.txState=s;updateChips()}
+function startRecog(){
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){setTx('unsupported');return}
+  R.recogWanted=true;spawnRecog(SR);
+}
+function spawnRecog(SR){
+  if(!R.recogWanted||!R.active||R.paused)return;
+  const r=new SR();r.continuous=true;r.interimResults=true;r.lang=settings.lang||navigator.language||'en-US';
+  r.onresult=e=>{
+    let interim='';
+    for(let i=e.resultIndex;i<e.results.length;i++){
+      const res=e.results[i],txt=res[0].transcript.trim();
+      if(res.isFinal){if(txt){R.segments.push({t:elapsed(),text:txt});R.dirty=true}}else interim+=txt+' ';
+    }
+    R.interim=interim.trim();renderLive();
+  };
+  r.onerror=e=>{
+    if(e.error==='not-allowed'||e.error==='service-not-allowed'){R.recogWanted=false;setTx('blocked')}
+    else if(e.error==='network'){setTx('offline')}
+  };
+  r.onend=()=>{if(R.recogWanted){clearTimeout(R.recogTimer);R.recogTimer=setTimeout(()=>spawnRecog(SR),400)}};
+  try{r.start();R.recog=r;if(R.txState!=='offline')setTx('listening')}catch(e){}
+}
+
+/* record view rendering */
+const segRow=s=>s.mark
+  ?`<div class="seg mark"><span class="ts">${fmtDur(s.t)}</span><span class="t">Marked moment</span></div>`
+  :`<div class="seg"><span class="ts">${fmtDur(s.t)}</span><span class="t">${esc(s.text)}</span></div>`;
+function renderLive(){
+  const box=$('#live'),segs=R.segments.slice(-60);
+  if(!segs.length&&!R.interim){
+    box.innerHTML='<p class="empty">'+(R.active?'Listening. Words appear here as you speak.':'Start recording to see a live transcript here.')+'</p>';return;
+  }
+  const near=box.scrollHeight-box.scrollTop-box.clientHeight<80;
+  box.innerHTML=segs.map(segRow).join('')+(R.interim?`<div class="seg interim"><span class="ts">…</span><span class="t">${esc(R.interim)}</span></div>`:'');
+  if(near)box.scrollTop=box.scrollHeight;
+}
+const TXLABEL={idle:'Transcript: idle',listening:'Transcript: listening',unsupported:'Transcript: not supported here',blocked:'Transcript: blocked',offline:'Transcript: needs internet'};
+function updateChips(){
+  const aw=$('#pill-awake');aw.textContent='Screen awake: '+(R.wake?'on':'off');aw.className='pill'+(R.active?(R.wake?' ok':' bad'):'');
+  const tx=$('#pill-tx');tx.textContent=R.active&&R.paused?'Transcript: paused':TXLABEL[R.txState]||'';
+  tx.className='pill'+(R.txState==='listening'&&R.active&&!R.paused?' ok':(R.txState==='unsupported'||R.txState==='blocked'||R.txState==='offline')&&R.active?' bad':'');
+  if(R.active||R.stopping)$('#pill-size').textContent=fmtBytes(R.bytes)+' saved';
+}
+async function showFree(){
+  try{if(navigator.storage&&navigator.storage.estimate&&!R.active){const e=await navigator.storage.estimate();$('#pill-size').textContent=fmtBytes(Math.max(0,e.quota-e.usage))+' free'}}catch(e){}
+}
+function updateRecUI(){
+  const m=$('#btn-main'),st=$('#state'),cap=$('#cap');
+  m.classList.toggle('on',R.active);m.classList.toggle('run',R.active&&!R.paused);
+  m.setAttribute('aria-label',R.active?'Stop recording':'Start recording');
+  $('#btn-pause').disabled=!R.active;$('#btn-mark').disabled=!R.active;
+  $('#btn-pause').textContent=R.paused?'Resume':'Pause';
+  st.className='state'+(R.active&&!R.paused?' live':'');
+  st.textContent=!R.active?'Ready':R.paused?'Paused':'Recording';
+  cap.className='cap'+(R.stopArm?' arm':'');
+  cap.textContent=!R.active?'Record':R.stopArm?'Tap again to stop and save':'Stop';
+  if(!R.active)$('#timer').textContent=fmtDur(R.accMs&&R.stopping?R.accMs:0);
+  updateChips();renderLive();if(!R.active)showFree();
+}
+$('#btn-main').onclick=()=>{
+  if(!R.active){startRecording();return}
+  if(R.stopArm){clearTimeout(R.stopArmT);R.stopArm=false;stopRecording();return}
+  R.stopArm=true;updateRecUI();R.stopArmT=setTimeout(()=>{R.stopArm=false;updateRecUI()},3500);
+};
+$('#btn-pause').onclick=togglePause;
+$('#btn-mark').onclick=markMoment;
+
+/* recover sessions cut off by a crash */
+async function recover(){
+  try{
+    const all=await idb.all('sessions');
+    for(const s of all){
+      if(s.status!=='recording')continue;
+      const ch=await idb.chunks(s.id),t=await idb.get('tx',s.id);
+      s.chunks=ch.length;s.bytes=ch.reduce((n,c)=>n+c.blob.size,0);s.durationMs=ch.length?ch[ch.length-1].t:0;
+      s.words=countWords((t&&t.segments)||[]);s.status='recovered';
+      await idb.put('sessions',s);
+    }
+  }catch(e){}
+}
+
+/* ---------- navigation ---------- */
+function show(view){
+  if(view!=='detail')leaveDetail();
+  ['record','library','detail','settings'].forEach(v=>{const el=$('#view-'+v);el.hidden=v!==view;if(v===view)el.style.display='flex'});
+  const tab=view==='detail'?'library':view;
+  $$('.tab').forEach(b=>b.classList.toggle('on',b.dataset.view===tab));
+  if(view==='library')renderLibrary();
+  if(view==='settings')renderSettings();
+  if(view==='record')sizeMeter();
+  window.scrollTo(0,0);
+}
+$$('.tab').forEach(b=>b.onclick=()=>show(b.dataset.view));
+
+/* ---------- library ---------- */
+async function renderLibrary(){
+  const list=$('#lib-list');
+  let all=[];try{all=(await idb.all('sessions')).sort((a,b)=>b.startedAt-a.startedAt)}catch(e){}
+  if(!all.length){list.innerHTML='<p class="empty">No recordings yet. Your first one will appear here.</p>';return}
+  list.innerHTML=all.map(s=>`<button class="row" data-id="${esc(s.id)}"><span class="row-main"><strong>${esc(s.title)}</strong><span class="meta">${fmtDate(s.startedAt)}</span></span><span class="row-side"><span class="num">${fmtDur(s.durationMs)}</span><span class="meta">${fmtBytes(s.bytes)} · ${s.words||0} words</span>${s.status==='recovered'?'<span class="tag">Recovered</span>':s.status==='recording'?'<span class="tag">Recording</span>':''}</span></button>`).join('');
+}
+$('#lib-list').addEventListener('click',e=>{const r=e.target.closest('.row');if(r)openDetail(r.dataset.id)});
+
+/* ---------- detail ---------- */
+const D={sid:null,session:null,segs:[],url:null,blob:null,chat:[],digest:null,digestLen:0,abort:null,busy:false,delArm:false,delT:0};
+const audio=$('#d-audio');
+async function openDetail(sid){
+  show('detail');
+  const s=await idb.get('sessions',sid);
+  if(!s){show('library');return}
+  const [txr,notes,ch]=await Promise.all([idb.get('tx',sid),idb.get('notes',sid),idb.chunks(sid)]);
+  Object.assign(D,{sid,session:s,segs:(txr&&txr.segments)||[],chat:(notes&&notes.messages)||[],digest:(notes&&notes.digest)||null,digestLen:(notes&&notes.digestLen)||0,busy:false});
+  $('#d-title').value=s.title;
+  $('#d-meta').textContent=fmtDate(s.startedAt)+' · '+fmtDur(s.durationMs)+' · '+fmtBytes(s.bytes)+' · '+(s.words||0)+' words'+(s.status==='recovered'?' · recovered after an interruption':'');
+  if(D.url)URL.revokeObjectURL(D.url);
+  D.blob=new Blob(ch.map(c=>c.blob),{type:String(s.mime||'audio/webm').split(';')[0]});
+  D.url=URL.createObjectURL(D.blob);audio.src=D.url;
+  $('#d-search').value='';$('#chat-err').hidden=true;$('#d-ctx').textContent='';
+  renderTx();renderChat();setBusy(false);
+}
+function leaveDetail(){
+  if(D.abort)try{D.abort.abort()}catch(e){}
+  try{audio.pause()}catch(e){}
+  if(D.url){audio.removeAttribute('src');audio.load();URL.revokeObjectURL(D.url);D.url=null}
+}
+audio.addEventListener('loadedmetadata',()=>{
+  if(audio.duration===Infinity){ /* recordings have no duration header; force the browser to find it */
+    const fix=()=>{audio.removeEventListener('timeupdate',fix);audio.currentTime=0};
+    audio.addEventListener('timeupdate',fix);audio.currentTime=1e101;
+  }
+});
+$('#d-back').onclick=()=>show('library');
+$('#d-title').addEventListener('change',async e=>{
+  if(!D.session)return;D.session.title=e.target.value.trim()||defaultTitle();e.target.value=D.session.title;
+  try{await idb.put('sessions',D.session)}catch(err){storageFail(err)}
+});
+function renderTx(){
+  const box=$('#d-tx'),q=$('#d-search').value.trim().toLowerCase();
+  if(!D.segs.length){box.innerHTML='<p class="empty">No transcript was captured for this recording. Live transcription depends on the browser; see the pill on the Record tab.</p>';return}
+  const segs=D.segs.filter(s=>!q||(!s.mark&&s.text.toLowerCase().includes(q)));
+  if(!segs.length){box.innerHTML='<p class="empty">No matches.</p>';return}
+  box.innerHTML=segs.map(s=>`<div class="seg${s.mark?' mark':''}"><button class="ts" data-t="${Math.round(s.t)}">${fmtDur(s.t)}</button><span class="t">${s.mark?'Marked moment':esc(s.text)}</span></div>`).join('');
+}
+$('#d-search').addEventListener('input',renderTx);
+document.addEventListener('click',e=>{
+  const b=e.target.closest('button.ts[data-t]');if(!b||!D.url)return;
+  try{audio.currentTime=(+b.dataset.t)/1000;audio.play().catch(()=>{});audio.scrollIntoView({block:'center',behavior:'smooth'})}catch(err){}
+});
+function transcriptText(){
+  return D.segs.map(s=>s.mark?`[${fmtDur(s.t)}] (marked by the user)`:`[${fmtDur(s.t)}] ${s.text}`).join('\n');
+}
+function download(blob,name){
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href),15000);
+}
+const safeName=()=>(D.session.title||'recording').replace(/[^\w\- ]+/g,'').trim().replace(/\s+/g,'-')||'recording';
+$('#d-dl-audio').onclick=()=>D.blob&&download(D.blob,safeName()+'.'+extFor(D.session.mime));
+$('#d-dl-tx').onclick=()=>{if(!D.segs.length){toast('There is no transcript to download.');return}download(new Blob([transcriptText()],{type:'text/plain'}),safeName()+'.txt')};
+$('#d-copy').onclick=async()=>{
+  if(!D.segs.length){toast('There is no transcript to copy.');return}
+  try{await navigator.clipboard.writeText(transcriptText());toast('Transcript copied.')}catch(e){toast('Copy was blocked. Use Download transcript instead.')}
+};
+$('#d-del').onclick=async()=>{
+  const b=$('#d-del');
+  if(!D.delArm){D.delArm=true;b.textContent='Tap again to delete';D.delT=setTimeout(()=>{D.delArm=false;b.textContent='Delete'},3500);return}
+  clearTimeout(D.delT);D.delArm=false;b.textContent='Delete';
+  if(R.active&&R.sid===D.sid){toast('Stop the recording before deleting it.');return}
+  const sid=D.sid;leaveDetail();
+  try{await idb.delChunks(sid);await idb.del('tx',sid);await idb.del('notes',sid);await idb.del('sessions',sid)}catch(e){}
+  toast('Deleted.');show('library');
+};
+
+/* ---------- assistant ---------- */
+const SYS='You are the assistant inside a voice-recorder app. The user recorded audio and the app produced the transcript with browser speech recognition, so it can contain misheard words, missing punctuation and gaps. Answer using only the transcript. When you point to a moment, cite its timestamp in the form [hh:mm:ss]. If the transcript does not contain the answer, say so. Keep answers compact and well organised.';
+const CONDENSE='You condense one part of a long speech-recognition transcript into detailed notes. Keep names, numbers, decisions, definitions and tasks. Keep the [hh:mm:ss] timestamp on every point. Output the notes only.';
+const LIMIT=300000;
+
+async function callClaude({system,messages,max,signal,onText}){
+  if(!settings.apiKey)throw new Error('NOKEY');
+  const r=await fetch('https://api.anthropic.com/v1/messages',{
+    method:'POST',signal,
+    headers:{'content-type':'application/json','x-api-key':settings.apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+    body:JSON.stringify({model:settings.model||DEF.model,max_tokens:max||2000,system,messages,stream:true})
+  });
+  if(!r.ok){let m='';try{m=(await r.json()).error.message}catch(e){}const err=new Error(m||('Request failed ('+r.status+')'));err.status=r.status;throw err}
+  const reader=r.body.getReader(),dec=new TextDecoder();let buf='',full='';
+  for(;;){
+    const {done,value}=await reader.read();if(done)break;
+    buf+=dec.decode(value,{stream:true});
+    let i;
+    while((i=buf.indexOf('\n\n'))>=0){
+      const ev=buf.slice(0,i);buf=buf.slice(i+2);
+      const line=ev.split('\n').find(l=>l.startsWith('data:'));if(!line)continue;
+      let j;try{j=JSON.parse(line.slice(5))}catch(e){continue}
+      if(j.type==='content_block_delta'&&j.delta&&j.delta.type==='text_delta'){full+=j.delta.text;if(onText)onText(full)}
+      else if(j.type==='error'){throw new Error((j.error&&j.error.message)||'The stream failed.')}
+    }
+  }
+  return full;
+}
+function friendlyErr(e){
+  if(e.message==='NOKEY')return 'Add your Anthropic API key in Settings to use the assistant.';
+  if(e.status===401)return 'The API key was not accepted. Check it in Settings.';
+  if(e.status===404)return 'That model name was not found. Check the model in Settings.';
+  if(e.status===429)return 'Too many requests right now. Wait a moment and try again.';
+  if(e instanceof TypeError)return 'Could not reach the Anthropic API. Check your connection.';
+  return e.message||'Something went wrong.';
+}
+async function contextText(onProgress,signal){
+  const full=transcriptText();
+  if(full.length<=LIMIT)return {text:full,condensed:false};
+  if(D.digest&&D.digestLen===full.length)return {text:D.digest,condensed:true};
+  const parts=[];let cur='';
+  for(const l of full.split('\n')){if(cur.length+l.length>80000){parts.push(cur);cur=''}cur+=l+'\n'}
+  if(cur)parts.push(cur);
+  const out=[];
+  for(let i=0;i<parts.length;i++){
+    onProgress(i+1,parts.length);
+    out.push(await callClaude({system:CONDENSE,messages:[{role:'user',content:parts[i]}],max:2500,signal}));
+  }
+  D.digest=out.join('\n\n');D.digestLen=full.length;
+  return {text:D.digest,condensed:true};
+}
+const persistNotes=()=>idb.put('notes',{sid:D.sid,messages:D.chat,digest:D.digest,digestLen:D.digestLen}).catch(()=>{});
+
+function md(src){
+  const inline=t=>t.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/\[(\d{1,2}):(\d{2}):(\d{2})\]/g,(m,h,mi,s)=>`<button class="ts inl" data-t="${((+h)*3600+(+mi)*60+(+s))*1000}">${m}</button>`);
+  let html='',list=false;
+  for(const raw of esc(src).split('\n')){
+    const l=raw.trimEnd(),li=l.match(/^\s*[-*•]\s+(.*)/);
+    if(li){if(!list){html+='<ul>';list=true}html+='<li>'+inline(li[1])+'</li>';continue}
+    if(list){html+='</ul>';list=false}
+    if(!l.trim())continue;
+    const h=l.match(/^#{1,4}\s+(.*)/);
+    html+=h?'<h4>'+inline(h[1])+'</h4>':'<p>'+inline(l)+'</p>';
+  }
+  return html+(list?'</ul>':'');
+}
+function renderChat(stream){
+  const box=$('#chat');
+  box.innerHTML=D.chat.map(m=>m.role==='user'?`<div class="msg user">${esc(m.content)}</div>`:`<div class="msg bot">${m.content?md(m.content):'<span class="meta">Thinking…</span>'}</div>`).join('');
+  if(stream&&box.lastElementChild)box.lastElementChild.scrollIntoView({block:'nearest'});
+}
+function setBusy(b){
+  D.busy=b;$('#chat-send').textContent=b?'Stop':'Ask';$('#chat-send').type=b?'button':'submit';
+  $$('#quick .chip').forEach(c=>c.disabled=b);
+}
+function showErr(m){const e=$('#chat-err');e.textContent=m||'';e.hidden=!m}
+async function ask(q){
+  if(D.busy||!q.trim())return;
+  showErr('');
+  if(!settings.apiKey){showErr(friendlyErr(new Error('NOKEY')));return}
+  if(!D.segs.some(s=>!s.mark)){showErr('This recording has no transcript for the assistant to work from.');return}
+  setBusy(true);
+  D.chat.push({role:'user',content:q});const reply={role:'assistant',content:''};D.chat.push(reply);renderChat();
+  D.abort=new AbortController();const signal=D.abort.signal;
+  try{
+    const ctx=await contextText((i,n)=>{reply.content=`Reading a long recording: part ${i} of ${n}…`;renderChat()},signal);
+    reply.content='';
+    $('#d-ctx').textContent=ctx.condensed?'Long recording: working from condensed notes':'';
+    const msgs=D.chat.slice(0,-1).map((m,i)=>({role:m.role,content:i===0?`<transcript${ctx.condensed?' condensed="true"':''}>\n${ctx.text}\n</transcript>\n\n${m.content}`:m.content}));
+    await callClaude({system:SYS,messages:msgs,max:2000,signal,onText:t=>{reply.content=t;renderChat(true)}});
+  }catch(e){
+    if(e.name==='AbortError'){if(!reply.content){D.chat.splice(-2,2)}}
+    else{D.chat.splice(-2,2);showErr(friendlyErr(e));$('#chat-input').value=q}
+  }finally{D.abort=null;setBusy(false);renderChat();persistNotes()}
+}
+$('#chat-form').addEventListener('submit',e=>{e.preventDefault();const i=$('#chat-input'),q=i.value;if(!q.trim())return;i.value='';ask(q)});
+$('#chat-send').addEventListener('click',()=>{if(D.busy&&D.abort)D.abort.abort()});
+$('#chat-input').addEventListener('keydown',e=>{if(e.key==='Enter'&&(e.metaKey||e.ctrlKey)){e.preventDefault();$('#chat-form').requestSubmit()}});
+$('#quick').addEventListener('click',e=>{const c=e.target.closest('.chip');if(c)ask(c.dataset.q)});
+
+/* ---------- settings view ---------- */
+const LANGS=[['','Device language'],['en-US','English (US)'],['en-GB','English (UK)'],['es-ES','Spanish (Spain)'],['es-MX','Spanish (Mexico)'],['fr-FR','French'],['de-DE','German'],['it-IT','Italian'],['pt-BR','Portuguese (Brazil)'],['hi-IN','Hindi'],['ja-JP','Japanese'],['ko-KR','Korean'],['zh-CN','Chinese (Mandarin)']];
+const QUALITY=[24,32,64];
+const eightHr=k=>fmtBytes(k*125*28800);
+function renderSettings(){
+  $('#s-key').value=settings.apiKey;$('#s-model').value=settings.model;
+  $('#s-lang').innerHTML=LANGS.map(([v,n])=>`<option value="${v}"${v===settings.lang?' selected':''}>${n}</option>`).join('');
+  $('#s-kbps').innerHTML=QUALITY.map(k=>`<option value="${k}"${k===settings.kbps?' selected':''}>${k} kbps · about ${eightHr(k)} per 8 hours</option>`).join('');
+  $('#s-kbps-note').textContent='Speech stays clear at 32 kbps. Applies to the next recording.';
+  $('#s-clear').disabled=R.active;
+  (async()=>{
+    let t='Storage information is not available in this browser.';
+    try{if(navigator.storage&&navigator.storage.estimate){const e=await navigator.storage.estimate();const p=navigator.storage.persisted?await navigator.storage.persisted():false;
+      t=`${fmtBytes(e.usage)} used of about ${fmtBytes(e.quota)} available. ${p?'The browser has agreed to keep your recordings.':'The browser may clear this data if the device runs low on space.'}`}}catch(e){}
+    $('#s-store').textContent=t;
+  })();
+}
+$('#s-key').addEventListener('change',e=>{settings.apiKey=e.target.value.trim();saveSettings();toast('API key saved on this device.')});
+$('#s-model').addEventListener('change',e=>{settings.model=e.target.value.trim()||DEF.model;saveSettings()});
+$('#s-lang').addEventListener('change',e=>{settings.lang=e.target.value;saveSettings()});
+$('#s-kbps').addEventListener('change',e=>{settings.kbps=+e.target.value;saveSettings()});
+$('#s-persist').onclick=async()=>{
+  try{const ok=navigator.storage&&navigator.storage.persist?await navigator.storage.persist():false;toast(ok?'The browser will keep your recordings.':'The browser did not grant that. Installing the page to your home screen often helps.');renderSettings()}catch(e){toast('This browser does not support that.')}
+};
+let clearArm=false,clearT=0;
+$('#s-clear').onclick=async()=>{
+  const b=$('#s-clear');
+  if(!clearArm){clearArm=true;b.textContent='Tap again to delete everything';clearT=setTimeout(()=>{clearArm=false;b.textContent='Delete all recordings'},3500);return}
+  clearTimeout(clearT);clearArm=false;b.textContent='Delete all recordings';
+  try{await idb.clear();toast('All recordings deleted.')}catch(e){toast('Could not delete the recordings.')}
+  renderSettings();
+};
+
+/* ---------- start ---------- */
+window.addEventListener('resize',()=>{if(R.active)sizeMeter()});
+recover().then(()=>{updateRecUI();show('record')});
+})();
+</script>
+</body>
+</html>
