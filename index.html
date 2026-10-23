@@ -66,17 +66,13 @@ button{cursor:pointer}
 .timer{font-weight:300;font-variant-numeric:tabular-nums;font-size:clamp(52px,16vw,84px);letter-spacing:-.025em;line-height:1.05}
 .state{font-size:.9rem;color:var(--muted);min-height:1.4em}
 .state.live{color:var(--rec)}
-#meter{width:100%;height:56px;color:var(--accent);display:block}
-.controls{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:12px;width:100%;margin-top:6px}
-.controls .l{justify-self:start}.controls .r{justify-self:end}
+.controls{display:flex;justify-content:center;align-items:center;gap:12px;width:100%;margin-top:2px}
 .side{min-width:84px;height:46px;padding:0 16px;border-radius:23px;border:0;background:var(--bubble)}
 .side:disabled{opacity:.6;cursor:default}
-.main{width:88px;height:88px;border-radius:50%;border:3px solid var(--rec);background:transparent;display:grid;place-items:center;padding:0}
-.main .dot{width:62px;height:62px;border-radius:50%;background:var(--rec);transition:width .18s,height .18s,border-radius .18s}
-.main.on .dot{width:30px;height:30px;border-radius:8px}
-.main.on.run{animation:pulse 2.2s ease-out infinite}
-@keyframes pulse{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--rec) 45%,transparent)}100%{box-shadow:0 0 0 16px transparent}}
-@media (prefers-reduced-motion:reduce){.main.on.run{animation:none}.main .dot{transition:none}}
+.main{position:relative;display:block;width:100%;max-width:440px;height:clamp(190px,60vw,250px);border:0;border-radius:28px;background:transparent;padding:0;color:var(--rec);cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.main canvas{position:absolute;inset:0;width:100%;height:100%;display:block;pointer-events:none;transition:transform .15s}
+.main:active canvas{transform:scale(.985)}
+@media (prefers-reduced-motion:reduce){.main canvas{transition:none}}
 .cap{font-size:.85rem;color:var(--muted);min-height:1.3em}
 .cap.arm{color:var(--ink);font-weight:600}
 .note{font-size:.82rem;color:var(--muted);max-width:46ch;margin:2px 0 0}
@@ -350,13 +346,12 @@ form.pj-new .field{flex:1;min-width:0;margin:0}
       <div class="pills"><span class="pill" id="pill-awake">Screen awake: off</span><span class="pill" id="pill-size">&nbsp;</span></div>
       <div class="timer" id="timer" role="timer">00:00:00</div>
       <div class="state" id="state">Ready</div>
-      <canvas id="meter" width="600" height="56" aria-hidden="true"></canvas>
+      <button class="main" id="btn-main" aria-label="Start recording"><canvas id="orb" aria-hidden="true"></canvas></button>
+      <div class="cap" id="cap">Record</div>
       <div class="controls">
         <button class="side l" id="btn-pause" disabled>Pause</button>
-        <button class="main" id="btn-main" aria-label="Start recording"><span class="dot"></span></button>
         <button class="side r" id="btn-mark" disabled>Mark</button>
       </div>
-      <div class="cap" id="cap">Record</div>
       <p class="note">Saved to this device every 10 seconds. Keep this page open with the screen on.</p>
     </div>
     <details class="card livebox" id="live-box">
@@ -518,8 +513,10 @@ form.pj-new .field{flex:1;min-width:0;margin:0}
         <small>Natural turns off the phone's noise and echo filtering, which can make voices sound robotic. Applies to the next recording.</small></div>
       <label class="check" style="margin-bottom:2px"><input type="checkbox" id="s-livetx"> Live transcript while recording</label>
       <small style="display:block;color:var(--muted);margin-bottom:12px">Turn this off if recordings sound choppy or robotic. You can still make a transcript afterwards with Improve with AssemblyAI.</small>
-      <label class="check" style="margin-bottom:2px"><input type="checkbox" id="s-meter"> Level meter while recording</label>
-      <small style="display:block;color:var(--muted);margin-bottom:12px">Turn this off if the sound is distorted. The meter shows a flat line instead.</small>
+      <label class="check" style="margin-bottom:2px"><input type="checkbox" id="s-meter"> Particles move with your voice</label>
+      <small style="display:block;color:var(--muted);margin-bottom:12px">Turn this off if the sound is distorted. The particles then drift calmly instead of following your voice.</small>
+      <label class="check" style="margin-bottom:2px"><input type="checkbox" id="s-orb"> Animate the record button</label>
+      <small style="display:block;color:var(--muted);margin-bottom:12px">The red orb breaks into moving particles while you record. Turn this off to save battery on very long recordings. The button then stays a still picture.</small>
       <div class="field"><label for="s-kbps">Audio quality</label><select id="s-kbps"></select><small id="s-kbps-note"></small></div>
       <div class="field"><label>Device storage</label><div id="s-store" class="meta">Checking…</div></div>
       <div class="btns">
@@ -577,8 +574,8 @@ let toastT;
 function toast(m){const t=$('#toast');t.textContent=m;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>{t.hidden=true},4500)}
 
 /* ---------- settings ---------- */
-const BUILD='23 Oct 2026, Projects, ⋯ save menu, 30 and 45 question quizzes';
-const DEF={apiKey:'',model:'claude-sonnet-5-5',lang:'',kbps:64,terms:'',aaiKey:'',speakers:false,sound:'natural',liveTx:true,meter:true};
+const BUILD='23 Oct 2026, red particle record button';
+const DEF={apiKey:'',model:'claude-sonnet-5-5',lang:'',kbps:64,terms:'',aaiKey:'',speakers:false,sound:'natural',liveTx:true,meter:true,orb:true};
 const settings=Object.assign({},DEF);
 let savedSettings={};try{savedSettings=JSON.parse(localStorage.getItem('longtake.settings')||'{}')||{}}catch(e){}
 Object.assign(settings,savedSettings);
@@ -673,12 +670,10 @@ async function startRecording(){
       const src=R.ctx.createMediaStreamSource(stream);R.an=R.ctx.createAnalyser();R.an.fftSize=512;src.connect(R.an)}
     catch(e){R.an=null}
   }
-  sizeMeter();
   rec.start(10000);
   keepAwake();
   startRecog();
   R.timer=setInterval(tick,500);
-  cancelAnimationFrame(R.raf);R.raf=requestAnimationFrame(drawMeter);
   updateRecUI();renderLive();
 }
 
@@ -697,15 +692,16 @@ async function stopRecording(note){
   for(let i=0;i<200&&R.inflight>0;i++)await sleep(50);
   R.stream.getTracks().forEach(t=>{t.onended=null;t.stop()});
   try{R.ctx&&R.ctx.close()}catch(e){}
-  cancelAnimationFrame(R.raf);clearInterval(R.timer);
+  clearInterval(R.timer);
   try{R.wake&&R.wake.release()}catch(e){}
   R.dirty=true;await saveTx();
   Object.assign(session,{durationMs:dur,bytes:R.bytes,chunks:R.idx,words:countWords(R.segments),status:'done'});
   try{await idb.put('sessions',session)}catch(e){storageFail(e)}
   R.stopping=false;R.paused=false;R.stopArm=false;R.txState='idle';
-  drawIdle();updateRecUI();
+  updateRecUI();
   toast(typeof note==='string'?note:'Saved to your library.');
-  openDetail(sid);
+  if(CUR==='home'&&!document.hidden&&!ORB.S.calm)await sleep(900); /* let the particles gather back into the orb */
+  if(!R.active)openDetail(sid);
 }
 
 function togglePause(){
@@ -744,26 +740,173 @@ async function keepAwake(){
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&R.active&&!R.wake)keepAwake()});
 window.addEventListener('beforeunload',e=>{if(R.active){e.preventDefault();e.returnValue=''}});
 
-/* level meter */
-function sizeMeter(){const c=$('#meter'),w=c.clientWidth||600,d=window.devicePixelRatio||1;c.width=Math.round(w*d);c.height=Math.round(56*d);drawIdle()}
-function drawIdle(){ /* a quiet baseline so the area is not empty before you record */
-  const c=$('#meter');if(!c||R.active)return;
-  const g=c.getContext('2d'),W=c.width,H=c.height,bw=W/90,h=Math.max(2,H*.05);
-  g.clearRect(0,0,W,H);g.fillStyle=getComputedStyle(document.body).color;g.globalAlpha=.2;
-  for(let i=0;i<90;i++)g.fillRect(i*bw+bw*.2,(H-h)/2,bw*.6,h);
-  g.globalAlpha=1;
-}
-function drawMeter(){
-  R.raf=requestAnimationFrame(drawMeter);
-  const now=performance.now();if(now-R.lastDraw<66||document.hidden)return;R.lastDraw=now;
-  let lvl=0;
-  if(R.an&&!R.paused){const b=new Uint8Array(R.an.fftSize);R.an.getByteTimeDomainData(b);let s=0;for(let i=0;i<b.length;i++){const d=(b[i]-128)/128;s+=d*d}lvl=Math.min(1,Math.sqrt(s/b.length)*3.2)}
-  R.levels.push(lvl);if(R.levels.length>90)R.levels.shift();
-  const c=$('#meter'),g=c.getContext('2d'),W=c.width,H=c.height;
-  g.clearRect(0,0,W,H);g.fillStyle=getComputedStyle(c).color;
-  const bw=W/90;
-  for(let i=0;i<R.levels.length;i++){const h=Math.max(2,R.levels[i]*H);g.fillRect((90-R.levels.length+i)*bw+bw*.2,(H-h)/2,bw*.6,h)}
-}
+/* record button: an ASCII orb that bursts into a cloud of particles while you record */
+const ORB=(()=>{
+  const RAMP=' .:-=+*#%@',NR=RAMP.length-1,NB=16;
+  const PAL={
+    dark:{dim:[150,18,36],mid:[255,46,46],hot:[255,150,120],glow:'255,36,30'},
+    light:{dim:[238,84,78],mid:[226,18,30],hot:[158,0,24],glow:'236,30,30'}
+  };
+  const FONT='ui-monospace,SFMono-Regular,Menlo,Consolas,monospace';
+  const mqD=window.matchMedia('(prefers-color-scheme: dark)'),mqM=window.matchMedia('(prefers-reduced-motion: reduce)');
+  const S={cv:null,g:null,btn:null,W:0,H:0,d:1,fs:11,cw:7,ch:11,cx:0,cy:0,R:0,rx:0,ry:0,ps:[],mode:'idle',active:false,paused:false,armed:false,calm:false,e:0,mix:0,t:0,spin:0,light:.9,bt:0,gt:0,sc:.5,last:0,tm:0,raf:0,run:false,lvlFn:null,forceLv:null,frames:0,cols:{}};
+  const lerpc=(a,b,k)=>Math.round(a+(b-a)*k);
+  function ramp(key){ /* 16 colours from dim to hot, one string each, so drawing does not build strings */
+    const p=PAL[key],o=[];
+    for(let i=0;i<NB;i++){const b=i/(NB-1),lo=b<.5?p.dim:p.mid,hi=b<.5?p.mid:p.hot,k=b<.5?b*2:(b-.5)*2;o.push('rgb('+lerpc(lo[0],hi[0],k)+','+lerpc(lo[1],hi[1],k)+','+lerpc(lo[2],hi[2],k)+')')}
+    return o;
+  }
+  const visible=()=>!document.hidden&&CUR==='home'&&!!S.btn&&S.btn.clientWidth>0;
+  function mk(hx,hy,nx,ny,nz,kind,i){
+    return {hx,hy,x:S.cx+hx,y:S.cy+hy,vx:0,vy:0,nx,ny,nz,kind,i,
+      f:kind?0.74+0.24*Math.random():0.18+0.82*Math.sqrt(Math.random()), /* how far from the middle it floats while recording */
+      a0:Math.random()*6.2832,w:(Math.random()<0.22?-1:1)*(0.16+0.5*Math.random()),ph:Math.random()*6.2832,
+      base:0.34+0.52*Math.random(),dg:Math.random()<0.16,wait:-1,tx:0,ty:0};
+  }
+  function target(p){
+    const sc=S.sc*p.f*(1+0.06*Math.sin(S.t*1.4+p.ph)),th=p.a0+p.w*S.spin;
+    p.tx=S.cx+Math.cos(th)*S.rx*sc;
+    p.ty=S.cy+Math.sin(th)*S.ry*sc+Math.sin(th*3+S.t*2.2)*S.e*10*p.f;
+  }
+  function build(){
+    const W=S.btn.clientWidth,H=S.btn.clientHeight;if(!W||!H)return false;
+    if(W===S.W&&H===S.H&&S.ps.length)return true;
+    const d=Math.min(2,window.devicePixelRatio||1);
+    S.W=W;S.H=H;S.d=d;S.cv.width=Math.round(W*d);S.cv.height=Math.round(H*d);
+    S.cx=W/2;S.cy=H/2;S.R=Math.min(W*0.3,H*0.36);S.ry=H/2-18;S.rx=Math.min(W/2-14,S.ry*1.5);
+    const fs=Math.max(9,Math.min(12,Math.round(H/21)));S.fs=fs;S.cw=fs*0.62;S.ch=fs*0.98;
+    const ps=[],R=S.R;
+    for(let y=-R+S.ch/2;y<R;y+=S.ch)for(let x=-R+S.cw/2;x<R;x+=S.cw){const nx=x/R,ny=y/R,q=nx*nx+ny*ny;if(q<=1)ps.push(mk(x,y,nx,ny,Math.sqrt(1-q),0,0))}
+    const n=Math.round(2*Math.PI*R*1.28/(S.cw*2.1));
+    for(let i=0;i<n;i++){const a=i/n*6.2832;ps.push(mk(Math.cos(a)*R*1.28,Math.sin(a)*R*1.28,0,0,0,1,i))}
+    S.ps=ps;
+    if(S.mode==='burst'&&S.bt===0)launch();
+    else if(S.mode==='burst'||S.mode==='live'){for(const p of ps){target(p);p.x=p.tx;p.y=p.ty}}
+    return true;
+  }
+  function launch(){ /* the orb breaks apart from the middle outwards */
+    S.mode='burst';S.bt=0;
+    for(const p of S.ps)p.wait=0.04+0.2*Math.hypot(p.nx,p.ny)+(p.kind?0.2:0)+Math.random()*0.05;
+  }
+  function fire(p){
+    let dx=p.x-S.cx,dy=p.y-S.cy,m=Math.hypot(dx,dy);if(m<1){dx=p.hx;dy=p.hy;m=Math.hypot(dx,dy)||1}
+    const sp=240+420*Math.random()+(p.kind?160:0);
+    p.vx+=dx/m*sp-dy/m*70;p.vy+=dy/m*sp+dx/m*70;p.wait=-1;
+  }
+  function level(){
+    if(S.forceLv!=null)return S.forceLv;
+    if(!S.active||S.paused)return 0;
+    const r=S.lvlFn?S.lvlFn():-1;
+    return r<0?0.16+0.07*Math.sin(S.t*0.9):Math.min(1,Math.pow(r*1.6,0.7)); /* no meter: a calm drift, not a fake voice */
+  }
+  function home(){for(const p of S.ps){p.x=S.cx+p.hx;p.y=S.cy+p.hy;p.vx=p.vy=0;p.wait=-1}}
+  function advance(dtr){
+    S.t+=dtr;
+    const lv=level();S.e+=(lv-S.e)*(1-Math.exp(-dtr*(lv>S.e?14:4.5)));
+    S.spin+=dtr*(S.paused?0.12:0.6+1.4*S.e);
+    if(!S.calm)S.light+=dtr*0.45;
+    const live=S.mode==='burst'||S.mode==='live';
+    S.mix+=((live?1:0)-S.mix)*(1-Math.exp(-dtr*(live?6:3)));
+    S.sc=S.armed?0.4:S.paused?0.6:0.74+0.26*S.e;
+    if(S.mode==='idle'){home();return}
+    const n=Math.max(1,Math.ceil(dtr/0.034)),dt=dtr/n;
+    for(let s=0;s<n;s++){
+      if(S.mode==='burst'){S.bt+=dt;if(S.bt>0.6)S.mode='live'}
+      else if(S.mode==='gather')S.gt+=dt;
+      for(const p of S.ps){
+        if(p.wait>0){p.wait-=dt;if(p.wait<=0)fire(p);else continue}
+        let tx,ty,k,c;
+        if(S.mode==='gather'){tx=S.cx+p.hx;ty=S.cy+p.hy;k=26;c=7.6}
+        else{target(p);tx=p.tx;ty=p.ty;k=13;c=5.4}
+        p.vx+=((tx-p.x)*k-p.vx*c)*dt;p.vy+=((ty-p.y)*k-p.vy*c)*dt;
+        if(S.e>0.04&&S.mode!=='gather'){const j=S.e*380*dt;p.vx+=(Math.random()-0.5)*j;p.vy+=(Math.random()-0.5)*j}
+        p.x+=p.vx*dt;p.y+=p.vy*dt;
+      }
+    }
+    if(S.mode==='gather'&&S.gt>1.5){S.mode='idle';home()}
+  }
+  function draw(){
+    const g=S.g,W=S.W,H=S.H,key=mqD.matches?'dark':'light',cols=S.cols[key]||(S.cols[key]=ramp(key)),pal=PAL[key];
+    g.setTransform(S.d,0,0,S.d,0,0);g.clearRect(0,0,W,H);
+    const mix=S.mix,act=S.calm&&S.active;
+    const rg=g.createRadialGradient(S.cx,S.cy,0,S.cx,S.cy,Math.min(S.rx,S.ry)*1.25);
+    const ga=(key==='dark'?0.17:0.1)*(0.5+mix*(0.6+S.e*1.2)+(act?0.5+S.e:0));
+    rg.addColorStop(0,'rgba('+pal.glow+','+ga.toFixed(3)+')');rg.addColorStop(1,'rgba('+pal.glow+',0)');
+    g.fillStyle=rg;g.fillRect(0,0,W,H);
+    g.font='700 '+S.fs+'px '+FONT;g.textAlign='center';g.textBaseline='middle';
+    let lx=Math.cos(S.light)*0.62,ly=-0.42,lz=Math.sin(S.light)*0.4+0.62;const lm=Math.hypot(lx,ly,lz);lx/=lm;ly/=lm;lz/=lm;
+    const af=key==='dark'?0.3:0.5,breath=1+0.04*Math.sin(S.t*1.6),blink=S.armed?0.55+0.45*Math.abs(Math.sin(S.t*8)):1,dim=S.paused?0.55:1;
+    let last=-1;
+    for(const p of S.ps){
+      let bI,chI;
+      if(p.kind){bI=0.42+0.22*Math.sin(S.t*1.5+p.i*0.7);chI=p.i%6===0?'+':'.'}
+      else{
+        const l=Math.max(0,p.nx*lx+p.ny*ly+p.nz*lz);
+        bI=(0.1+0.9*Math.pow(l,1.4))*breath+Math.pow(1-p.nz,3)*0.2+0.05*Math.sin(S.t*2+p.ph*3);
+      }
+      if(act)bI=bI*(0.78+0.6*S.e)+0.16; /* calm mode: the still orb glows brighter with your voice */
+      let b=bI;
+      if(mix>0.02){
+        const bL=p.base*(0.7+0.8*S.e)+0.16*Math.sin(S.t*3.1+p.ph)+Math.min(0.28,(Math.abs(p.vx)+Math.abs(p.vy))*0.0012);
+        b=mix>0.98?bL:bI+(bL-bI)*mix;
+      }
+      b=b<0?0:b>1?1:b;
+      const idx=Math.round(b*NR);if(idx<1)continue;
+      let ch=RAMP[idx];
+      if(mix>0.5){if(p.dg&&b>0.15)ch=((S.t*5+p.ph*9)|0)&1?'1':'0'}
+      else if(p.kind)ch=chI;
+      const ci=Math.round(b*(NB-1));if(ci!==last){g.fillStyle=cols[ci];last=ci}
+      g.globalAlpha=Math.min(1,af+0.8*b)*blink*dim;
+      g.fillText(ch,p.wait>0?p.x+(Math.random()-0.5)*1.6:p.x,p.y);
+    }
+    g.globalAlpha=1;
+    S.frames++;
+  }
+  const fps=()=>S.calm?4:S.mode==='live'?24:S.mode==='idle'?10:30;
+  function loop(){
+    S.raf=0;S.tm=0;
+    if(!visible()){S.run=false;return}
+    const now=performance.now(),dtr=Math.min(0.25,Math.max(0,(now-S.last)/1000));S.last=now;
+    advance(dtr);draw();
+    S.tm=setTimeout(()=>{S.tm=0;S.raf=requestAnimationFrame(loop)},Math.max(0,1000/fps()-(performance.now()-now)-4));
+  }
+  function wake(){
+    if(S.run||!S.cv||!visible()||!build())return;
+    S.run=true;S.last=performance.now();loop();
+  }
+  function set(a){
+    const was=S.active;S.active=!!a.active;S.paused=!!a.paused;S.armed=!!a.armed;
+    if(S.calm){S.mode='idle'}
+    else if(S.active&&!was){if(S.ps.length)launch();else S.mode='burst'}
+    else if(!S.active&&was){S.mode='gather';S.gt=0}
+    wake();
+  }
+  function refresh(){ /* reduced-motion setting or the "Animate the record button" switch changed */
+    const was=S.calm;S.calm=mqM.matches||settings.orb===false;
+    if(was!==S.calm){
+      if(S.calm){S.mode='idle';home()}
+      else if(S.active){S.mode='live'}
+      if(S.run&&S.cv&&S.ps.length){advance(0);draw()}
+      wake();
+    }
+  }
+  function init(){
+    S.cv=$('#orb');S.btn=$('#btn-main');if(!S.cv||!S.btn)return;
+    S.g=S.cv.getContext('2d');S.calm=mqM.matches||settings.orb===false;
+    if(window.ResizeObserver)new ResizeObserver(()=>{if(S.btn.clientWidth&&build()){if(!S.run&&visible()){advance(0);draw()}wake()}}).observe(S.btn);
+    try{mqM.addEventListener('change',refresh)}catch(e){}
+    document.addEventListener('visibilitychange',()=>{if(!document.hidden)wake()});
+    if(/[?&]orbdebug\b/.test(location.search))window.__orb=S;
+  }
+  return {S,init,set,wake,refresh};
+})();
+ORB.S.lvlFn=()=>{ /* how loud it is right now, 0 to about 1; -1 when the level meter is switched off */
+  if(!R.an)return -1;
+  if(R.paused)return 0;
+  const n=R.an.fftSize,b=R.buf&&R.buf.length===n?R.buf:(R.buf=new Uint8Array(n));
+  R.an.getByteTimeDomainData(b);let s=0;for(let i=0;i<n;i++){const d=(b[i]-128)/128;s+=d*d}
+  return Math.sqrt(s/n)*3.2;
+};
 
 /* live transcription (browser speech recognition) */
 function setTx(s){R.txState=s;updateChips()}
@@ -826,6 +969,7 @@ async function showFree(){
 function updateRecUI(){
   const m=$('#btn-main'),st=$('#state'),cap=$('#cap');
   m.classList.toggle('on',R.active);m.classList.toggle('run',R.active&&!R.paused);
+  ORB.set({active:R.active,paused:R.paused,armed:R.stopArm});
   m.setAttribute('aria-label',R.active?'Stop recording':'Start recording');
   $('#btn-pause').disabled=!R.active;$('#btn-mark').disabled=!R.active;
   $('#btn-pause').textContent=R.paused?'Resume':'Pause';
@@ -877,7 +1021,7 @@ function show(view){
   if(view==='assign')renderAssign();
   if(view==='quiz')renderQuiz();
   if(view==='settings')renderSettings();
-  if(view==='home'){sizeMeter();refreshTitles().then(renderLib)}
+  if(view==='home'){ORB.wake();refreshTitles().then(renderLib)}
   updateAppbar();
   window.scrollTo(0,0);
 }
@@ -1231,7 +1375,7 @@ const LANGS=[['','Device language'],['en-US','English (US)'],['en-GB','English (
 const QUALITY=[24,32,64,96];
 const eightHr=k=>fmtBytes(k*125*28800);
 function renderSettings(){
-  $('#s-key').value=settings.apiKey;$('#s-model').value=settings.model;$('#s-terms').value=settings.terms||'';$('#s-speakers').checked=!!settings.speakers;$('#s-sound').value=settings.sound||'natural';$('#s-livetx').checked=settings.liveTx!==false;$('#s-meter').checked=settings.meter!==false;$('#s-build').textContent='Longtake build: '+BUILD;$('#s-check').disabled=R.active||!!SC;$('#s-aai').value=settings.aaiKey||'';
+  $('#s-key').value=settings.apiKey;$('#s-model').value=settings.model;$('#s-terms').value=settings.terms||'';$('#s-speakers').checked=!!settings.speakers;$('#s-sound').value=settings.sound||'natural';$('#s-livetx').checked=settings.liveTx!==false;$('#s-meter').checked=settings.meter!==false;$('#s-orb').checked=settings.orb!==false;$('#s-build').textContent='Longtake build: '+BUILD;$('#s-check').disabled=R.active||!!SC;$('#s-aai').value=settings.aaiKey||'';
   $('#s-lang').innerHTML=LANGS.map(([v,n])=>`<option value="${v}"${v===settings.lang?' selected':''}>${n}</option>`).join('');
   $('#s-kbps').innerHTML=QUALITY.map(k=>`<option value="${k}"${k===settings.kbps?' selected':''}>${k} kbps · about ${eightHr(k)} per 8 hours</option>`).join('');
   $('#s-kbps-note').textContent='Higher quality sounds cleaner and uses more space. 64 kbps is a good balance. Applies to the next recording.';
@@ -1249,6 +1393,7 @@ $('#s-speakers').addEventListener('change',e=>{settings.speakers=e.target.checke
 $('#s-sound').addEventListener('change',e=>{settings.sound=e.target.value;saveSettings()});
 $('#s-livetx').addEventListener('change',e=>{settings.liveTx=e.target.checked;saveSettings()});
 $('#s-meter').addEventListener('change',e=>{settings.meter=e.target.checked;saveSettings()});
+$('#s-orb').addEventListener('change',e=>{settings.orb=e.target.checked;saveSettings();ORB.refresh()});
 $('#s-lang').addEventListener('change',e=>{settings.lang=e.target.value;saveSettings()});
 $('#s-kbps').addEventListener('change',e=>{settings.kbps=+e.target.value;saveSettings()});
 $('#s-persist').onclick=async()=>{
@@ -2456,7 +2601,7 @@ $('#d-tbox>summary').addEventListener('click',e=>{ /* the Transcript row stays w
 });
 
 /* ---------- start ---------- */
-window.addEventListener('resize',()=>{if(R.active)sizeMeter();else if(CUR==='home')sizeMeter()});
+ORB.init();
 loadLib();
 recover().then(()=>{updateRecUI();show('home')});
 })();
