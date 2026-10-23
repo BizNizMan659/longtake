@@ -329,6 +329,10 @@ form.pj-new .field{flex:1;min-width:0;margin:0}
 .sh-row small{display:block;color:var(--muted)}
 .sh-row .ok{color:var(--accent);font-weight:650;font-size:.85rem;flex:none}
 
+#upd{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;background:var(--accent-soft);color:var(--ink);border-radius:16px;padding:10px 14px;margin:2px 0 6px;font-size:.92rem}
+#upd[hidden]{display:none}
+#upd .grow{flex:1 1 130px;min-width:0}
+#upd .upd-b{display:flex;align-items:center;gap:12px;margin-left:auto}
 #toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(86px + env(safe-area-inset-bottom,0px));max-width:min(92vw,520px);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:14px;font-size:.9rem;z-index:9;text-align:center}
 </style>
 </head>
@@ -339,6 +343,7 @@ form.pj-new .field{flex:1;min-width:0;margin:0}
     <div class="appbar-title" id="appbar-title">Longtake</div>
     <button class="rec-chip" id="rec-chip" type="button" hidden aria-label="Recording in progress. Go to the recorder"></button>
   </header>
+  <div id="upd" role="status" hidden><span class="grow" id="upd-t">A newer version of Longtake is ready.</span><span class="upd-b"><button class="btn primary" id="upd-go" type="button">Reload</button><button class="linkbtn" id="upd-x" type="button">Later</button></span></div>
 
   <!-- HOME: recorder and library assistant -->
   <section id="view-home" class="view" hidden style="flex-direction:column;gap:16px">
@@ -525,6 +530,8 @@ form.pj-new .field{flex:1;min-width:0;margin:0}
       </div>
     </details>
     <p class="meta" id="s-build" style="text-align:center"></p>
+    <div class="btns" style="justify-content:center"><button class="btn" id="s-upd" type="button">Check for a new version</button></div>
+    <p class="meta" id="s-upd-t" role="status" style="text-align:center"></p>
   </section>
 </main>
 
@@ -574,7 +581,7 @@ let toastT;
 function toast(m){const t=$('#toast');t.textContent=m;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>{t.hidden=true},4500)}
 
 /* ---------- settings ---------- */
-const BUILD='23 Oct 2026, red particle record button';
+const BUILD='23 Oct 2026, update check and red particle record button';
 const DEF={apiKey:'',model:'claude-sonnet-5-5',lang:'',kbps:64,terms:'',aaiKey:'',speakers:false,sound:'natural',liveTx:true,meter:true,orb:true};
 const settings=Object.assign({},DEF);
 let savedSettings={};try{savedSettings=JSON.parse(localStorage.getItem('longtake.settings')||'{}')||{}}catch(e){}
@@ -970,6 +977,7 @@ function updateRecUI(){
   const m=$('#btn-main'),st=$('#state'),cap=$('#cap');
   m.classList.toggle('on',R.active);m.classList.toggle('run',R.active&&!R.paused);
   ORB.set({active:R.active,paused:R.paused,armed:R.stopArm});
+  try{renderUpd()}catch(e){} /* not defined yet during the very first call */
   m.setAttribute('aria-label',R.active?'Stop recording':'Start recording');
   $('#btn-pause').disabled=!R.active;$('#btn-mark').disabled=!R.active;
   $('#btn-pause').textContent=R.paused?'Resume':'Pause';
@@ -2599,6 +2607,45 @@ $('#d-tbox>summary').addEventListener('click',e=>{ /* the Transcript row stays w
   e.preventDefault();const d=$('#d-tbox'),s=e.currentTarget,before=s.getBoundingClientRect().top;
   d.open=!d.open;const after=s.getBoundingClientRect().top;if(Math.abs(after-before)>1)window.scrollBy(0,after-before);
 });
+
+/* ---------- new version check: the page asks the website which build it is serving ---------- */
+const UPD={last:0,ready:'',dismissed:'',busy:false};
+const BUILD_RE=new RegExp('const BUILD'+"='([^']{1,120})'");
+function updBusy(){return R.active||R.stopping||QZ.busy||AS.busy||['#chat-send','#lib-send'].some(q=>{const e=$(q);return e&&e.textContent.trim()!=='Ask'})}
+function renderUpd(){
+  const show=!!UPD.ready&&UPD.ready!==UPD.dismissed;
+  $('#upd').hidden=!show;if(!show)return;
+  $('#upd-t').textContent=R.active?'A newer version of Longtake is ready. Stop recording, then reload to get it.':'A newer version of Longtake is ready.';
+  $('#upd-go').hidden=!!R.active;
+}
+async function updCheck(manual){ /* resolves to 'new', 'same' or 'fail'; never throws and never touches a recording */
+  if(UPD.busy)return 'busy';
+  UPD.busy=true;UPD.last=Date.now();
+  try{
+    const r=await fetch(location.pathname+'?cb='+Date.now().toString(36),{cache:'no-store'});
+    if(!r.ok)return 'fail';
+    const m=(await r.text()).match(BUILD_RE);
+    if(!m)return 'fail';
+    UPD.ready=m[1]!==BUILD?m[1]:'';
+    if(manual)UPD.dismissed='';
+    renderUpd();
+    return UPD.ready?'new':'same';
+  }catch(e){return 'fail'}
+  finally{UPD.busy=false}
+}
+$('#upd-go').addEventListener('click',()=>{
+  if(updBusy()){toast(R.active?'Stop recording first, then reload.':'Wait for the assistant to finish, then reload.');return}
+  location.replace(location.pathname+'?v='+Date.now().toString(36)); /* a new address, so no old saved copy is used */
+});
+$('#upd-x').addEventListener('click',()=>{UPD.dismissed=UPD.ready;renderUpd()});
+$('#s-upd').addEventListener('click',async()=>{
+  const t=$('#s-upd-t'),b=$('#s-upd');b.disabled=true;t.textContent='Checking…';
+  const r=await updCheck(true);b.disabled=false;
+  t.textContent=r==='new'?'A newer version is ready. Use the Reload bar at the top of the page.':r==='same'?'You have the newest version.':r==='busy'?'Already checking.':'Could not reach the website. Check your connection and try again.';
+});
+setTimeout(()=>updCheck(),2500);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&Date.now()-UPD.last>120000)updCheck()});
+setInterval(()=>{if(!document.hidden&&Date.now()-UPD.last>1800000)updCheck()},300000);
 
 /* ---------- start ---------- */
 ORB.init();
