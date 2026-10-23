@@ -81,7 +81,7 @@ button{cursor:pointer}
 .note{font-size:.82rem;color:var(--muted);max-width:46ch;margin:2px 0 0}
 
 /* Transcript */
-.live,.tx{max-height:46vh;overflow:auto;overscroll-behavior:contain}
+.live,.tx{max-height:46vh;overflow:auto} /* no scroll trap: a swipe that reaches the end carries on to the page */
 .seg{display:grid;grid-template-columns:66px minmax(0,1fr);gap:8px;padding:5px 0;border-top:1px solid var(--line)}
 .seg:first-child{border-top:0}
 .seg .ts{font-family:var(--font-num);font-size:.78rem;color:var(--muted);padding-top:2px;text-align:left}
@@ -123,8 +123,21 @@ audio{width:100%;margin:6px 0 10px}
 .chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px}
 .chip{border:0;color:var(--accent);background:var(--accent-soft);border-radius:999px;padding:7px 14px;font-size:.9rem;font-weight:550}
 .chip:disabled{opacity:.45;cursor:default}
-#chat,#lib-chat{display:flex;flex-direction:column;gap:10px;margin-bottom:10px}
-.msg{padding:10px 12px;border-radius:12px;overflow-wrap:anywhere;scroll-margin-bottom:96px}
+#lib-chat{display:flex;flex-direction:column;gap:10px;margin-bottom:10px}
+.qas{display:flex;flex-direction:column;margin:2px 0 12px}
+.qa{border-top:1px solid var(--line);scroll-margin-top:calc(var(--bar-h) + 4px)}
+.qa:last-child{border-bottom:1px solid var(--line)}
+.qa-h{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;text-align:left;background:var(--surface);border:0;padding:12px 2px;min-height:48px;font-weight:650;font-size:1rem;color:var(--ink)}
+.qa.open>.qa-h{position:sticky;top:var(--bar-h);z-index:3;color:var(--accent);border-bottom:1px solid var(--line)}
+.qa-t{min-width:0;overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.qa.open .chev{transform:rotate(-135deg);margin-top:4px}
+.qa-b{padding:6px 0 14px}
+.qa-md.msg{padding:4px 2px}
+.qa-q{margin:0 0 8px;overflow-wrap:anywhere;white-space:pre-wrap}
+.qa-act{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.btn.sm{padding:6px 12px;font-size:.88rem;border-radius:12px}
+details#d-tbox[open]>summary{position:sticky;top:var(--bar-h);z-index:3;background:var(--surface);padding:8px 0;margin-bottom:10px;border-bottom:1px solid var(--line)}
+.msg{padding:10px 12px;border-radius:12px;overflow-wrap:anywhere;scroll-margin-top:calc(var(--bar-h) + 8px)}
 .msg.user{align-self:flex-end;max-width:88%;background:var(--accent-soft);border-radius:18px 18px 6px 18px}
 .msg.bot{background:transparent;border:0;padding:4px 2px}
 .msg ul{margin:.3em 0;padding-left:1.2em}
@@ -162,6 +175,7 @@ details.adv[open] summary{margin-bottom:6px}
 details.adv .btns{padding-bottom:12px}
 
 /* App bar and side menu */
+:root{--bar-h:64px}
 .appbar{position:sticky;top:0;z-index:6;display:flex;align-items:center;gap:12px;background:var(--bg);padding:max(10px,env(safe-area-inset-top,0px)) 0 10px;margin-bottom:-4px}
 .iconbtn{width:42px;height:42px;display:grid;place-items:center;border-radius:14px;border:0;background:transparent;color:var(--ink);padding:0;flex:none}
 .iconbtn:active{background:var(--raised)}
@@ -386,7 +400,7 @@ details.donebox .stack{padding-bottom:4px}
         <textarea id="d-terms" rows="3" placeholder="Prof. Kowalski, mitochondria, Krebs cycle, BIO 201" aria-label="Names and terms for this recording" spellcheck="false"></textarea>
         <small>One per line or separated by commas. The assistant uses these spellings and treats close misspellings in the transcript as these.</small>
       </details>
-      <div id="chat" aria-live="polite"></div>
+      <div class="qas" id="chat"></div>
       <div class="err" id="chat-err" hidden></div>
       <form class="chat-form" id="chat-form">
         <textarea id="chat-input" rows="1" placeholder="Ask about this recording" aria-label="Ask about this recording"></textarea>
@@ -496,7 +510,7 @@ let toastT;
 function toast(m){const t=$('#toast');t.textContent=m;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>{t.hidden=true},4500)}
 
 /* ---------- settings ---------- */
-const BUILD='23 Oct 2026, one-job buttons and closable transcript';
+const BUILD='23 Oct 2026, answers as tabs, smooth scrolling';
 const DEF={apiKey:'',model:'claude-sonnet-5-5',lang:'',kbps:64,terms:'',aaiKey:'',speakers:false,sound:'natural',liveTx:true,meter:true};
 const settings=Object.assign({},DEF);
 let savedSettings={};try{savedSettings=JSON.parse(localStorage.getItem('longtake.settings')||'{}')||{}}catch(e){}
@@ -715,13 +729,21 @@ function spawnRecog(SR){
 const segRow=s=>s.mark
   ?`<div class="seg mark"><span class="ts">${fmtDur(s.t)}</span><span class="t">Marked moment</span></div>`
   :`<div class="seg"><span class="ts">${fmtDur(s.t)}</span><span class="t">${esc(s.text)}</span></div>`;
+const LIVE={key:''};
 function renderLive(){
   const box=$('#live'),segs=R.segments.slice(-60);
   if(!segs.length&&!R.interim){
+    LIVE.key='';
     box.innerHTML='<p class="empty">'+(settings.liveTx===false?'The live transcript is turned off in Settings.':R.active?'Listening. Words appear here as you speak.':'Start recording to see a live transcript here.')+'</p>';return;
   }
   const near=box.scrollHeight-box.scrollTop-box.clientHeight<80;
-  box.innerHTML=segs.map(segRow).join('')+(R.interim?`<div class="seg interim"><span class="ts">…</span><span class="t">${esc(R.interim)}</span></div>`:'');
+  const key=R.segments.length+':'+(segs.length?segs[segs.length-1].t:0);
+  if(LIVE.key!==key){box.innerHTML=segs.map(segRow).join('');LIVE.key=key} /* rebuilt only when a finished line is added or removed */
+  let it=box.querySelector('.seg.interim');
+  if(R.interim){
+    if(!it){box.insertAdjacentHTML('beforeend','<div class="seg interim"><span class="ts">…</span><span class="t"></span></div>');it=box.querySelector('.seg.interim')}
+    it.lastElementChild.textContent=R.interim; /* the half-heard line changes in place */
+  }else if(it)it.remove();
   if(near)box.scrollTop=box.scrollHeight;
 }
 const TXLABEL={idle:'Transcript: idle',listening:'Transcript: listening',unsupported:'Transcript: not supported here',blocked:'Transcript: blocked',offline:'Transcript: needs internet',off:'Transcript: off'};
@@ -875,7 +897,7 @@ $('#lib-list').addEventListener('click',e=>{const r=e.target.closest('.row');if(
 /* ---------- detail ---------- */
 let BACK='library';
 const BACKLBL={home:'Home',library:'Library',marked:'Marked',assign:'Assignments',quiz:'Quiz'};
-const D={sid:null,session:null,segs:[],url:null,blob:null,chat:[],digest:null,digestLen:0,abort:null,busy:false,delArm:false,delT:0,edit:false};
+const D={sid:null,session:null,segs:[],url:null,blob:null,chat:[],digest:null,digestLen:0,abort:null,busy:false,delArm:false,delT:0,edit:false,open:-1};
 const audio=$('#d-audio');
 async function openDetail(sid,back){
   BACK=BACKLBL[back]?back:'library';$('#d-back').textContent='\u2190 '+BACKLBL[BACK];
@@ -893,7 +915,7 @@ async function openDetail(sid,back){
   D.edit=false;$('#d-find').value='';$('#d-repl').value='';
   D.prev=(txr&&txr.prev)||null;J.arm=false;$('#d-prog').hidden=true;$('#d-improve-err').hidden=true;updateImproveUI();
   $('#d-terms').value=s.terms||'';$('#d-terms-box').open=!!s.terms;
-  renderTx();renderChat();setBusy(false);
+  D.open=-1;renderTx();renderChat();setBusy(false);
   $('#d-tbox').open=!D.segs.some(s=>!s.mark)||!!(s.aai&&!s.aai.done); /* closed to save room; open when there is no transcript yet, or an improvement is waiting */
 }
 function leaveDetail(){
@@ -1048,11 +1070,51 @@ function md(src,cite){
 }
 const OLDQ={"Summarize this recording: a short overview first, then the main points, decisions and follow-up tasks.": "Summary", "List the main ideas of this recording: the general, broad topics it covers, in order, each with its timestamp and a short explanation.": "Main ideas", "Help me learn what is taught in this recording. Go through each main idea and its sub-ideas.": "Learn", "Write a chapter-style outline of the recording, with a timestamp for each chapter.": "Outline", "List the tasks I need to do outside of the classroom, such as at home or in daily life: errands, things to practice, prepare or buy, and anything I committed to do. Include the timestamp and any deadline mentioned. If there are none, say so.": "Task", "Give me the key points of this recording as a bulleted list, in order, each with its timestamp.": "Bullet points"}; /* what the buttons used to send, so earlier chats still show the button name */
 const bubble=m=>m.label||OLDQ[m.content]||m.content;
-function renderChat(stream){
-  const box=$('#chat');
-  box.innerHTML=D.chat.map(m=>m.role==='user'?`<div class="msg user">${esc(bubble(m))}</div>`:`<div class="msg bot">${m.content?md(m.content):'<span class="meta">Thinking…</span>'}</div>`).join('');
-  if(stream&&box.lastElementChild)box.lastElementChild.scrollIntoView({block:'nearest'});
+const pairsOf=()=>{const out=[];for(let i=0;i<D.chat.length-1;i++){const u=D.chat[i],a=D.chat[i+1];if(u.role==='user'&&a.role==='assistant'){out.push({u,a,i});i++}}return out};
+const barH=()=>parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--bar-h'))||64;
+function qaItem(pr,p,last){
+  const open=D.open===p,streaming=D.busy&&last,done=!D.busy&&pr.a.content;
+  const chip=pr.u.label&&$$('#quick .chip').some(c=>c.dataset.label===pr.u.label);
+  const acts=done?`<div class="qa-act"><button class="btn sm" type="button" data-act="copy">Copy</button>${chip?'<button class="btn sm" type="button" data-act="again">Ask again</button>':''}<button class="btn sm" type="button" data-act="close">Close</button><button class="btn sm danger" type="button" data-act="remove">Remove</button></div>`:'';
+  return `<div class="qa${open?' open':''}" data-p="${p}"><button class="qa-h" type="button" aria-expanded="${open}" aria-controls="qa-b${p}"><span class="qa-t">${esc(bubble(pr.u))}</span><span class="sum-r">${streaming?'<span class="meta">Writing…</span>':''}<span class="chev" aria-hidden="true"></span></span></button><div class="qa-b" id="qa-b${p}"${open?'':' hidden'}>${!pr.u.label&&bubble(pr.u).length>80?`<p class="meta qa-q">${esc(bubble(pr.u))}</p>`:''}<div class="msg bot qa-md">${pr.a.content?md(pr.a.content):'<span class="meta">Thinking…</span>'}</div>${acts}</div></div>`;
 }
+function renderChat(){ /* every question is a row that opens to its answer, so the page stays short */
+  const box=$('#chat'),ps=pairsOf();
+  if(D.open>=ps.length)D.open=-1;
+  box.innerHTML=ps.length?ps.map((pr,p)=>qaItem(pr,p,p===ps.length-1)).join(''):'<p class="meta" style="margin:2px 0 8px">Tap a button above, or type a question below.</p>';
+}
+function setQA(p){
+  D.open=p;
+  $$('#chat .qa').forEach(x=>{const o=+x.dataset.p===p;x.classList.toggle('open',o);x.querySelector('.qa-h').setAttribute('aria-expanded',o);x.querySelector('.qa-b').hidden=!o});
+}
+function toggleQA(p){ /* the row you tapped stays under your finger, even though other rows close above it */
+  const el=$(`#chat .qa[data-p="${p}"]`);if(!el)return;
+  const before=el.querySelector('.qa-h').getBoundingClientRect().top; /* where the row is on screen now */
+  setQA(D.open===p?-1:p);
+  const after=el.getBoundingClientRect().top; /* where the row begins now (an open title can be pinned, the row itself is not) */
+  if(Math.abs(after-before)>1)window.scrollBy(0,after-before);
+}
+function revealQA(p){
+  const el=$(`#chat .qa[data-p="${p}"]`);if(!el)return;
+  const r=el.getBoundingClientRect();if(r.top<barH()||r.top>innerHeight-120)el.scrollIntoView({block:'start'});
+}
+let paintT=0; /* while an answer is being written, only its own text is redrawn, a few times a second, and the page is never moved */
+function paintChat(){paintT=0;const ps=pairsOf(),p=ps.length-1;if(p<0)return;const el=$(`#chat .qa[data-p="${p}"] .qa-md`);if(!el)return;const a=ps[p].a;el.innerHTML=a.content?md(a.content):'<span class="meta">Thinking…</span>'}
+const schedChat=()=>{if(!paintT)paintT=setTimeout(paintChat,100)};
+$('#chat').addEventListener('click',async e=>{
+  const h=e.target.closest('.qa-h');if(h){toggleQA(+h.parentElement.dataset.p);return}
+  const b=e.target.closest('[data-act]');if(!b)return;
+  const el=b.closest('.qa'),p=+el.dataset.p,pr=pairsOf()[p];if(!pr||D.busy)return;
+  const act=b.dataset.act;
+  if(act==='copy'){try{await navigator.clipboard.writeText(pr.a.content);toast('Copied.')}catch(err){toast('Copy was blocked on this page.')}}
+  else if(act==='close'){setQA(-1);el.scrollIntoView({block:'nearest'})}
+  else if(act==='again'){const c=$$('#quick .chip').find(x=>x.dataset.label===pr.u.label);if(c)ask(c.dataset.q,{chip:true,label:c.dataset.label,max:+c.dataset.max||3000,replace:pr.u})}
+  else if(act==='remove')twoTap(b,'Tap again to remove',()=>{
+    if(D.busy)return;const k=D.chat.indexOf(pr.u);if(k<0)return;
+    D.chat.splice(k,2);const n=pairsOf().length;if(D.open===p)D.open=-1;else if(D.open>p)D.open--;if(D.open>=n)D.open=-1;
+    renderChat();persistNotes();toast('Removed.');
+  });
+});
 function setBusy(b){
   D.busy=b;$('#chat-send').textContent=b?'Stop':'Ask';$('#chat-send').type=b?'button':'submit';
   $$('#quick .chip').forEach(c=>c.disabled=b);
@@ -1064,25 +1126,34 @@ async function ask(q,opt){
   if(!settings.apiKey){showErr(friendlyErr(new Error('NOKEY')));return}
   if(!D.segs.some(s=>!s.mark)){showErr('This recording has no transcript for the assistant to work from.');return}
   setBusy(true);
-  D.chat.push(opt&&opt.chip?{role:'user',content:q,label:opt.label}:{role:'user',content:q});const reply={role:'assistant',content:''};D.chat.push(reply);renderChat();
+  let was=null,wasAt=-1; /* "Ask again" swaps the old answer out, and puts it back if the new one fails */
+  if(opt&&opt.replace){wasAt=D.chat.indexOf(opt.replace);if(wasAt>=0)was=D.chat.splice(wasAt,2)}
+  D.chat.push(opt&&opt.chip?{role:'user',content:q,label:opt.label}:{role:'user',content:q});const reply={role:'assistant',content:''};D.chat.push(reply);
+  D.open=pairsOf().length-1;renderChat();revealQA(D.open);
   D.abort=new AbortController();const signal=D.abort.signal;
   try{
-    const ctx=await contextText((i,n)=>{reply.content=`Reading a long recording: part ${i} of ${n}…`;renderChat()},signal);
+    const ctx=await contextText((i,n)=>{reply.content=`Reading a long recording: part ${i} of ${n}…`;schedChat()},signal);
     reply.content='';
     $('#d-ctx').textContent=ctx.condensed?'Long recording: working from condensed notes':'';
     const tr=`<transcript${ctx.condensed?' condensed="true"':''}>\n${ctx.text}\n</transcript>\n\n`;
     /* a button is its own request: it gets the transcript and nothing from earlier answers, so it gives one clean result */
     const msgs=opt&&opt.chip?[{role:'user',content:tr+q}]:D.chat.slice(0,-1).map((m,i)=>({role:m.role,content:i===0?tr+m.content:m.content}));
-    await callClaude({system:sysPrompt(SYS),messages:msgs,max:(opt&&opt.max)||3000,signal,onText:t=>{reply.content=t;renderChat(true)}});
+    await callClaude({system:sysPrompt(SYS),messages:msgs,max:(opt&&opt.max)||3000,signal,onText:t=>{reply.content=t;schedChat()}});
   }catch(e){
-    if(e.name==='AbortError'){if(!reply.content){D.chat.splice(-2,2)}}
-    else{D.chat.splice(-2,2);showErr(friendlyErr(e));$('#chat-input').value=q}
-  }finally{D.abort=null;setBusy(false);renderChat();persistNotes()}
+    const back=()=>{if(was){D.chat.splice(wasAt,0,...was);D.open=pairsOf().findIndex(x=>x.u===was[0])}}; /* the old answer returns, and is the row left open */
+    if(e.name==='AbortError'){if(!reply.content){D.chat.splice(-2,2);back()}}
+    else{D.chat.splice(-2,2);back();showErr(friendlyErr(e));if(!(opt&&opt.chip))$('#chat-input').value=q}
+  }finally{clearTimeout(paintT);paintT=0;D.abort=null;setBusy(false);renderChat();persistNotes()}
 }
 $('#chat-form').addEventListener('submit',e=>{e.preventDefault();const i=$('#chat-input'),q=i.value;if(!q.trim())return;i.value='';ask(q)});
 $('#chat-send').addEventListener('click',()=>{if(D.busy&&D.abort)D.abort.abort()});
 $('#chat-input').addEventListener('keydown',e=>{if(e.key==='Enter'&&(e.metaKey||e.ctrlKey)){e.preventDefault();$('#chat-form').requestSubmit()}});
-$('#quick').addEventListener('click',e=>{const c=e.target.closest('.chip');if(c)ask(c.dataset.q,{chip:true,label:c.dataset.label,max:+c.dataset.max||3000})});
+$('#quick').addEventListener('click',e=>{
+  const c=e.target.closest('.chip');if(!c||D.busy)return;
+  const p=pairsOf().findIndex(x=>x.u.label===c.dataset.label&&x.a.content); /* already answered: open it. "Ask again" inside it makes a fresh one */
+  if(p>=0){if(D.open!==p)toggleQA(p);revealQA(p);return}
+  ask(c.dataset.q,{chip:true,label:c.dataset.label,max:+c.dataset.max||3000});
+});
 
 /* ---------- settings view ---------- */
 const LANGS=[['','Device language'],['en-US','English (US)'],['en-GB','English (UK)'],['es-ES','Spanish (Spain)'],['es-MX','Spanish (Mexico)'],['fr-FR','French'],['de-DE','German'],['it-IT','Italian'],['pt-BR','Portuguese (Brazil)'],['hi-IN','Hindi'],['ja-JP','Japanese'],['ko-KR','Korean'],['zh-CN','Chinese (Mandarin)']];
@@ -1486,13 +1557,19 @@ function libTerms(lib){
   return [...new Set(parts)].join(', ').slice(0,3000);
 }
 
-function renderLib(stream){
+function renderLib(newMsg){
   const box=$('#lib-chat');
   box.innerHTML=LIB.chat.map(m=>m.role==='user'?`<div class="msg user">${esc(m.content)}</div>`:`<div class="msg bot">${m.content?md(m.content,true):'<span class="meta">Searching your library…</span>'}</div>`).join('');
   $('#lib-hint').hidden=LIB.chat.length>0;
   $('#lib-new').hidden=!LIB.chat.length||LIB.busy;
-  if(stream&&box.lastElementChild)box.lastElementChild.scrollIntoView({block:'nearest'});
+  if(newMsg&&box.children.length>=2){ /* bring the new question into view once, then leave the scrolling to the reader */
+    const q=box.children[box.children.length-2],r=q.getBoundingClientRect();
+    if(r.top<barH()||r.top>innerHeight-160)q.scrollIntoView({block:'start'});
+  }
 }
+let libPaintT=0;
+function paintLib(){libPaintT=0;const el=$('#lib-chat').lastElementChild,a=LIB.chat[LIB.chat.length-1];if(!el||!a||a.role!=='assistant')return;el.innerHTML=a.content?md(a.content,true):'<span class="meta">Searching your library…</span>'}
+const schedLib=()=>{if(!libPaintT)libPaintT=setTimeout(paintLib,100)};
 function setLibBusy(b){
   LIB.busy=b;const sb=$('#lib-send');sb.textContent=b?'Stop':'Ask';sb.type=b?'button':'submit';
   $('#lib-new').hidden=b||!LIB.chat.length;
@@ -1522,11 +1599,11 @@ async function askLib(q){
     const hist=LIB.chat.slice(0,-2).slice(-8);while(hist.length&&hist[0].role!=='user')hist.shift();
     const tl=libTerms(lib);
     const system=LIBSYS_FULL(tl);
-    await callClaude({system,messages:[...hist.map(m=>({role:m.role,content:m.content})),{role:'user',content:user}],max:3000,signal,onText:t=>{reply.content=t;renderLib(true)}});
+    await callClaude({system,messages:[...hist.map(m=>({role:m.role,content:m.content})),{role:'user',content:user}],max:3000,signal,onText:t=>{reply.content=t;schedLib()}});
   }catch(e){
     if(e.name==='AbortError'){if(!reply.content)LIB.chat.splice(-2,2)}
     else{LIB.chat.splice(-2,2);libErr(e.plain?e.message:friendlyErr(e),e.message==='NOKEY');$('#lib-input').value=q;growInput()}
-  }finally{LIB.abort=null;setLibBusy(false);renderLib();persistLib()}
+  }finally{clearTimeout(libPaintT);libPaintT=0;LIB.abort=null;setLibBusy(false);renderLib();persistLib()}
 }
 function LIBSYS_FULL(tl){
   return SYS+'\n\n'+LIBSYS+'\n\nToday is '+nowLong()+'.'+(tl?'\n\nThe student supplied these names, terms and spellings. The transcripts may have them wrong. Use these spellings, and treat close misspellings in the transcripts as these terms:\n'+tl:'');
@@ -1974,6 +2051,14 @@ $('#qz-root').addEventListener('change',async e=>{
 $('#qz-root').addEventListener('input',async e=>{
   if(e.target.id!=='qz-focus')return;
   const d=await qzLoad();d.focus=clip(e.target.value,200);qzSave();
+});
+
+/* ---------- page behaviour ---------- */
+function setBarH(){const a=document.querySelector('.appbar');if(a)document.documentElement.style.setProperty('--bar-h',a.offsetHeight+'px')}
+setBarH();window.addEventListener('resize',setBarH);window.addEventListener('load',setBarH);
+$('#d-tbox>summary').addEventListener('click',e=>{ /* the Transcript row stays where it is when you close a long transcript */
+  e.preventDefault();const d=$('#d-tbox'),s=e.currentTarget,before=s.getBoundingClientRect().top;
+  d.open=!d.open;const after=s.getBoundingClientRect().top;if(Math.abs(after-before)>1)window.scrollBy(0,after-before);
 });
 
 /* ---------- start ---------- */
