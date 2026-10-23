@@ -50,7 +50,7 @@ button,input,select,textarea{font:inherit;color:inherit}
 button{cursor:pointer}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .top{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
-.meta{color:var(--muted);font-size:.85rem}
+.meta{color:var(--muted);font-size:.85rem;overflow-wrap:anywhere}
 .num{font-family:var(--font-num);font-variant-numeric:tabular-nums}
 .empty{color:var(--muted);margin:8px 0}
 .card{background:var(--surface);border-radius:22px;padding:18px}
@@ -190,6 +190,23 @@ details.adv .btns{padding-bottom:12px}
 .dr-rec small{color:var(--muted);font-size:.78rem}
 .dr-foot{margin:0 4px 0 24px;padding:12px 0 0;color:var(--muted);font-size:.8rem;border-top:1px solid var(--line)}
 
+/* Library list */
+.lib-sec{margin:26px 0 10px;font-size:1.25rem;font-weight:700;letter-spacing:-.01em}
+.lib-sec:first-child{margin-top:4px}
+#lib-list{gap:12px}
+.row.lrow{display:grid;grid-template-columns:84px minmax(0,1fr);grid-template-rows:auto auto;column-gap:14px;row-gap:6px;align-items:start;border-radius:24px;padding:14px;min-height:112px}
+.lrow .txt{display:flex;flex-direction:column;gap:2px;min-width:0;padding-top:2px}
+.lrow .ttl{font-size:1.05rem;font-weight:700;line-height:1.25;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.lrow .sub{color:var(--muted);font-size:.95rem}
+.lrow .when{color:var(--muted);font-size:.85rem}
+.lrow .badge{grid-column:2;justify-self:end;font-size:.78rem;font-weight:600;padding:3px 10px;border-radius:999px;background:var(--raised);color:var(--muted)}
+.lrow .badge.ok{background:var(--accent-soft);color:var(--accent)}
+.lrow .badge.warn{color:var(--warn)}
+.lrow .badge.rec{color:var(--rec)}
+.thumb{--t1:80%;--t2:68%;--ti:24%;grid-row:1/3;align-self:center;width:84px;height:84px;border-radius:16px;display:grid;place-items:center;background:linear-gradient(150deg,hsl(var(--h) 50% var(--t1)),hsl(var(--h) 55% var(--t2)));color:hsl(var(--h) 45% var(--ti))}
+@media (prefers-color-scheme:dark){.thumb{--t1:42%;--t2:28%;color:rgba(255,255,255,.92)}}
+.thumb svg{width:56px;height:44px;fill:currentColor}
+
 /* Home: recorder and library assistant */
 .rec-card .pills{justify-content:center}
 details.livebox summary{display:flex;align-items:center;justify-content:space-between;gap:8px;cursor:pointer;list-style:none}
@@ -200,8 +217,70 @@ details.livebox[open] summary{margin-bottom:10px}
 .composer{position:sticky;bottom:0;z-index:4;display:flex;gap:8px;align-items:flex-end;background:var(--bg);padding:10px 0 calc(8px + env(safe-area-inset-bottom,0px));margin-top:auto}
 .composer textarea{flex:1;min-width:0;max-height:128px;resize:none;min-height:46px;border-radius:18px}
 .composer .btn{min-height:46px}
-button.cite{display:inline;background:var(--accent-soft);border:0;border-radius:6px;color:var(--accent);padding:0 6px;font-size:.86em;font-weight:600;cursor:pointer}
+button.cite{display:inline;background:var(--accent-soft);border:0;border-radius:6px;color:var(--accent);padding:0 6px;font-size:.86em;font-weight:600;cursor:pointer;max-width:100%;text-align:left;white-space:normal;overflow-wrap:anywhere}
 button.cite:hover{text-decoration:underline}
+
+/* Marked, Assignments and Quiz */
+.pg-intro{color:var(--muted);font-size:.92rem;margin:0}
+.stack{display:flex;flex-direction:column;gap:12px}
+.grp-head{display:flex;flex-direction:column;gap:1px;margin-bottom:6px}
+.grp-head strong{font-size:1.04rem;overflow-wrap:anywhere}
+.mk{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:start;gap:8px;border-top:1px solid var(--line);padding:10px 0}
+.mk:first-of-type{border-top:0}
+.mk-go{display:grid;grid-template-columns:62px minmax(0,1fr);gap:8px;text-align:left;background:none;border:0;padding:0;color:inherit;border-radius:8px}
+.mk-go .ts{font-family:var(--font-num);font-size:.85rem;color:var(--accent);font-weight:600;padding-top:2px}
+.mk-go .snip{overflow-wrap:anywhere;font-size:.95rem}
+.mk-go .snip.none{color:var(--muted);font-style:italic}
+.mk-rm{background:none;border:0;color:var(--muted);font-size:.85rem;padding:4px 2px;white-space:nowrap}
+.mk-rm:hover,.mk-rm[data-arm]{color:var(--rec)}
+.as-row{display:grid;grid-template-columns:34px minmax(0,1fr);gap:10px;align-items:start}
+.as-body{display:flex;flex-direction:column;gap:5px;min-width:0}
+.as-top{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.kind{font-size:.72rem;font-weight:700;letter-spacing:.03em;text-transform:uppercase;padding:2px 9px;border-radius:999px;background:var(--accent-soft);color:var(--accent)}
+.due{font-size:.84rem;color:var(--muted);font-weight:600}
+.due.late{color:var(--warn)}
+.as-title{font-weight:700;font-size:1.04rem;overflow-wrap:anywhere}
+.as-det{font-size:.95rem;overflow-wrap:anywhere}
+.as-src{align-self:flex-start;text-align:left;margin-top:2px;padding:3px 8px!important}
+.as.done .as-title{text-decoration:line-through;color:var(--muted)}
+.as.done .as-det{color:var(--muted)}
+.tick{width:30px;height:30px;border-radius:50%;border:2px solid var(--muted);background:transparent;color:var(--accent-ink);display:grid;place-items:center;padding:0;margin-top:-1px}
+.tick svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:3;stroke-linecap:round;stroke-linejoin:round;opacity:0}
+.tick[aria-checked=true]{background:var(--accent);border-color:var(--accent)}
+.tick[aria-checked=true] svg{opacity:1}
+details.donebox summary{cursor:pointer;font-weight:650;font-size:1.05rem;padding:6px 0 10px;color:var(--muted)}
+details.donebox .stack{padding-bottom:4px}
+.pick{display:flex;align-items:flex-start;gap:12px;padding:11px 0;border-top:1px solid var(--line);cursor:pointer}
+.pick:first-of-type{border-top:0}
+.pick input{flex:none;width:22px;height:22px;margin:1px 0 0;accent-color:var(--accent)}
+.pick .pk{display:flex;flex-direction:column;min-width:0}
+.pick .pk strong{overflow-wrap:anywhere}
+.pick .pk small{color:var(--muted)}
+.pick.off{cursor:default;opacity:.6}
+.chip.on{background:var(--accent);color:var(--accent-ink)}
+.qz-top{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.qz-q{font-size:1.18rem;font-weight:650;line-height:1.35;margin:8px 0 14px;overflow-wrap:anywhere;outline:none}
+.opts{display:flex;flex-direction:column;gap:10px}
+.opt{display:flex;gap:12px;align-items:flex-start;width:100%;text-align:left;background:var(--raised);border:0;border-radius:16px;padding:13px 14px;font-size:1rem;color:var(--ink)}
+@media (hover:hover){.opt:not(:disabled):hover{box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--accent) 55%,transparent)}}
+.opt .lt{flex:none;width:26px;height:26px;border-radius:50%;display:grid;place-items:center;background:var(--bubble);font-size:.82rem;font-weight:700}
+.opt .ot{display:flex;flex-direction:column;gap:2px;min-width:0;overflow-wrap:anywhere;padding-top:2px}
+.opt:disabled{cursor:default;color:var(--ink);opacity:1}
+.opt.right{background:var(--accent-soft);color:var(--accent)}
+.opt.right .lt{background:var(--accent);color:var(--accent-ink)}
+.opt.wrong{box-shadow:inset 0 0 0 2px var(--rec)}
+.tagx{font-size:.78rem;font-weight:700}
+.tagx.bad{color:var(--rec)}
+.fb{margin:14px 0 4px;padding:12px 14px;border-radius:16px;background:var(--bg)}
+.fb,.miss,.hist,.pg-intro{overflow-wrap:anywhere}
+.fb p{margin:.3em 0}
+.score{font-weight:300;font-variant-numeric:tabular-nums;font-size:clamp(52px,16vw,84px);letter-spacing:-.025em;line-height:1.05;outline:none}
+.miss{padding:12px 0;border-top:1px solid var(--line)}
+.miss:first-of-type{border-top:0}
+.miss p{margin:.25em 0}
+.hist{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-top:1px solid var(--line);font-size:.92rem}
+.hist:first-of-type{border-top:0}
+.hist span:first-child{min-width:0;overflow-wrap:anywhere}
 
 #toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(86px + env(safe-area-inset-bottom,0px));max-width:min(92vw,520px);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:14px;font-size:.9rem;z-index:9;text-align:center}
 </style>
@@ -250,6 +329,28 @@ button.cite:hover{text-decoration:underline}
     <div class="list" id="lib-list"></div>
   </section>
 
+  <!-- MARKED -->
+  <section id="view-marked" class="view" hidden style="flex-direction:column;gap:16px">
+    <p class="pg-intro" id="mk-intro"></p>
+    <div class="stack" id="mk-list"></div>
+  </section>
+
+  <!-- ASSIGNMENTS -->
+  <section id="view-assign" class="view" hidden style="flex-direction:column;gap:16px">
+    <div class="card" id="as-head">
+      <p class="meta" id="as-status" style="margin:0 0 10px"></p>
+      <div class="btns"><button class="btn primary" id="as-scan" type="button">Find assignments</button><button class="btn" id="as-stop" type="button" hidden>Stop</button></div>
+      <div class="prog" id="as-prog" hidden><div class="bar ind"><span></span></div><div class="meta" id="as-prog-t"></div></div>
+      <div class="err" id="as-err" hidden></div>
+    </div>
+    <div class="stack" id="as-list"></div>
+  </section>
+
+  <!-- QUIZ -->
+  <section id="view-quiz" class="view" hidden style="flex-direction:column;gap:16px">
+    <div class="stack" id="qz-root" style="gap:16px"></div>
+  </section>
+
   <!-- DETAIL -->
   <section id="view-detail" class="view" hidden style="flex-direction:column;gap:16px">
     <button class="back" id="d-back">&larr; Library</button>
@@ -260,6 +361,7 @@ button.cite:hover{text-decoration:underline}
     <div class="card">
       <audio id="d-audio" controls preload="metadata"></audio>
       <div class="btns">
+        <button class="btn" id="d-mark" type="button">Mark this moment</button>
         <button class="btn" id="d-dl-audio">Download audio</button>
         <button class="btn" id="d-dl-tx">Download transcript</button>
         <button class="btn" id="d-copy">Copy transcript</button>
@@ -274,7 +376,7 @@ button.cite:hover{text-decoration:underline}
         <button class="chip" data-q="Help me learn what is taught in this recording. Go through each main idea and its sub-ideas.">Learn</button>
         <button class="chip" data-q="Write a chapter-style outline of the recording, with a timestamp for each chapter.">Outline</button>
         <button class="chip" data-q="List the tasks I need to do outside of the classroom, such as at home or in daily life: errands, things to practice, prepare or buy, and anything I committed to do. Include the timestamp and any deadline mentioned. If there are none, say so.">Task</button>
-        <button class="chip" data-q="List every assignment, quiz, test, exam, project, paper or study that is posted or announced, especially anything due, graded or checked for a grade. For each, say what it is, what it covers, when it is due or taking place, how it is graded if mentioned, and the timestamp. If there are none, say so.">Assignment</button>
+        <button class="chip" data-q="Give me the key points of this recording as a bulleted list, in order, each with its timestamp.">Bullet points</button>
       </div>
       <details class="terms" id="d-terms-box">
         <summary>Names and terms for this recording</summary>
@@ -362,6 +464,9 @@ button.cite:hover{text-decoration:underline}
   <nav aria-label="Sections">
     <button class="dr-item" data-view="home" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 11 12 4l8.5 7"/><path d="M5.5 9.8V20h13V9.8"/><path d="M10 20v-5.5h4V20"/></svg>Home</button>
     <button class="dr-item" data-view="library" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 7.5a2 2 0 0 1 2-2h4l2 2.2h7a2 2 0 0 1 2 2V17.5a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z"/></svg>Library</button>
+        <button class="dr-item" data-view="marked" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.5 4.5h9a1 1 0 0 1 1 1V20l-5.5-3.8L6.5 20V5.5a1 1 0 0 1 1-1z"/></svg>Marked</button>
+    <button class="dr-item" data-view="assign" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5H7.5a2 2 0 0 0-2 2v11.5a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H15"/><rect x="9" y="3.5" width="6" height="3" rx="1"/><path d="M8.8 12.6l1.8 1.8 3.4-3.6"/><path d="M8.8 17.5h6.4"/></svg>Assignments</button>
+    <button class="dr-item" data-view="quiz" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M9.6 9.7a2.5 2.5 0 1 1 3.6 2.2c-.8.5-1.2 1-1.2 1.9"/><path d="M12 16.9h.01"/></svg>Quiz</button>
     <button class="dr-item" data-view="settings" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></svg>Settings</button>
   </nav>
   <div class="dr-sect">Recents</div>
@@ -387,7 +492,7 @@ let toastT;
 function toast(m){const t=$('#toast');t.textContent=m;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>{t.hidden=true},4500)}
 
 /* ---------- settings ---------- */
-const BUILD='23 Oct 2026, flat recorder';
+const BUILD='23 Oct 2026, Marked, Assignments and Quiz';
 const DEF={apiKey:'',model:'claude-sonnet-5-5',lang:'',kbps:64,terms:'',aaiKey:'',speakers:false,sound:'natural',liveTx:true,meter:true};
 const settings=Object.assign({},DEF);
 let savedSettings={};try{savedSettings=JSON.parse(localStorage.getItem('longtake.settings')||'{}')||{}}catch(e){}
@@ -661,7 +766,7 @@ async function recover(){
 }
 
 /* ---------- navigation and side menu ---------- */
-const TITLES={home:'Longtake',library:'Library',detail:'Recording',settings:'Settings'};
+const TITLES={home:'Longtake',library:'Library',marked:'Marked',assign:'Assignments',quiz:'Quiz',detail:'Recording',settings:'Settings'};
 let CUR='home';
 const drawer=$('#drawer'),scrim=$('#scrim'),menuBtn=$('#menu-btn');
 function show(view){
@@ -673,6 +778,9 @@ function show(view){
   $('#appbar-title').textContent=TITLES[view];
   closeDrawer();
   if(view==='library')renderLibrary();
+  if(view==='marked')renderMarked();
+  if(view==='assign')renderAssign();
+  if(view==='quiz')renderQuiz();
   if(view==='settings')renderSettings();
   if(view==='home'){sizeMeter();refreshTitles().then(renderLib)}
   updateAppbar();
@@ -718,26 +826,55 @@ document.addEventListener('keydown',e=>{
   }
 });
 $$('.dr-item').forEach(b=>b.onclick=()=>show(b.dataset.view));
-$('#dr-recents').addEventListener('click',e=>{const r=e.target.closest('[data-id]');if(r)openDetail(r.dataset.id)});
+$('#dr-recents').addEventListener('click',e=>{const r=e.target.closest('[data-id]');if(r)openDetail(r.dataset.id,CUR==='detail'?BACK:CUR)});
 let swipeX=null;
 drawer.addEventListener('touchstart',e=>{swipeX=e.touches[0].clientX},{passive:true});
 drawer.addEventListener('touchend',e=>{if(swipeX!==null&&e.changedTouches[0].clientX-swipeX<-60)closeDrawer();swipeX=null},{passive:true});
 
 /* ---------- library ---------- */
 const fmtLen=ms=>{const m=Math.round(ms/60000);return m<1?Math.max(1,Math.round(ms/1000))+' s':m>=60?Math.floor(m/60)+' h '+(m%60)+' min':m+' min'};
-const rowHtml=s=>`<button class="row" data-id="${esc(s.id)}"><span class="row-main"><strong>${esc(s.title)}</strong><span class="meta">${fmtDate(s.startedAt)} · ${fmtLen(s.durationMs||0)} · ${(s.words||0).toLocaleString()} words</span></span>${s.status==='recovered'?'<span class="tag">Recovered</span>':s.status==='recording'?'<span class="tag">Recording</span>':''}</button>`;
+function thumbHtml(id){ /* a small waveform picture, different for each recording */
+  let h=2166136261;for(const c of String(id)){h^=c.charCodeAt(0);h=Math.imul(h,16777619)}
+  h>>>=0;const hue=[215,262,328,6,28,150,182,44][h%8];
+  let x=h||1;const rnd=()=>{x^=x<<13;x^=x>>>17;x^=x<<5;return (x>>>0)/4294967296};
+  let bars='';for(let i=0;i<9;i++){const bh=8+Math.round(rnd()*32);bars+=`<rect x="${(i*6.2).toFixed(1)}" y="${(44-bh)/2}" width="4" height="${bh}" rx="2"/>`}
+  return `<span class="thumb" style="--h:${hue}" aria-hidden="true"><svg viewBox="0 0 56 44">${bars}</svg></span>`;
+}
+const stamp=t=>{const d=new Date(t);return d.toLocaleDateString([],{weekday:'short',month:'short',day:'numeric',year:'numeric'})+' at '+d.toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})};
+function badgeFor(s){
+  if(s.status==='recording')return ['Recording','rec'];
+  if(s.status==='recovered')return ['Recovered','warn'];
+  if(s.improvedAt)return ['Improved','ok'];
+  if(!(s.words>0))return ['No transcript','warn'];
+  return ['Live transcript',''];
+}
+const rowHtml=s=>{const [b,c]=badgeFor(s);return `<button class="row lrow" data-id="${esc(s.id)}">${thumbHtml(s.id)}<span class="txt"><span class="ttl">${esc(s.title)}</span><span class="sub">${fmtLen(s.durationMs||0)}${s.words?' · '+s.words.toLocaleString()+' words':''}</span><span class="when">${stamp(s.startedAt)}</span></span><span class="badge ${c}">${b}</span></button>`};
+function sectionFor(t,now){ /* today, yesterday and weekday names for the last week, then Last Week, then one group per month */
+  const d0=x=>{const d=new Date(x);d.setHours(0,0,0,0);return d.getTime()};
+  const days=Math.round((d0(now)-d0(t))/864e5);
+  if(days<=0)return {key:'d0',label:'Today'};
+  if(days===1)return {key:'d1',label:'Yesterday'};
+  if(days<7)return {key:'d'+days,label:new Date(t).toLocaleDateString([],{weekday:'long'})};
+  if(days<14)return {key:'w',label:'Last Week'};
+  const d=new Date(t);return {key:'m'+d.getFullYear()+'-'+d.getMonth(),label:d.toLocaleDateString([],{month:'long',year:'numeric'})};
+}
 async function renderLibrary(){
   const list=$('#lib-list');
   let all=[];try{all=(await idb.all('sessions')).sort((a,b)=>b.startedAt-a.startedAt)}catch(e){}
   if(!all.length){list.innerHTML='<p class="empty">No recordings yet. Your first one will appear here.</p>';return}
-  list.innerHTML=all.map(rowHtml).join('');
+  let html='',cur=null;const now=Date.now();
+  for(const x of all){const sec=sectionFor(x.startedAt,now);if(sec.key!==cur){cur=sec.key;html+=`<h2 class="lib-sec">${esc(sec.label)}</h2>`}html+=rowHtml(x)}
+  list.innerHTML=html;
 }
 $('#lib-list').addEventListener('click',e=>{const r=e.target.closest('.row');if(r)openDetail(r.dataset.id)});
 
 /* ---------- detail ---------- */
+let BACK='library';
+const BACKLBL={home:'Home',library:'Library',marked:'Marked',assign:'Assignments',quiz:'Quiz'};
 const D={sid:null,session:null,segs:[],url:null,blob:null,chat:[],digest:null,digestLen:0,abort:null,busy:false,delArm:false,delT:0,edit:false};
 const audio=$('#d-audio');
-async function openDetail(sid){
+async function openDetail(sid,back){
+  BACK=BACKLBL[back]?back:'library';$('#d-back').textContent='\u2190 '+BACKLBL[BACK];
   show('detail');
   const s=await idb.get('sessions',sid);
   if(!s){show('library');return}
@@ -766,7 +903,7 @@ audio.addEventListener('loadedmetadata',()=>{
     audio.addEventListener('timeupdate',fix);audio.currentTime=1e101;
   }
 });
-$('#d-back').onclick=()=>show('library');
+$('#d-back').onclick=()=>show(BACK);
 $('#d-title').addEventListener('change',async e=>{
   if(!D.session)return;D.session.title=e.target.value.trim()||defaultTitle();e.target.value=D.session.title;
   try{await idb.put('sessions',D.session)}catch(err){storageFail(err)}
@@ -956,7 +1093,7 @@ $('#s-clear').onclick=async()=>{
   const b=$('#s-clear');
   if(!clearArm){clearArm=true;b.textContent='Tap again to delete everything';clearT=setTimeout(()=>{clearArm=false;b.textContent='Delete all recordings'},3500);return}
   clearTimeout(clearT);clearArm=false;b.textContent='Delete all recordings';
-  try{await idb.clear();LIB.chat=[];LIB.cache.clear();LIB.titles={};renderLib();toast('All recordings deleted.')}catch(e){toast('Could not delete the recordings.')}
+  try{await idb.clear();LIB.chat=[];LIB.cache.clear();LIB.titles={};AS.data=null;QZ.data=null;QZ.mode=null;renderLib();toast('All recordings deleted.')}catch(e){toast('Could not delete the recordings.')}
   renderSettings();
 };
 
@@ -1376,9 +1513,9 @@ $('#lib-send').addEventListener('click',()=>{if(LIB.busy&&LIB.abort)LIB.abort.ab
 $('#lib-input').addEventListener('input',growInput);
 $('#lib-input').addEventListener('keydown',e=>{if(e.key==='Enter'&&(e.metaKey||e.ctrlKey)){e.preventDefault();$('#lib-form').requestSubmit()}});
 $('#lib-new').onclick=()=>{if(LIB.busy)return;LIB.chat=[];persistLib();renderLib();libErr('')};
-$('#lib-chat').addEventListener('click',e=>{const b=e.target.closest('button.cite');if(b)openAt(b.dataset.sid,+b.dataset.t)});
-async function openAt(sid,ms){
-  await openDetail(sid);
+$('#lib-chat').addEventListener('click',e=>{const b=e.target.closest('button.cite');if(b)openAt(b.dataset.sid,+b.dataset.t,'home')});
+async function openAt(sid,ms,back){
+  await openDetail(sid,back);
   const t0=Date.now(),iv=setInterval(()=>{
     if(D.sid!==sid){clearInterval(iv);return}
     if((isFinite(audio.duration)&&audio.duration>0)||Date.now()-t0>4000){
@@ -1387,6 +1524,433 @@ async function openAt(sid,ms){
     }
   },200);
 }
+
+/* ---------- shared helpers for Marked, Assignments and Quiz ---------- */
+const hid=s=>{let h=2166136261;for(const c of String(s)){h^=c.charCodeAt(0);h=Math.imul(h,16777619)}return (h>>>0).toString(36)};
+const parseClock=v=>{const m=String(v==null?'':v).match(/(\d{1,2}):(\d{2})(?::(\d{2}))?/);if(!m)return null;return (m[3]!==undefined?(+m[1])*3600+(+m[2])*60+(+m[3]):(+m[1])*60+(+m[2]))*1000};
+const parseJson=txt=>{const m=String(txt||'').match(/\{[\s\S]*\}/);if(!m)return null;try{return JSON.parse(m[0])}catch(e){return null}};
+const clip=(v,n)=>typeof v==='string'?v.replace(/\s+/g,' ').trim().slice(0,n):'';
+const badJson=()=>Object.assign(new Error('The assistant\'s answer could not be read. Please try again.'),{bad:true});
+const shortClock=ms=>{const s=Math.max(0,Math.floor(ms/1000)),h=Math.floor(s/3600);return (h?h+':'+pad(Math.floor(s%3600/60)):Math.floor(s/60))+':'+pad(s%60)};
+const LEAD=5000; /* open a recording a few seconds before the moment, so the sentence is not cut off */
+async function getRec(key){try{const r=await idb.get('notes',key);return r&&r.sid===key?r:null}catch(e){return null}}
+function twoTap(btn,armText,fn){
+  if(btn.dataset.arm==='1'){clearTimeout(+btn.dataset.armT);delete btn.dataset.arm;fn();return}
+  const old=btn.textContent;btn.dataset.arm='1';btn.textContent=armText;
+  btn.dataset.armT=setTimeout(()=>{if(btn.isConnected){delete btn.dataset.arm;btn.textContent=old}},3500);
+}
+async function textSessions(){ /* every recording with its spoken lines, newest first */
+  const [ss,txs]=await Promise.all([idb.all('sessions'),idb.all('tx')]);
+  const m=new Map(txs.map(x=>[x.sid,x.segments||[]]));
+  return ss.sort((a,b)=>b.startedAt-a.startedAt).map(s=>{
+    const segs=(m.get(s.id)||[]).filter(g=>!g.mark&&g.text&&g.text.trim());
+    let chars=0;for(const g of segs)chars+=g.text.length;
+    return {s,segs,live:s.status==='recording'||(R.active&&R.sid===s.id),sig:segs.length+':'+chars};
+  });
+}
+const linesOf=segs=>segs.map(g=>`[${fmtDur(g.t)}] ${g.text.trim()}`);
+const withTerms=(base,ss)=>{
+  const t=[...new Set([settings.terms,...ss.map(s=>s.terms)].map(x=>(x||'').trim()).filter(Boolean))].join('\n');
+  return t?base+'\n\nThe user supplied these names, terms and spellings. The transcript may have them wrong. Use these spellings, and treat close misspellings in the transcript as these terms:\n'+t:base;
+};
+function partsOf(lines,max){
+  const parts=[];let cur=[],n=0;
+  for(const l of lines){if(cur.length&&n+l.length+1>max){parts.push(cur.join('\n'));cur=[];n=0}cur.push(l);n+=l.length+1}
+  if(cur.length)parts.push(cur.join('\n'));return parts;
+}
+const todayISO=()=>{const d=new Date();return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())};
+const validISO=s=>{const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(s);if(!m)return false;const d=new Date(+m[1],+m[2]-1,+m[3]);return d.getFullYear()===+m[1]&&d.getMonth()===+m[2]-1&&d.getDate()===+m[3]};
+const fmtISO=s=>{const d=new Date(s+'T12:00:00'),o={weekday:'short',month:'short',day:'numeric'};if(d.getFullYear()!==new Date().getFullYear())o.year='numeric';return d.toLocaleDateString([],o)};
+const plural=(n,a,b)=>n+' '+(n===1?a:b);
+document.addEventListener('click',e=>{const g=e.target.closest('[data-go]');if(g)show(g.dataset.go)});
+
+/* ---------- Marked ---------- */
+function snippet(segs,t){ /* what was being said around a mark; speech is written down a moment after it is said */
+  const near=segs.filter(g=>!g.mark&&g.text&&g.t>=t-25000&&g.t<=t+15000);
+  const txt=near.map(g=>g.text.trim()).join(' ').trim();
+  return txt.length>280?txt.slice(0,277).trimEnd()+'…':txt;
+}
+async function markedData(){
+  const [ss,txs]=await Promise.all([idb.all('sessions'),idb.all('tx')]);
+  const m=new Map(txs.map(x=>[x.sid,x.segments||[]]));
+  if(R.active&&R.sid)m.set(R.sid,R.segments); /* marks made in the recording that is running right now */
+  const out=[];
+  for(const s of ss.sort((a,b)=>b.startedAt-a.startedAt)){
+    const segs=m.get(s.id)||[],marks=segs.filter(g=>g.mark).sort((a,b)=>a.t-b.t);
+    if(marks.length)out.push({s,marks:marks.map(g=>({t:g.t,snip:snippet(segs,g.t)}))});
+  }
+  return out;
+}
+let mkTok=0;
+async function renderMarked(){
+  const tok=++mkTok,box=$('#mk-list');
+  let data;try{data=await markedData()}catch(e){box.innerHTML='<p class="empty">Could not read your recordings.</p>';$('#mk-intro').textContent='';return}
+  if(tok!==mkTok||CUR!=='marked')return;
+  const n=data.reduce((a,g)=>a+g.marks.length,0);
+  $('#mk-intro').textContent=n?`${plural(n,'marked moment','marked moments')} in ${plural(data.length,'recording','recordings')}. Tap one to open the recording a few seconds before it.`:'';
+  if(!n){box.innerHTML='<div class="card"><p class="empty" style="margin:0">Nothing marked yet. While you record, tap Mark whenever something important is said and it will be saved here. You can also open any recording and tap Mark this moment while you listen.</p></div>';return}
+  box.innerHTML=data.map(g=>`<div class="card"><div class="grp-head"><strong>${esc(g.s.title)}</strong><span class="meta">${stamp(g.s.startedAt)} · ${plural(g.marks.length,'mark','marks')}</span></div>${g.marks.map(m=>`<div class="mk"><button class="mk-go" type="button" data-sid="${esc(g.s.id)}" data-t="${m.t}" aria-label="Open ${esc(g.s.title)} at ${fmtDur(m.t)}"><span class="ts">${shortClock(m.t)}</span><span class="snip${m.snip?'':' none'}">${m.snip?esc(m.snip):'No transcript text near this moment.'}</span></button><button class="mk-rm" type="button" data-sid="${esc(g.s.id)}" data-t="${m.t}" aria-label="Remove the mark at ${fmtDur(m.t)} in ${esc(g.s.title)}">Remove</button></div>`).join('')}</div>`).join('');
+}
+async function removeMark(sid,t){
+  const drop=arr=>{if(!Array.isArray(arr))return false;const i=arr.findIndex(g=>g.mark&&g.t===t);if(i<0)return false;arr.splice(i,1);return true};
+  if(R.active&&R.sid===sid){if(drop(R.segments)){R.dirty=true;await saveTx();renderLive()}}
+  else{
+    const tx=await idb.get('tx',sid);
+    if(tx){const a=drop(tx.segments),b=drop(tx.prev);if(a||b)await idb.put('tx',tx)}
+  }
+}
+$('#mk-list').addEventListener('click',e=>{
+  const rm=e.target.closest('.mk-rm');
+  if(rm){twoTap(rm,'Tap again',async()=>{try{await removeMark(rm.dataset.sid,+rm.dataset.t);toast('Mark removed.')}catch(err){toast('Could not remove that mark.')}renderMarked()});return}
+  const go=e.target.closest('.mk-go');
+  if(go)openAt(go.dataset.sid,Math.max(0,+go.dataset.t-LEAD),'marked');
+});
+function addMarkTo(arr,ms){ /* keeps the transcript in time order without touching anything else */
+  let i=arr.findIndex(g=>g.t>ms);if(i<0)i=arr.length;arr.splice(i,0,{t:ms,mark:true,text:''});
+}
+$('#d-mark').onclick=async()=>{
+  if(!D.sid||!D.url)return;
+  if(R.active&&R.sid===D.sid){toast('This recording is still going. Use the Mark button on the recorder.');return}
+  const ms=Math.round((audio.currentTime||0)*1000);
+  if(D.segs.some(g=>g.mark&&Math.abs(g.t-ms)<1500)){toast('Already marked here.');return}
+  addMarkTo(D.segs,ms);if(D.prev)addMarkTo(D.prev,ms);
+  try{await idb.put('tx',{sid:D.sid,segments:D.segs,prev:D.prev||null})}catch(e){storageFail(e)}
+  renderTx();toast('Marked at '+fmtDur(ms)+'. Find it under Marked in the menu.');
+};
+
+/* ---------- Assignments ---------- */
+const KINDS={assignment:'Assignment',quiz:'Quiz',test:'Test',exam:'Exam',project:'Project',presentation:'Presentation',reading:'Reading',other:'Other'};
+const AS_SYS='You read one transcript from a voice recorder and list everything the teacher, presenter, speaker or organizer says the listeners must do or prepare for: homework, assignments, readings, projects, papers, labs, quizzes, tests, exams, presentations they have to give, forms or sign-ups, things to bring, and deadlines. Include an announcement of an upcoming quiz, test or exam even when the speaker only gives the date or says what it covers. Do not include the speaker\'s own plans, general advice or things the listeners are merely invited to think about. Never invent anything: every item must come from what the speaker said. The transcript was made by automatic speech recognition, so quietly fix obvious misheard words in names and terms.\n\nReturn one JSON object and nothing else, in exactly this shape: {"items":[{"kind":"assignment|quiz|test|exam|project|presentation|reading|other","title":"short name","details":"what is required and what it covers, in one or two plain sentences","due":"the due date or time as the speaker said it, or an empty string","dueISO":"that date as YYYY-MM-DD if it can be worked out from the date the recording was made, otherwise an empty string","graded":"how it is graded or weighted if the speaker said, otherwise an empty string","time":"hh:mm:ss where the speaker first raised it"}]}. Use kind \"assignment\" for homework and other graded work. If nothing is required of the listeners, return {"items":[]}.';
+const AS={data:null,busy:false,abort:null,msg:'',err:'',errKey:false,showDone:false,tok:0};
+async function asLoad(){
+  if(AS.data)return AS.data;
+  const r=await getRec('__assign');
+  AS.data={items:Array.isArray(r&&r.items)?r.items.filter(it=>it&&typeof it.id==='string'&&typeof it.sid==='string'&&typeof it.title==='string'):[],scanned:(r&&r.scanned&&typeof r.scanned==='object')?r.scanned:{}};
+  return AS.data;
+}
+const asSave=()=>idb.put('notes',{sid:'__assign',items:AS.data.items,scanned:AS.data.scanned}).catch(()=>{});
+function cleanItem(r,s){
+  if(!r||typeof r!=='object')return null;
+  const title=clip(r.title,140);if(!title)return null;
+  let kind=clip(r.kind,20).toLowerCase();if(!KINDS[kind])kind='other';
+  let dueISO=clip(r.dueISO,10);if(!validISO(dueISO))dueISO='';
+  let t=parseClock(r.time);if(t!==null&&s.durationMs>0&&t>s.durationMs+60000)t=null;
+  return {id:hid(s.id+'|'+title.toLowerCase().replace(/[^a-z0-9]+/g,' ').trim()),sid:s.id,kind,title,details:clip(r.details,400),due:clip(r.due,80),dueISO,graded:clip(r.graded,160),t};
+}
+async function extractFrom(x,signal,onPart){
+  const parts=partsOf(linesOf(x.segs),80000),found=new Map();
+  for(let i=0;i<parts.length;i++){
+    if(onPart)onPart(i+1,parts.length);
+    const head=`This recording was made on ${dLong(x.s.startedAt)}. Title: "${safeTitle(x.s.title)}".`+(parts.length>1?` This is part ${i+1} of ${parts.length} of the transcript.`:'');
+    const txt=await callClaude({system:withTerms(AS_SYS,[x.s]),messages:[{role:'user',content:`${head}\n\n<transcript>\n${parts[i]}\n</transcript>`}],max:4000,signal});
+    const j=parseJson(txt);if(!j||!Array.isArray(j.items))throw badJson();
+    for(const r of j.items){const it=cleanItem(r,x.s);if(it&&!found.has(it.id))found.set(it.id,it)}
+  }
+  return [...found.values()];
+}
+async function asScan(force){
+  if(AS.busy)return;
+  AS.busy=true;AS.err='';AS.errKey=false; /* claimed right away, so a double tap cannot start two scans */
+  if(!settings.apiKey){AS.busy=false;AS.err=friendlyErr(new Error('NOKEY'));AS.errKey=true;renderAssign();return}
+  let d,list;try{d=await asLoad();list=await textSessions()}catch(e){AS.busy=false;AS.err='Could not read your recordings.';renderAssign();return}
+  const todo=list.filter(x=>x.segs.length&&!x.live&&(force||!d.scanned[x.s.id]||d.scanned[x.s.id].sig!==x.sig));
+  if(!todo.length){AS.busy=false;renderAssign();return}
+  AS.abort=new AbortController();AS.msg='Starting…';renderAssign();
+  let done=0;
+  try{
+    for(let i=0;i<todo.length;i++){
+      const x=todo[i],label=`Checking “${x.s.title}” (${i+1} of ${todo.length})`;
+      AS.msg=label;asProgress();
+      const items=await extractFrom(x,AS.abort.signal,(p,n)=>{AS.msg=label+(n>1?`, part ${p} of ${n}`:'');asProgress()});
+      const old=new Map(d.items.filter(it=>it.sid===x.s.id).map(it=>[it.id,it]));
+      d.items=d.items.filter(it=>it.sid!==x.s.id).concat(items.map(it=>{const o=old.get(it.id);return o?Object.assign(it,{done:!!o.done,hidden:!!o.hidden}):it}));
+      d.scanned[x.s.id]={sig:x.sig,at:Date.now(),n:items.length};
+      await asSave();done++;
+      if(CUR==='assign')renderAssign();
+    }
+  }catch(e){
+    if(e.name!=='AbortError'){AS.err=e.bad?e.message:friendlyErr(e);AS.errKey=e.message==='NOKEY'}
+  }
+  AS.busy=false;AS.abort=null;AS.msg='';
+  if(CUR==='assign')renderAssign();else if(done)toast('Assignments updated.');
+}
+function asProgress(){ if(CUR==='assign'&&AS.busy)$('#as-prog-t').textContent=AS.msg }
+const asCmp=(by)=>(a,b)=>{
+  if(a.dueISO&&b.dueISO&&a.dueISO!==b.dueISO)return a.dueISO<b.dueISO?-1:1;
+  if(!!a.dueISO!==!!b.dueISO)return a.dueISO?-1:1;
+  const sa=by.get(a.sid),sb=by.get(b.sid);
+  if(sa&&sb&&sa.s.startedAt!==sb.s.startedAt)return sb.s.startedAt-sa.s.startedAt;
+  return (a.t||0)-(b.t||0);
+};
+function dueInfo(it){
+  if(it.dueISO){const late=it.dueISO<todayISO()&&!it.done;return {late,text:(late?'Past due · ':'Due ')+fmtISO(it.dueISO)}}
+  if(it.due)return {late:false,text:'Due: '+it.due};
+  return {late:false,text:'No date mentioned'};
+}
+function asCard(it,by){
+  const x=by.get(it.sid),du=dueInfo(it);
+  const src=x?`<button class="cite as-src" type="button" data-sid="${esc(it.sid)}" data-t="${it.t==null?0:it.t}">${esc(x.s.title)}${it.t==null?'':' · '+shortClock(it.t)}</button>`:'';
+  return `<div class="card as${it.done?' done':''}"><div class="as-row"><button class="tick" type="button" role="checkbox" aria-checked="${it.done?'true':'false'}" aria-label="Done: ${esc(it.title)}" data-id="${esc(it.id)}" data-act="done"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></button><div class="as-body"><div class="as-top"><span class="kind">${KINDS[it.kind]||'Other'}</span><span class="due${du.late?' late':''}">${esc(du.text)}</span></div><div class="as-title">${esc(it.title)}</div>${it.details?`<div class="as-det">${esc(it.details)}</div>`:''}${it.graded?`<div class="meta">Grading: ${esc(it.graded)}</div>`:''}${it.dueISO&&it.due?`<div class="meta">The speaker said: “${esc(it.due)}”</div>`:''}${src}<div><button class="linkbtn" type="button" data-id="${esc(it.id)}" data-act="hide" style="color:var(--muted);font-weight:500;font-size:.85rem">Remove</button></div></div></div></div>`;
+}
+async function renderAssign(){
+  const tok=++AS.tok;
+  let d,list;try{d=await asLoad();list=await textSessions()}catch(e){$('#as-list').innerHTML='<p class="empty">Could not read your recordings.</p>';return}
+  if(tok!==AS.tok||CUR!=='assign')return;
+  const by=new Map(list.map(x=>[x.s.id,x]));
+  const ready=list.filter(x=>x.segs.length&&!x.live);
+  const pending=ready.filter(x=>!d.scanned[x.s.id]||d.scanned[x.s.id].sig!==x.sig);
+  const skipped=list.filter(x=>!x.segs.length&&!x.live).length;
+  const everScanned=ready.some(x=>d.scanned[x.s.id]);
+  const last=ready.reduce((m,x)=>Math.max(m,(d.scanned[x.s.id]||{}).at||0),0);
+  const vis=d.items.filter(it=>by.has(it.sid)),shown=vis.filter(it=>!it.hidden),removed=vis.length-shown.length;
+  const todo=shown.filter(it=>!it.done).sort(asCmp(by)),done=shown.filter(it=>it.done).sort(asCmp(by));
+  let status;
+  if(AS.busy)status='Reading your recordings for anything the teacher or speaker requires.';
+  else if(!list.length)status='No recordings yet. Record a lecture, meeting or talk, then come back here.';
+  else if(!ready.length)status='None of your recordings has a transcript yet.';
+  else if(!everScanned)status=`Longtake can read your recordings and list the assignments, quizzes, tests, presentations and due dates that a teacher or speaker mentions.`;
+  else if(pending.length)status=`${plural(pending.length,'recording is','recordings are')} new or changed since the last check.`;
+  else status=`All ${plural(ready.length,'recording','recordings')} checked. Last check: ${fmtDate(last)}.`;
+  if(skipped&&!AS.busy&&ready.length)status+=` ${plural(skipped,'recording has','recordings have')} no transcript and ${skipped===1?'was':'were'} skipped.`;
+  $('#as-status').textContent=status;
+  const scan=$('#as-scan');
+  scan.textContent=!everScanned?'Find assignments':pending.length?`Check ${plural(pending.length,'recording','recordings')}`:'Check everything again';
+  scan.dataset.force=(everScanned&&!pending.length)?'1':'';
+  scan.disabled=AS.busy||!ready.length;scan.hidden=AS.busy;$('#as-stop').hidden=!AS.busy;
+  $('#as-prog').hidden=!AS.busy;if(AS.busy)$('#as-prog-t').textContent=AS.msg;
+  const er=$('#as-err');er.hidden=!AS.err;
+  er.innerHTML=AS.err?esc(AS.err)+(AS.errKey?' <button class="linkbtn" type="button" data-go="settings">Open Settings</button>':''):'';
+  let html='';
+  if(!shown.length&&everScanned&&!AS.busy){
+    html+=`<div class="card"><p class="empty" style="margin:0">Nothing found. None of your checked recordings mention required work, tests or deadlines.${removed?' You removed '+plural(removed,'item','items')+'.':''}</p></div>`;
+  }
+  if(todo.length)html+=`<h2 class="lib-sec" style="margin:8px 0 0">To do</h2>`+todo.map(it=>asCard(it,by)).join('');
+  else if(shown.length)html+=`<div class="card"><p class="empty" style="margin:0">Everything on the list is done.</p></div>`;
+  if(done.length)html+=`<details class="donebox" id="as-done"${AS.showDone?' open':''}><summary>Done (${done.length})</summary><div class="stack">${done.map(it=>asCard(it,by)).join('')}</div></details>`;
+  if(removed)html+=`<div><button class="linkbtn" type="button" data-act="restore">Bring back ${plural(removed,'removed item','removed items')}</button></div>`;
+  $('#as-list').innerHTML=html;
+  const dn=$('#as-done');if(dn)dn.ontoggle=()=>{AS.showDone=dn.open};
+}
+$('#as-scan').onclick=e=>asScan(e.currentTarget.dataset.force==='1');
+$('#as-stop').onclick=()=>{if(AS.abort)AS.abort.abort()};
+$('#as-list').addEventListener('click',async e=>{
+  const c=e.target.closest('button.cite');
+  if(c){openAt(c.dataset.sid,Math.max(0,+c.dataset.t-LEAD),'assign');return}
+  const b=e.target.closest('[data-act]');if(!b)return;
+  const d=await asLoad(),it=b.dataset.id?d.items.find(x=>x.id===b.dataset.id):null;
+  if(b.dataset.act==='done'&&it){it.done=!it.done;await asSave();renderAssign()}
+  else if(b.dataset.act==='hide'&&it){twoTap(b,'Tap again to remove',async()=>{it.hidden=true;await asSave();renderAssign()})}
+  else if(b.dataset.act==='restore'){d.items.forEach(x=>{x.hidden=false});await asSave();renderAssign()}
+});
+
+/* ---------- Quiz ---------- */
+const QZ_SYS='You write quiz questions that help a student study from recordings of lectures, meetings and talks. Use only what the speaker actually says in the transcripts; never rely on outside knowledge for a question or for its correct answer. The transcripts come from automatic speech recognition and can contain misheard words, so quietly fix obvious errors. Write clear multiple-choice questions, each with exactly four options and exactly one correct answer. The wrong options must be plausible but clearly wrong according to the transcript. Never use options such as \"all of the above\" or \"none of the above\". Test understanding of the real ideas, definitions, steps, examples, numbers, names and decisions, not trivia. Vary the kinds of question and spread them across the material in the order it was taught. For each question, write a short explanation in the voice of a good teacher: one or two sentences saying why the answer is right and what the speaker said.\n\nReturn one JSON object and nothing else, in exactly this shape: {"questions":[{"q":"the question","options":["first option","second option","third option","fourth option"],"answer":0,"why":"the explanation","rec":"the id of the recording the question comes from","time":"hh:mm:ss where the speaker said it"}]}. \"answer\" is the zero-based position of the correct option. Do not put letters such as A) in front of the options.';
+const QZ={data:null,mode:null,busy:false,abort:null,err:'',errKey:false,tok:0,count:0};
+async function qzLoad(){
+  if(QZ.data)return QZ.data;
+  const r=await getRec('__quiz')||{};
+  let cur=r.cur;
+  const okQ=q=>q&&typeof q.q==='string'&&Array.isArray(q.opts)&&q.opts.length>=2&&Number.isInteger(q.ans)&&q.ans>=0&&q.ans<q.opts.length;
+  if(!cur||!Array.isArray(cur.qs)||!cur.qs.length||!cur.qs.every(okQ))cur=null;
+  else{cur.picks=cur.qs.map((_,i)=>Array.isArray(cur.picks)&&Number.isInteger(cur.picks[i])?cur.picks[i]:null);cur.idx=Math.max(0,Math.min(cur.qs.length,Number.isInteger(cur.idx)?cur.idx:0))}
+  QZ.data={sel:Array.isArray(r.sel)?r.sel.filter(x=>typeof x==='string'):[],count:[5,10,15,20].includes(r.count)?r.count:10,focus:clip(r.focus,200),cur,history:Array.isArray(r.history)?r.history.slice(0,10):[],seen:Array.isArray(r.seen)?r.seen.filter(x=>typeof x==='string').slice(-40):[]};
+  return QZ.data;
+}
+const qzSave=()=>{const d=QZ.data;return idb.put('notes',{sid:'__quiz',sel:d.sel,count:d.count,focus:d.focus,cur:d.cur,history:d.history,seen:d.seen}).catch(()=>{})};
+const shuffle=a=>{const o=a.slice();for(let i=o.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[o[i],o[j]]=[o[j],o[i]]}return o};
+const FIXED=/\b(all|none|both|neither)\b[^.]{0,12}\b(above|these|them)\b/i;
+function shuffleQ(q){ /* mix up the order of the options, except when an option refers to the others */
+  if(q.opts.some(o=>FIXED.test(o)))return Object.assign({},q);
+  const order=shuffle(q.opts.map((_,i)=>i));
+  return Object.assign({},q,{opts:order.map(i=>q.opts[i]),ans:order.indexOf(q.ans)});
+}
+function cleanQuiz(j,ids,count){
+  const arr=j&&Array.isArray(j.questions)?j.questions:[],out=[],seen=new Set();
+  for(const r of arr){
+    if(!r||typeof r.q!=='string'||!Array.isArray(r.options))continue;
+    const q=clip(r.q,400);if(!q||seen.has(q.toLowerCase()))continue;
+    let opts=r.options.filter(o=>typeof o==='string'||typeof o==='number').map(o=>clip(String(o),300));
+    if(opts.length>=2&&opts.every((o,i)=>new RegExp('^'+'ABCDEF'[i]+'[\\).:]\\s+','i').test(o)))opts=opts.map(o=>o.replace(/^[A-F][\).:]\s+/i,''));
+    if(opts.length<2||opts.length>6||opts.some(o=>!o)||new Set(opts.map(o=>o.toLowerCase())).size!==opts.length)continue;
+    let a=r.answer;if(typeof a==='string'){a=/^\d+$/.test(a.trim())?+a:'ABCDEF'.indexOf(a.trim().toUpperCase())}
+    if(!Number.isInteger(a)||a<0||a>=opts.length)continue;
+    const rec=typeof r.rec==='string'&&ids.includes(r.rec)?r.rec:(ids.length===1?ids[0]:'');
+    seen.add(q.toLowerCase());
+    out.push(shuffleQ({q,opts,ans:a,why:clip(r.why,500),rec,t:rec?parseClock(r.time):null}));
+    if(out.length>=count)break;
+  }
+  return out;
+}
+function sampleLines(lines,budget){ /* evenly spaced passages, so a long recording is covered from start to end */
+  const win=Math.min(4000,budget),k=Math.max(1,Math.floor(budget/win)),cum=[];let total=0;
+  for(const l of lines){cum.push(total);total+=l.length+1}
+  const out=[];let li=0;
+  for(let w=0;w<k;w++){
+    const start=Math.floor(w*total/k);
+    while(li<lines.length-1&&cum[li+1]<=start)li++;
+    let j=li,size=0;const chunk=[];
+    while(j<lines.length){const L=lines[j].length+1;if(chunk.length&&size+L>win)break;chunk.push(lines[j]);size+=L;j++}
+    out.push(chunk.join('\n'));
+  }
+  return out.join('\n[…]\n');
+}
+const QZ_BUDGET=240000;
+function quizSource(use){
+  const lines=use.map(x=>linesOf(x.segs)),sizes=lines.map(l=>l.reduce((n,s)=>n+s.length+1,0)),total=sizes.reduce((a,b)=>a+b,0);
+  let sampled=false;
+  const texts=use.map((x,i)=>{
+    if(total<=QZ_BUDGET)return lines[i].join('\n');
+    const share=Math.max(3000,Math.floor(QZ_BUDGET*sizes[i]/total));
+    if(sizes[i]<=share)return lines[i].join('\n');
+    sampled=true;return sampleLines(lines[i],share);
+  });
+  return {texts,sampled};
+}
+async function qzStart(){
+  if(QZ.busy)return;
+  QZ.busy=true;QZ.err='';QZ.errKey=false; /* claimed right away, so a double tap cannot start two quizzes */
+  const d=await qzLoad();
+  let list;try{list=await textSessions()}catch(e){QZ.busy=false;QZ.err='Could not read your recordings.';renderQuiz();return}
+  const use=list.filter(x=>d.sel.includes(x.s.id)&&x.segs.length&&!x.live);
+  if(!use.length){QZ.busy=false;QZ.err='Choose at least one recording that has a transcript.';renderQuiz();return}
+  if(!settings.apiKey){QZ.busy=false;QZ.err=friendlyErr(new Error('NOKEY'));QZ.errKey=true;renderQuiz();return}
+  QZ.count=d.count;QZ.abort=new AbortController();renderQuiz();
+  try{
+    const {texts,sampled}=quizSource(use);
+    const recs=use.map((x,i)=>`<recording id="${x.s.id}" title="${safeTitle(x.s.title)}" recorded="${dLong(x.s.startedAt)}">\n${texts[i]}\n</recording>`).join('\n\n');
+    const focus=d.focus?`\n\nFocus the questions on: ${d.focus}. If the recordings say nothing about that, return {"questions":[]}.`:'';
+    const avoid=d.seen.length?`\n\nDo not repeat or closely reword these questions from earlier quizzes:\n${d.seen.slice(-30).map(s=>'- '+s.slice(0,160)).join('\n')}`:'';
+    const out=await callClaude({system:withTerms(QZ_SYS,use.map(x=>x.s)),messages:[{role:'user',content:`Write ${d.count} multiple-choice questions from the recordings below.${focus}${avoid}\n\n${recs}`}],max:8000,signal:QZ.abort.signal});
+    const j=parseJson(out);if(!j||!Array.isArray(j.questions))throw badJson();
+    const qs=cleanQuiz(j,use.map(x=>x.s.id),d.count);
+    if(!qs.length)throw Object.assign(new Error(d.focus?'No questions could be written about that from the chosen recordings. Try clearing the focus or choosing other recordings.':'No usable questions came back. Please try again.'),{bad:true});
+    d.cur={at:Date.now(),titles:use.map(x=>x.s.title),qs,idx:0,picks:qs.map(()=>null),sampled,asked:d.count,retry:false,logged:false};
+    d.seen=d.seen.concat(qs.map(q=>q.q)).slice(-40);
+    QZ.mode='play';await qzSave();
+  }catch(e){
+    if(e.name!=='AbortError'){QZ.err=e.bad?e.message:friendlyErr(e);QZ.errKey=e.message==='NOKEY'}
+  }
+  QZ.busy=false;QZ.abort=null;
+  if(CUR==='quiz')renderQuiz('top');else if(QZ.mode==='play'&&d.cur&&d.cur.idx===0&&!d.cur.picks.some(p=>p!=null))toast('Your quiz is ready.');
+}
+const LET='ABCDEF';
+const qzScore=c=>c.qs.reduce((n,q,i)=>n+(c.picks[i]===q.ans?1:0),0);
+const labelOf=ts=>!ts||!ts.length?'':ts.length===1?ts[0]:`${ts[0]} and ${ts.length-1} more`;
+function srcBtn(q){
+  if(!q.rec||!LIB.titles[q.rec])return '';
+  return `<button class="cite" type="button" data-sid="${esc(q.rec)}" data-t="${q.t==null?0:q.t}">Hear it: ${esc(LIB.titles[q.rec])}${q.t==null?'':' · '+shortClock(q.t)}</button>`;
+}
+function setupHtml(d,list){
+  const avail=list.filter(x=>x.segs.length&&!x.live),off=list.filter(x=>!x.segs.length&&!x.live);
+  d.sel=d.sel.filter(id=>avail.some(x=>x.s.id===id));
+  const sel=new Set(d.sel);
+  let h='';
+  const c=d.cur;
+  if(c&&c.idx<c.qs.length)h+=`<div class="card"><div class="card-head" style="margin:0"><div><strong>Quiz in progress</strong><div class="meta">Question ${c.idx+1} of ${c.qs.length} · ${esc(labelOf(c.titles))}</div></div><button class="btn" type="button" data-q="resume">Back to quiz</button></div><p class="meta" style="margin:8px 0 0">Starting a new quiz replaces this one.</p></div>`;
+  if(!avail.length)return h+`<div class="card"><p class="empty" style="margin:0">${list.length?'None of your recordings has a transcript yet.':'No recordings yet.'} Record a lecture, meeting or talk, then come back here to be quizzed on it.</p></div>`;
+  h+=`<div class="card"><div class="card-head"><h2>Choose recordings</h2><span><button class="linkbtn" type="button" data-q="all">Select all</button> <button class="linkbtn" type="button" data-q="none" style="margin-left:10px">Clear</button></span></div>`;
+  h+=avail.map(x=>`<label class="pick"><input type="checkbox" data-sid="${esc(x.s.id)}"${sel.has(x.s.id)?' checked':''}><span class="pk"><strong>${esc(x.s.title)}</strong><small>${stamp(x.s.startedAt)} · ${fmtLen(x.s.durationMs||0)}${x.s.words?' · '+x.s.words.toLocaleString()+' words':''}</small></span></label>`).join('');
+  h+=off.map(x=>`<div class="pick off"><input type="checkbox" disabled aria-label="${esc(x.s.title)} has no transcript"><span class="pk"><strong>${esc(x.s.title)}</strong><small>No transcript yet</small></span></div>`).join('');
+  h+=`<p class="meta" id="qz-sum" style="margin:10px 0 0"></p></div>`;
+  h+=`<div class="card"><h2 style="margin-bottom:10px">Questions</h2><div class="chips" role="group" aria-label="Number of questions">${[5,10,15,20].map(n=>`<button class="chip${n===d.count?' on':''}" type="button" data-count="${n}" aria-pressed="${n===d.count}">${n}</button>`).join('')}</div><div class="field" style="margin:0"><label for="qz-focus">Focus (optional)</label><input type="text" id="qz-focus" maxlength="200" placeholder="For example: chapter 3" value="${esc(d.focus)}"><small>Leave this empty to be quizzed on everything in the chosen recordings.</small></div></div>`;
+  h+=`<div class="err" id="qz-err" ${QZ.err?'':'hidden'}>${esc(QZ.err)}${QZ.errKey?' <button class="linkbtn" type="button" data-go="settings">Open Settings</button>':''}</div>`;
+  h+=`<div class="btns"><button class="btn primary" type="button" data-q="start" id="qz-start">Start quiz</button></div>`;
+  if(d.history.length)h+=`<div class="card"><h2 style="margin-bottom:6px">Recent quizzes</h2>${d.history.slice(0,5).map(x=>`<div class="hist"><span>${esc(labelOf(x.titles))}<br><span class="meta">${fmtDate(x.at)}</span></span><span class="num"><strong>${x.score}</strong> of ${x.total}</span></div>`).join('')}</div>`;
+  return h;
+}
+function qzSync(d,list){ /* keep the summary line and the Start button in step with the choices */
+  const avail=list.filter(x=>x.segs.length&&!x.live),n=d.sel.length;
+  const words=avail.filter(x=>d.sel.includes(x.s.id)).reduce((a,x)=>a+(x.s.words||0),0);
+  const s=$('#qz-sum');if(s)s.textContent=n?`${plural(n,'recording','recordings')} chosen${words?' · about '+words.toLocaleString()+' words':''}`:'Choose at least one recording.';
+  const b=$('#qz-start');if(b)b.disabled=!n;
+}
+function busyHtml(d){return `<div class="card" role="status"><h2>Writing your quiz</h2><div class="prog"><div class="bar ind"><span></span></div><div class="meta">Reading your recordings and writing ${QZ.count} questions. This can take a minute or two.</div></div><div class="btns" style="margin-top:12px"><button class="btn" type="button" data-q="cancel">Stop</button></div></div>`}
+function questionHtml(c){
+  const q=c.qs[c.idx],pick=c.picks[c.idx],answered=pick!=null,last=c.idx===c.qs.length-1;
+  let h=`<div class="card"><div class="qz-top"><span class="meta">Question ${c.idx+1} of ${c.qs.length}${c.retry?' · missed questions':''}</span><button class="linkbtn" type="button" data-q="new">New quiz</button></div><div class="prog" aria-hidden="true"><div class="bar"><span style="width:${Math.round((c.idx+(answered?1:0))/c.qs.length*100)}%"></span></div></div>`;
+  if(c.idx===0&&!answered&&c.asked&&c.qs.length<c.asked&&!c.retry)h+=`<p class="meta" style="margin:8px 0 0">The assistant wrote ${c.qs.length} of the ${c.asked} questions you asked for.</p>`;
+  if(c.idx===0&&!answered&&c.sampled)h+=`<p class="meta" style="margin:8px 0 0">These recordings are long, so the questions come from passages spread across them.</p>`;
+  h+=`<h2 class="qz-q" id="qz-q" tabindex="-1">${esc(q.q)}</h2><div class="opts" role="group" aria-labelledby="qz-q">`;
+  h+=q.opts.map((o,i)=>{
+    let cls='opt',tag='';
+    if(answered){if(i===q.ans){cls+=' right';tag='<span class="tagx">Correct answer</span>'}else if(i===pick){cls+=' wrong';tag='<span class="tagx bad">Your answer</span>'}}
+    return `<button class="${cls}" type="button" data-pick="${i}"${answered?' disabled':''}><span class="lt">${LET[i]}</span><span class="ot"><span>${esc(o)}</span>${tag}</span></button>`;
+  }).join('')+'</div>';
+  if(answered){
+    h+=`<div class="fb" role="status"><p><strong>${pick===q.ans?'Correct.':'Not quite. The answer is '+LET[q.ans]+'.'}</strong></p>${q.why?`<p>${esc(q.why)}</p>`:''}${srcBtn(q)?`<p>${srcBtn(q)}</p>`:''}</div><div class="btns" style="margin-top:12px"><button class="btn primary" type="button" data-q="next" id="qz-next">${last?'See results':'Next question'}</button></div>`;
+  }
+  return h+'</div>';
+}
+function resultsHtml(c){
+  const n=c.qs.length,sc=qzScore(c),pct=Math.round(sc/n*100);
+  const msg=pct>=90?'Excellent work. You know this material.':pct>=70?'Good work. Look over the ones you missed and you will have it.':pct>=50?'A solid start. The questions you missed show what to go back to.':'This one was tough. Listen again to the moments linked below, then try another quiz.';
+  const missed=c.qs.map((q,i)=>({q,i})).filter(({q,i})=>c.picks[i]!==q.ans);
+  let h=`<div class="card" style="text-align:center"><div class="meta">${c.retry?'Missed questions':'Your result'} · ${esc(labelOf(c.titles))}</div><div class="score" id="qz-score" tabindex="-1">${sc}<span style="font-size:.5em;color:var(--muted)"> of ${n}</span></div><div class="meta" style="font-size:.95rem">${pct}% correct</div><p style="margin:10px 0 14px">${esc(msg)}</p><div class="btns" style="justify-content:center">`;
+  if(missed.length)h+=`<button class="btn primary" type="button" data-q="retry">Retry the ${plural(missed.length,'missed question','missed questions')}</button>`;
+  h+=`<button class="btn${missed.length?'':' primary'}" type="button" data-q="new">New quiz</button></div></div>`;
+  if(missed.length){
+    h+=`<div class="card"><h2 style="margin-bottom:4px">Review what you missed</h2>`+missed.map(({q,i})=>`<div class="miss"><p><strong>${esc(q.q)}</strong></p><p>Your answer: ${esc(q.opts[c.picks[i]])}</p><p>Correct answer: <strong>${esc(q.opts[q.ans])}</strong></p>${q.why?`<p class="meta">${esc(q.why)}</p>`:''}${srcBtn(q)?`<p>${srcBtn(q)}</p>`:''}</div>`).join('')+'</div>';
+  }else h+=`<div class="card"><p class="empty" style="margin:0">You got every question right.</p></div>`;
+  return h;
+}
+function qzFinish(d){
+  const c=d.cur;
+  if(!c.logged&&!c.retry){d.history.unshift({at:Date.now(),titles:c.titles,score:qzScore(c),total:c.qs.length});d.history=d.history.slice(0,10);c.logged=true}
+}
+async function renderQuiz(focus){
+  const tok=++QZ.tok,root=$('#qz-root');
+  let d,list;try{d=await qzLoad();list=await textSessions();await refreshTitles()}catch(e){root.innerHTML='<p class="empty">Could not read your recordings.</p>';return}
+  if(tok!==QZ.tok||CUR!=='quiz')return;
+  QZ.list=list; /* reused by the checkboxes, so a tap does not re-read every transcript */
+  if(!QZ.mode)QZ.mode=d.cur?'play':'setup';
+  if(QZ.mode==='play'&&!d.cur)QZ.mode='setup';
+  const c=d.cur;
+  if(QZ.busy)root.innerHTML=busyHtml(d);
+  else if(QZ.mode==='play')root.innerHTML=c.idx>=c.qs.length?resultsHtml(c):questionHtml(c);
+  else{root.innerHTML=setupHtml(d,list);qzSync(d,list)}
+  if(focus){
+    const t=focus==='next'?$('#qz-next'):focus==='top'?($('#qz-score')||$('#qz-q')):null;
+    if(t)try{t.focus({preventScroll:false})}catch(e){}
+    if(focus==='top')window.scrollTo(0,0);
+  }
+}
+$('#qz-root').addEventListener('click',async e=>{
+  const cite=e.target.closest('button.cite');
+  if(cite){openAt(cite.dataset.sid,Math.max(0,+cite.dataset.t-LEAD),'quiz');return}
+  const d=await qzLoad();
+  const pk=e.target.closest('[data-pick]');
+  if(pk){
+    const c=d.cur;if(!c||c.idx>=c.qs.length||c.picks[c.idx]!=null)return;
+    c.picks[c.idx]=+pk.dataset.pick;qzSave();renderQuiz('next');return;
+  }
+  const cn=e.target.closest('[data-count]');
+  if(cn){d.count=+cn.dataset.count;qzSave();$$('#qz-root [data-count]').forEach(b=>{const on=+b.dataset.count===d.count;b.classList.toggle('on',on);b.setAttribute('aria-pressed',on)});return}
+  const a=e.target.closest('[data-q]');if(!a)return;
+  const act=a.dataset.q,c=d.cur;
+  if(act==='all'||act==='none'){
+    const list=QZ.list||await textSessions(),avail=list.filter(x=>x.segs.length&&!x.live);
+    d.sel=act==='all'?avail.map(x=>x.s.id):[];qzSave();
+    $$('#qz-root input[data-sid]').forEach(i=>{i.checked=d.sel.includes(i.dataset.sid)});qzSync(d,list);
+  }else if(act==='start')qzStart();
+  else if(act==='cancel'){if(QZ.abort)QZ.abort.abort()}
+  else if(act==='resume'){QZ.mode='play';renderQuiz('top')}
+  else if(act==='new'){QZ.mode='setup';QZ.err='';renderQuiz();window.scrollTo(0,0)}
+  else if(act==='next'&&c&&c.idx<c.qs.length&&c.picks[c.idx]!=null){c.idx++;if(c.idx>=c.qs.length)qzFinish(d);qzSave();renderQuiz('top')}
+  else if(act==='retry'&&c&&c.idx>=c.qs.length){
+    const missed=c.qs.filter((q,i)=>c.picks[i]!==q.ans);
+    if(missed.length){d.cur={at:Date.now(),titles:c.titles,qs:missed.map(shuffleQ),idx:0,picks:missed.map(()=>null),sampled:c.sampled,retry:true,logged:true};qzSave();renderQuiz('top')}
+  }
+});
+$('#qz-root').addEventListener('change',async e=>{
+  const i=e.target.closest('input[data-sid]');if(!i)return;
+  const d=await qzLoad();
+  d.sel=i.checked?[...new Set([...d.sel,i.dataset.sid])]:d.sel.filter(x=>x!==i.dataset.sid);
+  qzSave();qzSync(d,QZ.list||await textSessions());
+});
+$('#qz-root').addEventListener('input',async e=>{
+  if(e.target.id!=='qz-focus')return;
+  const d=await qzLoad();d.focus=clip(e.target.value,200);qzSave();
+});
 
 /* ---------- start ---------- */
 window.addEventListener('resize',()=>{if(R.active)sizeMeter();else if(CUR==='home')sizeMeter()});
