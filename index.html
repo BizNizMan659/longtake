@@ -54,7 +54,8 @@ button{cursor:pointer}
 .num{font-family:var(--font-num);font-variant-numeric:tabular-nums}
 .empty{color:var(--muted);margin:8px 0}
 .card{background:var(--surface);border-radius:22px;padding:18px}
-.card-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}
+.card-head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:2px 8px;margin-bottom:10px}
+.card-head .ch-act{white-space:nowrap;margin-left:auto}
 .pills{display:flex;flex-wrap:wrap;gap:2px 16px}
 .pill{font-size:.82rem;color:var(--muted)}
 .pill.ok{color:var(--accent)}
@@ -127,8 +128,16 @@ audio{width:100%;margin:6px 0 10px}
 .qas{display:flex;flex-direction:column;margin:2px 0 12px}
 .qa{border-top:1px solid var(--line);scroll-margin-top:calc(var(--bar-h) + 4px)}
 .qa:last-child{border-bottom:1px solid var(--line)}
-.qa-h{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;text-align:left;background:var(--surface);border:0;padding:12px 2px;min-height:48px;font-weight:650;font-size:1rem;color:var(--ink)}
-.qa.open>.qa-h{position:sticky;top:var(--bar-h);z-index:3;color:var(--accent);border-bottom:1px solid var(--line)}
+.qa-hd{display:flex;align-items:center;background:var(--surface)}
+.qa-h{display:flex;align-items:center;justify-content:space-between;gap:12px;flex:1;min-width:0;text-align:left;background:none;border:0;padding:12px 2px;min-height:48px;font-weight:650;font-size:1rem;color:var(--ink)}
+.qa.open>.qa-hd{position:sticky;top:var(--bar-h);z-index:3;border-bottom:1px solid var(--line)}
+.qa.open .qa-h .qa-t{color:var(--accent)}
+.qa-tt{display:flex;flex-direction:column;gap:1px;min-width:0}
+.qa-s{font-size:.8rem;font-weight:500;color:var(--muted);overflow-wrap:anywhere}
+.qa-more{flex:none;width:40px;height:44px;display:grid;place-items:center;border:0;background:none;color:var(--muted);border-radius:12px;padding:0}
+.qa-more svg{width:22px;height:22px;fill:currentColor}
+.qa-more:hover,.qa-more:active{background:var(--raised);color:var(--ink)}
+.msg-act{display:flex;justify-content:flex-end;margin-top:2px}
 .qa-t{min-width:0;overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .qa.open .chev{transform:rotate(-135deg);margin-top:4px}
 .qa-b{padding:6px 0 14px}
@@ -300,6 +309,30 @@ details.donebox .stack{padding-bottom:4px}
 .hist:first-of-type{border-top:0}
 .hist span:first-child{min-width:0;overflow-wrap:anywhere}
 
+/* Projects */
+.pj-row{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;text-align:left;background:var(--surface);border:0;border-radius:20px;padding:16px 18px;color:var(--ink)}
+.pj-n{display:flex;flex-direction:column;gap:2px;min-width:0}
+.pj-n strong{font-size:1.05rem;overflow-wrap:anywhere}
+.pj-row .chev{transform:rotate(-45deg);margin:0 4px 0 0;flex:none}
+form.pj-new{display:flex;gap:10px;align-items:flex-end}
+form.pj-new .field{flex:1;min-width:0;margin:0}
+#pj-name{font-size:1.25rem}
+#sheet-scrim{position:fixed;inset:0;background:rgba(0,0,0,.5);opacity:0;visibility:hidden;transition:opacity .2s,visibility 0s .2s;z-index:30}
+#sheet-scrim.open{opacity:1;visibility:visible;transition:opacity .2s}
+#sheet{position:fixed;left:0;right:0;bottom:0;margin:0 auto;max-width:560px;max-height:85vh;max-height:85dvh;overflow:auto;background:var(--surface);border-radius:24px 24px 0 0;padding:10px 18px calc(16px + env(safe-area-inset-bottom,0px));z-index:31;transform:translateY(105%);visibility:hidden;transition:transform .24s cubic-bezier(.2,.8,.2,1),visibility 0s .24s;box-shadow:0 -10px 40px rgba(0,0,0,.25)}
+#sheet.open{transform:none;visibility:visible;transition:transform .24s cubic-bezier(.2,.8,.2,1)}
+@media (prefers-reduced-motion:reduce){#sheet,#sheet-scrim{transition:none!important}}
+.sheet-grab{width:40px;height:4px;border-radius:2px;background:var(--line);margin:0 auto 12px}
+#sheet h2{font-size:1.1rem}
+#sheet-new{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:12px 0 4px}
+#sheet-new input{flex:1 1 170px;min-width:0}
+.sh-list{margin:6px 0 10px}
+.sh-row{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;text-align:left;background:none;border:0;border-top:1px solid var(--line);padding:12px 2px;min-height:54px;color:var(--ink)}
+.sh-row:first-child{border-top:0}
+.sh-row strong{overflow-wrap:anywhere}
+.sh-row small{display:block;color:var(--muted)}
+.sh-row .ok{color:var(--accent);font-weight:650;font-size:.85rem;flex:none}
+
 #toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(86px + env(safe-area-inset-bottom,0px));max-width:min(92vw,520px);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:14px;font-size:.9rem;z-index:9;text-align:center}
 </style>
 </head>
@@ -367,6 +400,28 @@ details.donebox .stack{padding-bottom:4px}
   <!-- QUIZ -->
   <section id="view-quiz" class="view" hidden style="flex-direction:column;gap:16px">
     <div class="stack" id="qz-root" style="gap:16px"></div>
+  </section>
+
+  <!-- PROJECTS -->
+  <section id="view-projects" class="view" hidden style="flex-direction:column;gap:16px">
+    <p class="pg-intro">Keep the answers worth keeping. Tap the three dots on any answer to save it to a project, then quiz yourself on the whole project.</p>
+    <form class="card pj-new" id="pj-new" autocomplete="off">
+      <div class="field"><label for="pj-new-name">New project</label><input type="text" id="pj-new-name" maxlength="60" placeholder="For example: Bio midterm"></div>
+      <button class="btn primary" type="submit">Create</button>
+    </form>
+    <div class="err" id="pj-new-err" hidden></div>
+    <div class="list" id="pj-list"></div>
+  </section>
+
+  <!-- ONE PROJECT -->
+  <section id="view-project" class="view" hidden style="flex-direction:column;gap:16px">
+    <button class="back" id="pj-back" type="button">&larr; Projects</button>
+    <div>
+      <input type="text" class="title-input" id="pj-name" maxlength="60" aria-label="Project name">
+      <div class="meta" id="pj-meta"></div>
+    </div>
+    <div class="btns"><button class="btn primary" id="pj-quiz" type="button">Take a quiz</button><button class="btn danger" id="pj-del" type="button">Delete project</button></div>
+    <div class="card"><div class="qas" id="pj-items"></div></div>
   </section>
 
   <!-- DETAIL -->
@@ -482,6 +537,7 @@ details.donebox .stack{padding-bottom:4px}
   <nav aria-label="Sections">
     <button class="dr-item" data-view="home" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 11 12 4l8.5 7"/><path d="M5.5 9.8V20h13V9.8"/><path d="M10 20v-5.5h4V20"/></svg>Home</button>
     <button class="dr-item" data-view="library" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 7.5a2 2 0 0 1 2-2h4l2 2.2h7a2 2 0 0 1 2 2V17.5a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z"/></svg>Library</button>
+    <button class="dr-item" data-view="projects" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.6 3.6 8 12 12.4 20.4 8z"/><path d="M3.6 12 12 16.4 20.4 12"/><path d="M3.6 16 12 20.4 20.4 16"/></svg>Projects</button>
         <button class="dr-item" data-view="marked" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.5 4.5h9a1 1 0 0 1 1 1V20l-5.5-3.8L6.5 20V5.5a1 1 0 0 1 1-1z"/></svg>Marked</button>
     <button class="dr-item" data-view="assign" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5H7.5a2 2 0 0 0-2 2v11.5a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H15"/><rect x="9" y="3.5" width="6" height="3" rx="1"/><path d="M8.8 12.6l1.8 1.8 3.4-3.6"/><path d="M8.8 17.5h6.4"/></svg>Assignments</button>
     <button class="dr-item" data-view="quiz" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M9.6 9.7a2.5 2.5 0 1 1 3.6 2.2c-.8.5-1.2 1-1.2 1.9"/><path d="M12 16.9h.01"/></svg>Quiz</button>
@@ -491,6 +547,16 @@ details.donebox .stack{padding-bottom:4px}
   <div class="dr-recents" id="dr-recents"></div>
   <div class="dr-foot">Your recordings are stored on this device.</div>
 </aside>
+<div id="sheet-scrim"></div>
+<div id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
+  <div class="sheet-grab" aria-hidden="true"></div>
+  <h2 id="sheet-title">Save to a project</h2>
+  <p class="meta" id="sheet-sub" style="margin:2px 0 0"></p>
+  <form id="sheet-new" autocomplete="off"><input type="text" id="sheet-name" maxlength="60" placeholder="New project name" aria-label="New project name"><button class="btn primary" id="sheet-go" type="submit">Create and save</button></form>
+  <div class="err" id="sheet-err" hidden role="alert"></div>
+  <div class="sh-list" id="sheet-list"></div>
+  <div class="btns"><button class="btn" id="sheet-close" type="button">Cancel</button></div>
+</div>
 <div id="toast" role="status" hidden></div>
 
 <script>
@@ -501,6 +567,7 @@ details.donebox .stack{padding-bottom:4px}
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const pad=n=>String(n).padStart(2,'0');
+const DOTS='<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.9"/><circle cx="12" cy="12" r="1.9"/><circle cx="19" cy="12" r="1.9"/></svg>';
 const fmtDur=ms=>{const s=Math.max(0,Math.floor(ms/1000));return pad(Math.floor(s/3600))+':'+pad(Math.floor(s%3600/60))+':'+pad(s%60)};
 const fmtBytes=b=>b>=1e9?(b/1e9).toFixed(2)+' GB':b>=1e6?(b/1e6).toFixed(1)+' MB':Math.max(0,Math.round(b/1e3))+' KB';
 const fmtDate=t=>new Date(t).toLocaleString([],{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
@@ -510,7 +577,7 @@ let toastT;
 function toast(m){const t=$('#toast');t.textContent=m;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>{t.hidden=true},4500)}
 
 /* ---------- settings ---------- */
-const BUILD='23 Oct 2026, answers as tabs, smooth scrolling';
+const BUILD='23 Oct 2026, Projects, ⋯ save menu, 30 and 45 question quizzes';
 const DEF={apiKey:'',model:'claude-sonnet-5-5',lang:'',kbps:64,terms:'',aaiKey:'',speakers:false,sound:'natural',liveTx:true,meter:true};
 const settings=Object.assign({},DEF);
 let savedSettings={};try{savedSettings=JSON.parse(localStorage.getItem('longtake.settings')||'{}')||{}}catch(e){}
@@ -792,18 +859,20 @@ async function recover(){
 }
 
 /* ---------- navigation and side menu ---------- */
-const TITLES={home:'Longtake',library:'Library',marked:'Marked',assign:'Assignments',quiz:'Quiz',detail:'Recording',settings:'Settings'};
+const TITLES={home:'Longtake',library:'Library',marked:'Marked',assign:'Assignments',quiz:'Quiz',projects:'Projects',project:'Project',detail:'Recording',settings:'Settings'};
 let CUR='home';
 const drawer=$('#drawer'),scrim=$('#scrim'),menuBtn=$('#menu-btn');
 function show(view){
   if(view!=='detail')leaveDetail();
   Object.keys(TITLES).forEach(v=>{const el=$('#view-'+v);el.hidden=v!==view;if(v===view)el.style.display='flex'});
   CUR=view;
-  const nav=view==='detail'?'library':view;
+  const nav=view==='detail'?'library':view==='project'?'projects':view;
   $$('.dr-item').forEach(b=>{const on=b.dataset.view===nav;b.classList.toggle('on',on);if(on)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current')});
   $('#appbar-title').textContent=TITLES[view];
   closeDrawer();
   if(view==='library')renderLibrary();
+  if(view==='projects')renderProjects();
+  if(view==='project')renderProject();
   if(view==='marked')renderMarked();
   if(view==='assign')renderAssign();
   if(view==='quiz')renderQuiz();
@@ -896,11 +965,11 @@ $('#lib-list').addEventListener('click',e=>{const r=e.target.closest('.row');if(
 
 /* ---------- detail ---------- */
 let BACK='library';
-const BACKLBL={home:'Home',library:'Library',marked:'Marked',assign:'Assignments',quiz:'Quiz'};
+const BACKLBL={home:'Home',library:'Library',marked:'Marked',assign:'Assignments',quiz:'Quiz',projects:'Projects',project:'Project'};
 const D={sid:null,session:null,segs:[],url:null,blob:null,chat:[],digest:null,digestLen:0,abort:null,busy:false,delArm:false,delT:0,edit:false,open:-1};
 const audio=$('#d-audio');
 async function openDetail(sid,back){
-  BACK=BACKLBL[back]?back:'library';$('#d-back').textContent='\u2190 '+BACKLBL[BACK];
+  BACK=BACKLBL[back]?back:'library';const pn=BACK==='project'&&pjById(PJ.cur);$('#d-back').textContent='\u2190 '+(pn?clip(pn.name,24):BACKLBL[BACK]);
   show('detail');
   const s=await idb.get('sessions',sid);
   if(!s){show('library');return}
@@ -1073,10 +1142,10 @@ const bubble=m=>m.label||OLDQ[m.content]||m.content;
 const pairsOf=()=>{const out=[];for(let i=0;i<D.chat.length-1;i++){const u=D.chat[i],a=D.chat[i+1];if(u.role==='user'&&a.role==='assistant'){out.push({u,a,i});i++}}return out};
 const barH=()=>parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--bar-h'))||64;
 function qaItem(pr,p,last){
-  const open=D.open===p,streaming=D.busy&&last,done=!D.busy&&pr.a.content;
+  const open=D.open===p,streaming=D.busy&&last,done=!D.busy&&pr.a.content,ready=pr.a.content&&!streaming;
   const chip=pr.u.label&&$$('#quick .chip').some(c=>c.dataset.label===pr.u.label);
   const acts=done?`<div class="qa-act"><button class="btn sm" type="button" data-act="copy">Copy</button>${chip?'<button class="btn sm" type="button" data-act="again">Ask again</button>':''}<button class="btn sm" type="button" data-act="close">Close</button><button class="btn sm danger" type="button" data-act="remove">Remove</button></div>`:'';
-  return `<div class="qa${open?' open':''}" data-p="${p}"><button class="qa-h" type="button" aria-expanded="${open}" aria-controls="qa-b${p}"><span class="qa-t">${esc(bubble(pr.u))}</span><span class="sum-r">${streaming?'<span class="meta">Writing…</span>':''}<span class="chev" aria-hidden="true"></span></span></button><div class="qa-b" id="qa-b${p}"${open?'':' hidden'}>${!pr.u.label&&bubble(pr.u).length>80?`<p class="meta qa-q">${esc(bubble(pr.u))}</p>`:''}<div class="msg bot qa-md">${pr.a.content?md(pr.a.content):'<span class="meta">Thinking…</span>'}</div>${acts}</div></div>`;
+  return `<div class="qa${open?' open':''}" data-p="${p}"><div class="qa-hd"><button class="qa-h" type="button" aria-expanded="${open}" aria-controls="qa-b${p}"><span class="qa-t">${esc(bubble(pr.u))}</span><span class="sum-r">${streaming?'<span class="meta">Writing…</span>':''}<span class="chev" aria-hidden="true"></span></span></button>${ready?`<button class="qa-more" type="button" aria-label="Save this answer to a project" aria-haspopup="dialog">${DOTS}</button>`:''}</div><div class="qa-b" id="qa-b${p}"${open?'':' hidden'}>${!pr.u.label&&bubble(pr.u).length>80?`<p class="meta qa-q">${esc(bubble(pr.u))}</p>`:''}<div class="msg bot qa-md">${pr.a.content?md(pr.a.content):'<span class="meta">Thinking…</span>'}</div>${acts}</div></div>`;
 }
 function renderChat(){ /* every question is a row that opens to its answer, so the page stays short */
   const box=$('#chat'),ps=pairsOf();
@@ -1102,7 +1171,9 @@ let paintT=0; /* while an answer is being written, only its own text is redrawn,
 function paintChat(){paintT=0;const ps=pairsOf(),p=ps.length-1;if(p<0)return;const el=$(`#chat .qa[data-p="${p}"] .qa-md`);if(!el)return;const a=ps[p].a;el.innerHTML=a.content?md(a.content):'<span class="meta">Thinking…</span>'}
 const schedChat=()=>{if(!paintT)paintT=setTimeout(paintChat,100)};
 $('#chat').addEventListener('click',async e=>{
-  const h=e.target.closest('.qa-h');if(h){toggleQA(+h.parentElement.dataset.p);return}
+  const mb=e.target.closest('.qa-more');
+  if(mb){const pr=pairsOf()[+mb.closest('.qa').dataset.p];if(pr&&pr.a.content)saveAnswer({kind:'rec',sid:D.sid,q:bubble(pr.u),text:pr.a.content,rtitle:D.session&&D.session.title,rat:D.session&&D.session.startedAt});return}
+  const h=e.target.closest('.qa-h');if(h){toggleQA(+h.closest('.qa').dataset.p);return}
   const b=e.target.closest('[data-act]');if(!b)return;
   const el=b.closest('.qa'),p=+el.dataset.p,pr=pairsOf()[p];if(!pr||D.busy)return;
   const act=b.dataset.act;
@@ -1188,7 +1259,7 @@ $('#s-clear').onclick=async()=>{
   const b=$('#s-clear');
   if(!clearArm){clearArm=true;b.textContent='Tap again to delete everything';clearT=setTimeout(()=>{clearArm=false;b.textContent='Delete all recordings'},3500);return}
   clearTimeout(clearT);clearArm=false;b.textContent='Delete all recordings';
-  try{await idb.clear();LIB.chat=[];LIB.cache.clear();LIB.titles={};AS.data=null;QZ.data=null;QZ.mode=null;renderLib();toast('All recordings deleted.')}catch(e){toast('Could not delete the recordings.')}
+  try{const keep=await getRec('__projects');await idb.clear();if(keep)await idb.put('notes',keep);LIB.chat=[];LIB.cache.clear();LIB.titles={};AS.data=null;QZ.data=null;QZ.mode=null;renderLib();toast('All recordings deleted.')}catch(e){toast('Could not delete the recordings.')}
   renderSettings();
 };
 
@@ -1559,7 +1630,7 @@ function libTerms(lib){
 
 function renderLib(newMsg){
   const box=$('#lib-chat');
-  box.innerHTML=LIB.chat.map(m=>m.role==='user'?`<div class="msg user">${esc(m.content)}</div>`:`<div class="msg bot">${m.content?md(m.content,true):'<span class="meta">Searching your library…</span>'}</div>`).join('');
+  box.innerHTML=LIB.chat.map((m,i)=>m.role==='user'?`<div class="msg user">${esc(m.content)}</div>`:`<div class="msg bot">${m.content?md(m.content,true)+(LIB.busy&&i===LIB.chat.length-1?'':`<div class="msg-act"><button class="qa-more" type="button" data-i="${i}" aria-label="Save this answer to a project" aria-haspopup="dialog">${DOTS}</button></div>`):'<span class="meta">Searching your library…</span>'}</div>`).join('');
   $('#lib-hint').hidden=LIB.chat.length>0;
   $('#lib-new').hidden=!LIB.chat.length||LIB.busy;
   if(newMsg&&box.children.length>=2){ /* bring the new question into view once, then leave the scrolling to the reader */
@@ -1614,7 +1685,11 @@ $('#lib-send').addEventListener('click',()=>{if(LIB.busy&&LIB.abort)LIB.abort.ab
 $('#lib-input').addEventListener('input',growInput);
 $('#lib-input').addEventListener('keydown',e=>{if(e.key==='Enter'&&(e.metaKey||e.ctrlKey)){e.preventDefault();$('#lib-form').requestSubmit()}});
 $('#lib-new').onclick=()=>{if(LIB.busy)return;LIB.chat=[];persistLib();renderLib();libErr('')};
-$('#lib-chat').addEventListener('click',e=>{const b=e.target.closest('button.cite');if(b)openAt(b.dataset.sid,+b.dataset.t,'home')});
+$('#lib-chat').addEventListener('click',e=>{
+  const mb=e.target.closest('.qa-more');
+  if(mb){const i=+mb.dataset.i,a=LIB.chat[i],u=LIB.chat[i-1];if(a&&a.role==='assistant'&&a.content)saveAnswer({kind:'lib',sid:'',q:u&&u.role==='user'?u.content:'Library answer',text:a.content,rtitle:'',rat:0});return}
+  const b=e.target.closest('button.cite');if(b)openAt(b.dataset.sid,+b.dataset.t,'home');
+});
 async function openAt(sid,ms,back){
   await openDetail(sid,back);
   const t0=Date.now(),iv=setInterval(()=>{
@@ -1844,9 +1919,219 @@ $('#as-list').addEventListener('click',async e=>{
   else if(b.dataset.act==='restore'){d.items.forEach(x=>{x.hidden=false});await asSave();renderAssign()}
 });
 
+/* ---------- Projects ---------- */
+const PJ={data:null,cur:null,open:-1,back:'projects',reveal:null};
+const SH={mode:'save',payload:null,from:null,itemId:null,opener:null,busy:false};
+const sheet=$('#sheet'),shScrim=$('#sheet-scrim');
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+const PJ_MAXNAME=60;
+const pjClean=v=>clip(String(v==null?'':v),PJ_MAXNAME);
+function cleanSaved(r){
+  if(!r||typeof r!=='object'||typeof r.text!=='string'||!r.text.trim())return null;
+  const srcs=(Array.isArray(r.srcs)?r.srcs:[]).filter(x=>x&&typeof x.sid==='string'&&x.sid).slice(0,40).map(x=>({sid:x.sid,dur:Number.isFinite(x.dur)?x.dur:0,title:clip(x.title||'',120)}));
+  return {id:typeof r.id==='string'&&r.id?r.id:uid(),q:clip(r.q,200)||'Saved answer',text:r.text.slice(0,60000),kind:r.kind==='lib'?'lib':'rec',sid:typeof r.sid==='string'?r.sid:'',rtitle:clip(r.rtitle||'',120),rat:Number.isFinite(r.rat)?r.rat:0,srcs,at:Number.isFinite(r.at)?r.at:Date.now()};
+}
+async function pjLoad(){
+  if(PJ.data)return PJ.data;
+  const r=await getRec('__projects')||{};
+  const list=(Array.isArray(r.projects)?r.projects:[]).filter(p=>p&&typeof p.id==='string'&&p.id&&typeof p.name==='string').map(p=>({id:p.id,name:pjClean(p.name)||'Untitled project',created:Number.isFinite(p.created)?p.created:Date.now(),updated:Number.isFinite(p.updated)?p.updated:Date.now(),items:(Array.isArray(p.items)?p.items:[]).map(cleanSaved).filter(Boolean)}));
+  PJ.data={projects:list};return PJ.data;
+}
+const pjSave=()=>idb.put('notes',{sid:'__projects',projects:PJ.data.projects}).catch(()=>toast('Could not save your projects on this device.'));
+const pjById=id=>PJ.data?PJ.data.projects.find(p=>p.id===id):undefined;
+const pjTaken=(d,name,exceptId)=>d.projects.some(p=>p.id!==exceptId&&p.name.toLowerCase()===name.toLowerCase());
+const sameItem=(a,b)=>a.kind===b.kind&&a.sid===b.sid&&a.q===b.q&&a.text===b.text;
+async function pjCreate(name){
+  const d=await pjLoad(),n=pjClean(name);
+  if(!n)return {err:'Give the project a name.'};
+  if(pjTaken(d,n))return {err:`You already have a project called “${n}”.`};
+  const p={id:uid(),name:n,created:Date.now(),updated:Date.now(),items:[]};
+  d.projects.unshift(p);await pjSave();return {p};
+}
+async function srcsFor(kind,sid,text){ /* which recordings an answer came from, and how long they are */
+  const ids=new Set();if(kind==='rec'&&sid)ids.add(sid);
+  if(kind==='lib')for(const m of String(text).matchAll(/\[([a-z0-9]{2,20}),? \d{1,2}:\d{2}:\d{2}\]/g))ids.add(m[1]);
+  const out=[];
+  for(const id of ids){try{const s=await idb.get('sessions',id);if(s)out.push({sid:id,dur:s.durationMs||0,title:s.title})}catch(e){}}
+  return out;
+}
+async function pjAddItem(pid,payload){
+  const d=await pjLoad(),p=d.projects.find(x=>x.id===pid);if(!p)return 'gone';
+  const it=cleanSaved(Object.assign({},payload,{id:uid(),at:Date.now()}));if(!it)return 'empty';
+  if(p.items.some(x=>sameItem(x,it)))return 'dup';
+  p.items.push(it);p.updated=Date.now();await pjSave();return 'ok';
+}
+async function pjMove(fromId,itemId,toId){
+  const d=await pjLoad(),a=d.projects.find(p=>p.id===fromId),b=d.projects.find(p=>p.id===toId);
+  if(!a||!b||a===b)return;
+  const i=a.items.findIndex(x=>x.id===itemId);if(i<0)return;
+  const [it]=a.items.splice(i,1);
+  if(!b.items.some(x=>sameItem(x,it)))b.items.push(it);
+  a.updated=b.updated=Date.now();await pjSave();
+}
+
+/* the save sheet: opens from the three dots on any answer */
+async function saveAnswer(payload){
+  if(SH.busy)return;
+  const p=Object.assign({},payload,{q:clip(payload.q,200)||'Saved answer'});
+  try{p.srcs=await srcsFor(p.kind,p.sid,p.text)}catch(e){p.srcs=[]}
+  openSheet({mode:'save',payload:p});
+}
+async function openSheet(o){
+  Object.assign(SH,{mode:o.mode,payload:o.payload||null,from:o.from||null,itemId:o.itemId||null,opener:document.activeElement,busy:false});
+  await renderSheet();
+  $('#sheet-name').value='';$('#sheet-err').hidden=true;
+  sheet.classList.add('open');shScrim.classList.add('open');document.body.classList.add('lock');
+  setTimeout(()=>{const f=sheet.querySelector('.sh-row')||$('#sheet-name');if(f)f.focus({preventScroll:true})},60);
+}
+function closeSheet(){
+  if(!sheet.classList.contains('open'))return;
+  sheet.classList.remove('open');shScrim.classList.remove('open');
+  if(!drawerOpen())document.body.classList.remove('lock');
+  const o=SH.opener;SH.opener=null;
+  if(o&&o.isConnected&&typeof o.focus==='function')try{o.focus({preventScroll:true})}catch(e){}
+}
+async function renderSheet(){
+  const d=await pjLoad(),move=SH.mode==='move',pl=SH.payload;
+  $('#sheet-title').textContent=move?'Move to a project':'Save to a project';
+  $('#sheet-sub').textContent=move?'':`“${clip(pl.q,60)}” · ${pl.kind==='lib'?'From your library':(pl.rtitle||'A recording')}`;
+  $('#sheet-go').textContent=move?'Create and move':'Create and save';
+  const ps=d.projects.filter(p=>!(move&&p.id===SH.from)).sort((a,b)=>b.updated-a.updated);
+  $('#sheet-list').innerHTML=ps.length?ps.map(p=>{
+    const has=!move&&p.items.some(it=>sameItem(it,pl));
+    return `<button class="sh-row" type="button" data-pid="${esc(p.id)}"><span><strong>${esc(p.name)}</strong><small>${p.items.length?plural(p.items.length,'saved answer','saved answers'):'Nothing saved yet'}</small></span>${has?'<span class="ok">Saved</span>':''}</button>`;
+  }).join(''):`<p class="meta" style="margin:8px 0 0">${move?'You have no other projects yet. Name a new one above.':'You have no projects yet. Name your first one above.'}</p>`;
+}
+async function sheetPickCore(pid){
+  const d=await pjLoad(),p=d.projects.find(x=>x.id===pid);if(!p)return;
+  if(SH.mode==='move'){await pjMove(SH.from,SH.itemId,pid);closeSheet();toast(`Moved to “${p.name}”.`);if(CUR==='project')renderProject();return}
+  const res=await pjAddItem(pid,SH.payload);
+  closeSheet();
+  toast(res==='dup'?`Already saved in “${p.name}”.`:res==='ok'?`Saved to “${p.name}”.`:'Nothing to save there.');
+  if(CUR==='projects')renderProjects();
+}
+$('#sheet-list').addEventListener('click',async e=>{
+  const r=e.target.closest('[data-pid]');if(!r||SH.busy)return;
+  SH.busy=true;try{await sheetPickCore(r.dataset.pid)}finally{SH.busy=false}
+});
+$('#sheet-new').addEventListener('submit',async e=>{
+  e.preventDefault();if(SH.busy)return;
+  SH.busy=true;
+  try{
+    const r=await pjCreate($('#sheet-name').value);
+    if(r.err){const x=$('#sheet-err');x.textContent=r.err;x.hidden=false;$('#sheet-name').focus();return}
+    await sheetPickCore(r.p.id);
+  }finally{SH.busy=false}
+});
+$('#sheet-name').addEventListener('input',()=>{$('#sheet-err').hidden=true});
+$('#sheet-close').onclick=closeSheet;shScrim.onclick=closeSheet;
+document.addEventListener('keydown',e=>{
+  if(!sheet.classList.contains('open'))return;
+  if(e.key==='Escape'){closeSheet();return}
+  if(e.key==='Tab'){
+    const f=[...sheet.querySelectorAll('button,input')].filter(x=>!x.disabled&&x.offsetParent!==null);if(!f.length)return;
+    const first=f[0],last=f[f.length-1];
+    if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus()}
+    else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus()}
+  }
+});
+
+/* the Projects tab */
+async function renderProjects(){
+  let d;try{d=await pjLoad()}catch(e){$('#pj-list').innerHTML='<p class="empty">Could not read your projects.</p>';return}
+  if(CUR!=='projects')return;
+  const ps=d.projects.slice().sort((a,b)=>b.updated-a.updated);
+  $('#pj-list').innerHTML=ps.length?ps.map(p=>`<button class="pj-row" type="button" data-pid="${esc(p.id)}"><span class="pj-n"><strong>${esc(p.name)}</strong><span class="meta">${p.items.length?plural(p.items.length,'saved answer','saved answers'):'Nothing saved yet'} · ${fmtDate(p.updated)}</span></span><span class="chev" aria-hidden="true"></span></button>`).join(''):'<div class="card"><p class="empty" style="margin:0">No projects yet. Name one above, or open any answer, tap the three dots and save it to a new project.</p></div>';
+}
+$('#pj-new').addEventListener('submit',async e=>{
+  e.preventDefault();
+  const inp=$('#pj-new-name'),err=$('#pj-new-err'),r=await pjCreate(inp.value);
+  if(r.err){err.textContent=r.err;err.hidden=false;inp.focus();return}
+  err.hidden=true;inp.value='';toast(`Created “${r.p.name}”.`);renderProjects();
+});
+$('#pj-new-name').addEventListener('input',()=>{$('#pj-new-err').hidden=true});
+$('#pj-list').addEventListener('click',e=>{const r=e.target.closest('[data-pid]');if(r)openProject(r.dataset.pid)});
+function openProject(pid,o){
+  o=o||{};PJ.cur=pid;PJ.open=o.item||-1;PJ.reveal=o.item||null;PJ.back=o.back||'projects';
+  show('project');
+}
+$('#pj-back').onclick=()=>show(PJ.back==='quiz'?'quiz':'projects');
+
+/* one project: its saved answers are tabs, like the answers on a recording */
+function savedHtml(it){
+  let t=it.text;
+  if(it.kind==='rec'&&it.sid&&LIB.titles[it.sid])t=t.replace(/\[(\d{1,2}):(\d{2}):(\d{2})\]/g,(m,h,mi,s)=>`[${it.sid} ${h}:${mi}:${s}]`); /* a plain timestamp becomes a link to that moment */
+  t=t.replace(/\[([a-z0-9]{2,20}),? (\d{1,2}):(\d{2}):(\d{2})\]/g,(m,id,h,mi,s)=>LIB.titles[id]?m:`${h}:${mi}:${s}`); /* a deleted recording leaves just the time */
+  return md(t,true);
+}
+function pjItemHtml(it){
+  const open=PJ.open===it.id,alive=it.kind==='rec'&&it.sid&&LIB.titles[it.sid];
+  const where=it.kind==='lib'?'Your library':(alive||it.rtitle||'A recording')+(it.kind==='rec'&&!alive?' (deleted)':'');
+  const acts=`<div class="qa-act"><button class="btn sm" type="button" data-act="copy">Copy</button><button class="btn sm" type="button" data-act="move">Move</button>${alive?'<button class="btn sm" type="button" data-act="open">Open recording</button>':''}<button class="btn sm danger" type="button" data-act="remove">Remove</button></div>`;
+  return `<div class="qa${open?' open':''}" data-id="${esc(it.id)}"><div class="qa-hd"><button class="qa-h" type="button" aria-expanded="${open}" aria-controls="pj-b-${esc(it.id)}"><span class="qa-tt"><span class="qa-t">${esc(it.q)}</span><span class="qa-s">${esc(where)} · saved ${esc(fmtDate(it.at))}</span></span><span class="sum-r"><span class="chev" aria-hidden="true"></span></span></button></div><div class="qa-b" id="pj-b-${esc(it.id)}"${open?'':' hidden'}><div class="msg bot qa-md">${savedHtml(it)}</div>${acts}</div></div>`;
+}
+async function renderProject(){
+  let d;try{d=await pjLoad();await refreshTitles()}catch(e){return}
+  if(CUR!=='project')return;
+  const p=d.projects.find(x=>x.id===PJ.cur);
+  if(!p){show('projects');return}
+  $('#pj-back').textContent=PJ.back==='quiz'?'← Quiz':'← Projects';
+  $('#pj-name').value=p.name;
+  const n=p.items.length;
+  $('#pj-meta').textContent=(n?plural(n,'saved answer','saved answers')+' · ':'')+'created '+fmtDate(p.created);
+  $('#pj-quiz').disabled=!n;
+  $('#pj-items').innerHTML=n?p.items.map(pjItemHtml).join(''):'<p class="meta" style="margin:2px 0">Nothing saved here yet. Open a recording, tap the three dots on an answer and choose this project.</p>';
+  if(PJ.reveal){
+    const el=$(`#pj-items .qa[data-id="${PJ.reveal}"]`);PJ.reveal=null;
+    if(el)setTimeout(()=>el.scrollIntoView({block:'start'}),40);
+  }
+}
+function pjToggle(id){
+  const el=$(`#pj-items .qa[data-id="${id}"]`);if(!el)return;
+  const before=el.querySelector('.qa-h').getBoundingClientRect().top;
+  PJ.open=PJ.open===id?-1:id;
+  $$('#pj-items .qa').forEach(x=>{const o=x.dataset.id===PJ.open;x.classList.toggle('open',o);x.querySelector('.qa-h').setAttribute('aria-expanded',o);x.querySelector('.qa-b').hidden=!o});
+  const after=el.getBoundingClientRect().top;if(Math.abs(after-before)>1)window.scrollBy(0,after-before);
+}
+$('#pj-items').addEventListener('click',async e=>{
+  const cite=e.target.closest('button.cite');
+  if(cite){openAt(cite.dataset.sid,Math.max(0,+cite.dataset.t-LEAD),'project');return}
+  const h=e.target.closest('.qa-h');if(h){pjToggle(h.closest('.qa').dataset.id);return}
+  const b=e.target.closest('[data-act]');if(!b)return;
+  const p=pjById(PJ.cur),el=b.closest('.qa'),it=p&&p.items.find(x=>x.id===el.dataset.id);if(!it)return;
+  const act=b.dataset.act;
+  if(act==='copy'){try{await navigator.clipboard.writeText(it.text);toast('Copied.')}catch(err){toast('Copy was blocked on this page.')}}
+  else if(act==='move')openSheet({mode:'move',from:p.id,itemId:it.id});
+  else if(act==='open')openDetail(it.sid,'project');
+  else if(act==='remove')twoTap(b,'Tap again to remove',async()=>{
+    const i=p.items.findIndex(x=>x.id===it.id);if(i<0)return;
+    p.items.splice(i,1);p.updated=Date.now();if(PJ.open===it.id)PJ.open=-1;
+    await pjSave();renderProject();toast('Removed.');
+  });
+});
+$('#pj-name').addEventListener('change',async e=>{
+  const d=await pjLoad(),p=pjById(PJ.cur);if(!p)return;
+  const n=pjClean(e.target.value);
+  if(!n){e.target.value=p.name;toast('A project needs a name.');return}
+  if(pjTaken(d,n,p.id)){e.target.value=p.name;toast(`You already have a project called “${n}”.`);return}
+  p.name=n;p.updated=Date.now();e.target.value=n;await pjSave();toast('Renamed.');
+});
+$('#pj-del').addEventListener('click',e=>{
+  twoTap(e.currentTarget,'Tap again to delete',async()=>{
+    const d=await pjLoad(),i=d.projects.findIndex(p=>p.id===PJ.cur);if(i<0)return;
+    const nm=d.projects[i].name;d.projects.splice(i,1);await pjSave();
+    PJ.cur=null;PJ.open=-1;toast(`Deleted “${nm}”.`);show('projects');
+  });
+});
+$('#pj-quiz').addEventListener('click',async()=>{
+  const p=pjById(PJ.cur);if(!p||!p.items.length)return;
+  if(!QZ.busy){const d=await qzLoad();d.src='proj';d.psel=[p.id];QZ.mode='setup';QZ.err='';await qzSave()}
+  show('quiz');
+});
+
 /* ---------- Quiz ---------- */
 const QZ_SYS='You write quiz questions that help a student study from recordings of lectures, meetings and talks. Use only what the speaker actually says in the transcripts; never rely on outside knowledge for a question or for its correct answer. The transcripts come from automatic speech recognition and can contain misheard words, so quietly fix obvious errors. Write clear multiple-choice questions, each with exactly four options and exactly one correct answer. The wrong options must be plausible but clearly wrong according to the transcript. Never use options such as \"all of the above\" or \"none of the above\". Test understanding of the real ideas, definitions, steps, examples, numbers, names and decisions, not trivia. Vary the kinds of question and spread them across the material in the order it was taught. For each question, write a short explanation in the voice of a good teacher: one or two sentences saying why the answer is right and what the speaker said.\n\nReturn one JSON object and nothing else, in exactly this shape: {"questions":[{"q":"the question","options":["first option","second option","third option","fourth option"],"answer":0,"why":"the explanation","rec":"the id of the recording the question comes from","time":"hh:mm:ss where the speaker said it"}]}. \"answer\" is the zero-based position of the correct option. Do not put letters such as A) in front of the options.';
-const QZ={data:null,mode:null,busy:false,abort:null,err:'',errKey:false,tok:0,count:0};
+const QZ={data:null,mode:null,busy:false,abort:null,err:'',errKey:false,tok:0,count:0,part:null};
 async function qzLoad(){
   if(QZ.data)return QZ.data;
   const r=await getRec('__quiz')||{};
@@ -1854,10 +2139,10 @@ async function qzLoad(){
   const okQ=q=>q&&typeof q.q==='string'&&Array.isArray(q.opts)&&q.opts.length>=2&&Number.isInteger(q.ans)&&q.ans>=0&&q.ans<q.opts.length;
   if(!cur||!Array.isArray(cur.qs)||!cur.qs.length||!cur.qs.every(okQ))cur=null;
   else{cur.picks=cur.qs.map((_,i)=>Array.isArray(cur.picks)&&Number.isInteger(cur.picks[i])?cur.picks[i]:null);cur.idx=Math.max(0,Math.min(cur.qs.length,Number.isInteger(cur.idx)?cur.idx:0))}
-  QZ.data={sel:Array.isArray(r.sel)?r.sel.filter(x=>typeof x==='string'):[],count:[5,10,15,20].includes(r.count)?r.count:10,focus:clip(r.focus,200),cur,history:Array.isArray(r.history)?r.history.slice(0,10):[],seen:Array.isArray(r.seen)?r.seen.filter(x=>typeof x==='string').slice(-40):[]};
+  QZ.data={sel:Array.isArray(r.sel)?r.sel.filter(x=>typeof x==='string'):[],count:[5,10,15,20,30,45].includes(r.count)?r.count:10,src:r.src==='proj'?'proj':'rec',psel:Array.isArray(r.psel)?r.psel.filter(x=>typeof x==='string'):[],focus:clip(r.focus,200),cur,history:Array.isArray(r.history)?r.history.slice(0,10):[],seen:Array.isArray(r.seen)?r.seen.filter(x=>typeof x==='string').slice(-40):[]};
   return QZ.data;
 }
-const qzSave=()=>{const d=QZ.data;return idb.put('notes',{sid:'__quiz',sel:d.sel,count:d.count,focus:d.focus,cur:d.cur,history:d.history,seen:d.seen}).catch(()=>{})};
+const qzSave=()=>{const d=QZ.data;return idb.put('notes',{sid:'__quiz',sel:d.sel,count:d.count,src:d.src,psel:d.psel,focus:d.focus,cur:d.cur,history:d.history,seen:d.seen}).catch(()=>{})};
 const shuffle=a=>{const o=a.slice();for(let i=o.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[o[i],o[j]]=[o[j],o[i]]}return o};
 const FIXED=/\b(all|none|both|neither)\b[^.]{0,12}\b(above|these|them)\b/i;
 function shuffleQ(q){ /* mix up the order of the options, except when an option refers to the others */
@@ -1865,8 +2150,8 @@ function shuffleQ(q){ /* mix up the order of the options, except when an option 
   const order=shuffle(q.opts.map((_,i)=>i));
   return Object.assign({},q,{opts:order.map(i=>q.opts[i]),ans:order.indexOf(q.ans)});
 }
-function cleanQuiz(j,ids,count){
-  const arr=j&&Array.isArray(j.questions)?j.questions:[],out=[],seen=new Set();
+function cleanQuiz(j,ids,count,seenAll){
+  const arr=j&&Array.isArray(j.questions)?j.questions:[],out=[],seen=seenAll||new Set();
   for(const r of arr){
     if(!r||typeof r.q!=='string'||!Array.isArray(r.options))continue;
     const q=clip(r.q,400);if(!q||seen.has(q.toLowerCase()))continue;
@@ -1896,80 +2181,177 @@ function sampleLines(lines,budget){ /* evenly spaced passages, so a long recordi
   return out.join('\n[…]\n');
 }
 const QZ_BUDGET=240000;
-function quizSource(use){
+function quizSource(use,budget){
+  const BUD=budget||QZ_BUDGET;
   const lines=use.map(x=>linesOf(x.segs)),sizes=lines.map(l=>l.reduce((n,s)=>n+s.length+1,0)),total=sizes.reduce((a,b)=>a+b,0);
   let sampled=false;
   const texts=use.map((x,i)=>{
-    if(total<=QZ_BUDGET)return lines[i].join('\n');
-    const share=Math.max(3000,Math.floor(QZ_BUDGET*sizes[i]/total));
+    if(total<=BUD)return lines[i].join('\n');
+    const share=Math.max(3000,Math.floor(BUD*sizes[i]/total));
     if(sizes[i]<=share)return lines[i].join('\n');
     sampled=true;return sampleLines(lines[i],share);
   });
   return {texts,sampled};
 }
+const QZ_COUNTS=[5,10,15,20,30,45];
+const QZ_MIN={30:45*60000,45:60*60000}; /* 30 questions need MORE than 45 minutes of material, 45 need MORE than 1 hour */
+const QZ_WORDS={30:500,45:800}; /* a project also needs this much saved text, so a quiz is not padded out of one short answer */
+const QZ_PART=15; /* long quizzes are written in parts of up to 15 questions */
+const splitN=(n,k)=>Array.from({length:k},(_,i)=>Math.floor(n/k)+(i<n%k?1:0));
+const wordsIn=t=>(String(t).match(/\S+/g)||[]).length;
+const QZ_SYS_P='You write quiz questions that help a student study from answers they saved to a study project. The saved answers were written by a teaching assistant from recordings of lectures, meetings and talks. Use only what the saved answers say; never rely on outside knowledge for a question or for its correct answer. Write clear multiple-choice questions, each with exactly four options and exactly one correct answer. The wrong options must be plausible but clearly wrong according to the saved answers. Never use options such as \"all of the above\" or \"none of the above\". Test understanding of the real ideas, definitions, steps, examples, numbers, names and decisions, not trivia. Vary the kinds of question and spread them across the saved answers. For each question, write a short explanation in the voice of a good teacher: one or two sentences saying why the answer is right.\n\nReturn one JSON object and nothing else, in exactly this shape: {"questions":[{"q":"the question","options":["first option","second option","third option","fourth option"],"answer":0,"why":"the explanation","rec":"the id of the saved answer the question comes from"}]}. \"answer\" is the zero-based position of the correct option. Do not put letters such as A) in front of the options.';
+function sliceSegs(segs,k,K){ /* the k-th of K stretches of a recording, cut by amount of text */
+  if(K<=1)return segs;
+  let total=0;for(const g of segs)total+=g.text.length+1;
+  const a=total*k/K,b=total*(k+1)/K,out=[];let c=0;
+  for(const g of segs){const mid=c+(g.text.length+1)/2;c+=g.text.length+1;if(mid>=a&&mid<b)out.push(g)}
+  return out;
+}
+function salvageJson(txt){ /* an answer that was cut off part-way: keep the questions that are complete */
+  const s=String(txt||''),m=s.match(/\{\s*"questions"\s*:\s*\[/),k=s.lastIndexOf('}');
+  if(!m||k<m.index)return null;
+  try{return JSON.parse(s.slice(m.index,k+1)+']}')}catch(e){return null}
+}
+function qzMaterial(d,list){ /* how much material the current choice stands on */
+  if(d.src==='proj'){
+    const ps=PJ.data?PJ.data.projects.filter(p=>d.psel.includes(p.id)&&p.items.length):[],dur=new Map();let words=0,items=0;
+    for(const p of ps)for(const it of p.items){
+      items++;words+=wordsIn(it.text);
+      for(const s of it.srcs){const cur=list.find(x=>x.s.id===s.sid);dur.set(s.sid,Math.max(dur.get(s.sid)||0,cur?(cur.s.durationMs||0):(s.dur||0)))}
+    }
+    return {proj:true,ms:[...dur.values()].reduce((a,b)=>a+b,0),words,n:ps.length,items};
+  }
+  const use=list.filter(x=>d.sel.includes(x.s.id)&&x.segs.length&&!x.live);
+  return {proj:false,ms:use.reduce((a,x)=>a+(x.s.durationMs||0),0),words:use.reduce((a,x)=>a+(x.s.words||0),0),n:use.length,items:0};
+}
+const qzAllowed=m=>QZ_COUNTS.filter(n=>n<=20||(m.ms>QZ_MIN[n]&&(!m.proj||m.words>=QZ_WORDS[n])));
+function qzLockHint(m){
+  const a=qzAllowed(m);if(a.includes(45))return '';
+  if(m.proj){
+    if(!a.includes(30)&&m.ms>QZ_MIN[30]&&m.words<QZ_WORDS[30])return 'Save a few more answers to unlock 30 questions.';
+    if(a.includes(30)&&m.ms>QZ_MIN[45]&&m.words<QZ_WORDS[45])return 'Save a few more answers to unlock 45 questions.';
+  }
+  const of=m.proj?'recordings behind your saved answers':'recordings',have=m.n?(m.proj?` These projects cover ${fmtLen(m.ms)}.`:` You have chosen ${fmtLen(m.ms)}.`):'';
+  return (a.includes(30)?'':`30 questions need more than 45 minutes of ${of}, and `)+`45 questions need more than 1 hour.`+have;
+}
+const qzProgText=()=>{
+  const proj=QZ.data&&QZ.data.src==='proj',pt=QZ.part&&QZ.part.n>1?` Part ${QZ.part.i} of ${QZ.part.n}.`:'';
+  return `${proj?'Reading your saved answers':'Reading your recordings'} and writing ${QZ.count} questions.${pt} This can take a minute or two.`;
+};
 async function qzStart(){
   if(QZ.busy)return;
-  QZ.busy=true;QZ.err='';QZ.errKey=false; /* claimed right away, so a double tap cannot start two quizzes */
-  const d=await qzLoad();
-  let list;try{list=await textSessions()}catch(e){QZ.busy=false;QZ.err='Could not read your recordings.';renderQuiz();return}
-  const use=list.filter(x=>d.sel.includes(x.s.id)&&x.segs.length&&!x.live);
-  if(!use.length){QZ.busy=false;QZ.err='Choose at least one recording that has a transcript.';renderQuiz();return}
+  QZ.busy=true;QZ.err='';QZ.errKey=false;QZ.part=null; /* claimed right away, so a double tap cannot start two quizzes */
+  const d=await qzLoad(),proj=d.src==='proj';
+  let list;try{list=await textSessions();await pjLoad()}catch(e){QZ.busy=false;QZ.err='Could not read your '+(proj?'projects.':'recordings.');renderQuiz();return}
+  const use=proj?[]:list.filter(x=>d.sel.includes(x.s.id)&&x.segs.length&&!x.live);
+  const chosen=proj?PJ.data.projects.filter(p=>d.psel.includes(p.id)&&p.items.length):[];
+  const items=chosen.flatMap(p=>p.items.map(it=>({it,p})));
+  if(proj?!items.length:!use.length){QZ.busy=false;QZ.err=proj?'Choose at least one project that has saved answers.':'Choose at least one recording that has a transcript.';renderQuiz();return}
   if(!settings.apiKey){QZ.busy=false;QZ.err=friendlyErr(new Error('NOKEY'));QZ.errKey=true;renderQuiz();return}
+  if(!qzAllowed(qzMaterial(d,list)).includes(d.count)){QZ.busy=false;QZ.err='That many questions is not available for this choice yet. Pick a smaller number.';renderQuiz();return}
   QZ.count=d.count;QZ.abort=new AbortController();renderQuiz();
+  const signal=QZ.abort.signal;
   try{
-    const {texts,sampled}=quizSource(use);
-    const recs=use.map((x,i)=>`<recording id="${x.s.id}" title="${safeTitle(x.s.title)}" recorded="${dLong(x.s.startedAt)}">\n${texts[i]}\n</recording>`).join('\n\n');
-    const focus=d.focus?`\n\nFocus the questions on: ${d.focus}. If the recordings say nothing about that, return {"questions":[]}.`:'';
-    const avoid=d.seen.length?`\n\nDo not repeat or closely reword these questions from earlier quizzes:\n${d.seen.slice(-30).map(s=>'- '+s.slice(0,160)).join('\n')}`:'';
-    const out=await callClaude({system:withTerms(QZ_SYS,use.map(x=>x.s)),messages:[{role:'user',content:`Write ${d.count} multiple-choice questions from the recordings below.${focus}${avoid}\n\n${recs}`}],max:8000,signal:QZ.abort.signal});
-    const j=parseJson(out);if(!j||!Array.isArray(j.questions))throw badJson();
-    const qs=cleanQuiz(j,use.map(x=>x.s.id),d.count);
-    if(!qs.length)throw Object.assign(new Error(d.focus?'No questions could be written about that from the chosen recordings. Try clearing the focus or choosing other recordings.':'No usable questions came back. Please try again.'),{bad:true});
-    d.cur={at:Date.now(),titles:use.map(x=>x.s.title),qs,idx:0,picks:qs.map(()=>null),sampled,asked:d.count,retry:false,logged:false};
+    const K=d.count<=20?1:Math.max(1,Math.min(Math.ceil(d.count/QZ_PART),proj?items.length:99)),sizes=splitN(d.count,K);
+    const termSrc=proj?list.filter(x=>items.some(y=>y.it.srcs.some(s=>s.sid===x.s.id))).map(x=>x.s):use.map(x=>x.s);
+    const system=withTerms(proj?QZ_SYS_P:QZ_SYS,termSrc);
+    const what=proj?'saved answers':'recordings';
+    const focus=d.focus?`\n\nFocus the questions on: ${d.focus}. If the ${what} say nothing about that, return {"questions":[]}.`:'';
+    const qs=[],seenQ=new Set();let sampled=false,partial='';
+    for(let k=0;k<K;k++){
+      QZ.part={i:k+1,n:K};const pt=$('#qz-prog-t');if(pt)pt.textContent=qzProgText();
+      const stems=d.seen.slice(-30).concat(qs.map(q=>q.q)).slice(-60);
+      const avoid=stems.length?`\n\nDo not repeat or closely reword these questions from earlier quizzes:\n${stems.map(s=>'- '+s.slice(0,160)).join('\n')}`:'';
+      const where=K>1?`\n\nThis is part ${k+1} of ${K}. Write questions only about the ${proj?'saved answers':'passages'} below.`:'';
+      let body,batchIds;
+      if(proj){
+        const mine=items.slice(Math.floor(k*items.length/K),Math.floor((k+1)*items.length/K));
+        const per=Math.max(2000,Math.floor(QZ_BUDGET/Math.max(1,mine.length)));
+        if(mine.some(x=>x.it.text.length>per))sampled=true;
+        body=mine.map(x=>`<saved_answer id="${x.it.id}" project="${safeTitle(x.p.name)}" question="${safeTitle(x.it.q)}" from="${safeTitle(x.it.kind==='lib'?'the library':(LIB.titles[x.it.sid]||x.it.rtitle||'a recording'))}">\n${x.it.text.slice(0,per)}\n</saved_answer>`).join('\n\n');
+        batchIds=mine.map(x=>x.it.id);
+      }else{
+        const part=K>1?use.map(x=>Object.assign({},x,{segs:sliceSegs(x.segs,k,K)})).filter(x=>x.segs.length):use;
+        const src=quizSource(part,Math.floor(QZ_BUDGET/K));if(src.sampled)sampled=true;
+        body=part.map((x,i)=>`<recording id="${x.s.id}" title="${safeTitle(x.s.title)}" recorded="${dLong(x.s.startedAt)}">\n${src.texts[i]}\n</recording>`).join('\n\n');
+        batchIds=part.map(x=>x.s.id);
+      }
+      try{
+        const out=await callClaude({system,messages:[{role:'user',content:`Write ${sizes[k]} multiple-choice questions from the ${what} below.${focus}${avoid}${where}\n\n${body}`}],max:K===1&&d.count<=20?8000:Math.max(6000,1500+sizes[k]*320),signal});
+        const j=parseJson(out)||salvageJson(out);if(!j||!Array.isArray(j.questions))throw badJson();
+        qs.push(...cleanQuiz(j,batchIds,sizes[k],seenQ));
+      }catch(e){
+        if(e.name==='AbortError'||!qs.length)throw e;
+        partial=e.bad?e.message:friendlyErr(e);break; /* keep the questions already written */
+      }
+    }
+    if(!qs.length)throw Object.assign(new Error(d.focus?`No questions could be written about that from the chosen ${proj?'projects':'recordings'}. Try clearing the focus or choosing other ${proj?'projects':'recordings'}.`:'No usable questions came back. Please try again.'),{bad:true});
+    if(proj){ /* tie each question back to the saved answer it came from */
+      const by=new Map(items.map(x=>[x.it.id,x]));
+      qs.forEach(q=>{const x=by.get(q.rec);if(x){q.item=x.it.id;q.proj=x.p.id;q.pname=x.p.name;q.rec=x.it.kind==='rec'?x.it.sid:''}else q.rec='';q.t=null});
+    }
+    d.cur={at:Date.now(),titles:proj?chosen.map(p=>p.name):use.map(x=>x.s.title),qs,idx:0,picks:qs.map(()=>null),sampled,asked:d.count,retry:false,logged:false,src:d.src,note:partial};
     d.seen=d.seen.concat(qs.map(q=>q.q)).slice(-40);
     QZ.mode='play';await qzSave();
   }catch(e){
     if(e.name!=='AbortError'){QZ.err=e.bad?e.message:friendlyErr(e);QZ.errKey=e.message==='NOKEY'}
   }
-  QZ.busy=false;QZ.abort=null;
+  QZ.busy=false;QZ.abort=null;QZ.part=null;
   if(CUR==='quiz')renderQuiz('top');else if(QZ.mode==='play'&&d.cur&&d.cur.idx===0&&!d.cur.picks.some(p=>p!=null))toast('Your quiz is ready.');
 }
 const LET='ABCDEF';
 const qzScore=c=>c.qs.reduce((n,q,i)=>n+(c.picks[i]===q.ans?1:0),0);
 const labelOf=ts=>!ts||!ts.length?'':ts.length===1?ts[0]:`${ts[0]} and ${ts.length-1} more`;
 function srcBtn(q){
-  if(!q.rec||!LIB.titles[q.rec])return '';
-  return `<button class="cite" type="button" data-sid="${esc(q.rec)}" data-t="${q.t==null?0:q.t}">Hear it: ${esc(LIB.titles[q.rec])}${q.t==null?'':' · '+shortClock(q.t)}</button>`;
+  let h='';
+  const p=q.proj&&pjById(q.proj);
+  if(p&&q.item&&p.items.some(i=>i.id===q.item))h+=`<button class="cite" type="button" data-proj="${esc(p.id)}" data-item="${esc(q.item)}">From your project: ${esc(p.name)}</button>`;
+  if(q.rec&&LIB.titles[q.rec])h+=(h?' ':'')+`<button class="cite" type="button" data-sid="${esc(q.rec)}" data-t="${q.t==null?0:q.t}">Hear it: ${esc(LIB.titles[q.rec])}${q.t==null?'':' · '+shortClock(q.t)}</button>`;
+  return h;
 }
 function setupHtml(d,list){
+  const proj=d.src==='proj';
   const avail=list.filter(x=>x.segs.length&&!x.live),off=list.filter(x=>!x.segs.length&&!x.live);
   d.sel=d.sel.filter(id=>avail.some(x=>x.s.id===id));
+  const pall=PJ.data?PJ.data.projects:[],pfull=pall.filter(p=>p.items.length),psel=new Set(d.psel=d.psel.filter(id=>pfull.some(p=>p.id===id)));
   const sel=new Set(d.sel);
   let h='';
   const c=d.cur;
   if(c&&c.idx<c.qs.length)h+=`<div class="card"><div class="card-head" style="margin:0"><div><strong>Quiz in progress</strong><div class="meta">Question ${c.idx+1} of ${c.qs.length} · ${esc(labelOf(c.titles))}</div></div><button class="btn" type="button" data-q="resume">Back to quiz</button></div><p class="meta" style="margin:8px 0 0">Starting a new quiz replaces this one.</p></div>`;
-  if(!avail.length)return h+`<div class="card"><p class="empty" style="margin:0">${list.length?'None of your recordings has a transcript yet.':'No recordings yet.'} Record a lecture, meeting or talk, then come back here to be quizzed on it.</p></div>`;
-  h+=`<div class="card"><div class="card-head"><h2>Choose recordings</h2><span><button class="linkbtn" type="button" data-q="all">Select all</button> <button class="linkbtn" type="button" data-q="none" style="margin-left:10px">Clear</button></span></div>`;
-  h+=avail.map(x=>`<label class="pick"><input type="checkbox" data-sid="${esc(x.s.id)}"${sel.has(x.s.id)?' checked':''}><span class="pk"><strong>${esc(x.s.title)}</strong><small>${stamp(x.s.startedAt)} · ${fmtLen(x.s.durationMs||0)}${x.s.words?' · '+x.s.words.toLocaleString()+' words':''}</small></span></label>`).join('');
-  h+=off.map(x=>`<div class="pick off"><input type="checkbox" disabled aria-label="${esc(x.s.title)} has no transcript"><span class="pk"><strong>${esc(x.s.title)}</strong><small>No transcript yet</small></span></div>`).join('');
-  h+=`<p class="meta" id="qz-sum" style="margin:10px 0 0"></p></div>`;
-  h+=`<div class="card"><h2 style="margin-bottom:10px">Questions</h2><div class="chips" role="group" aria-label="Number of questions">${[5,10,15,20].map(n=>`<button class="chip${n===d.count?' on':''}" type="button" data-count="${n}" aria-pressed="${n===d.count}">${n}</button>`).join('')}</div><div class="field" style="margin:0"><label for="qz-focus">Focus (optional)</label><input type="text" id="qz-focus" maxlength="200" placeholder="For example: chapter 3" value="${esc(d.focus)}"><small>Leave this empty to be quizzed on everything in the chosen recordings.</small></div></div>`;
+  h+=`<div class="card"><h2 style="margin-bottom:10px">Quiz me on</h2><div class="chips" role="group" aria-label="Where the questions come from" style="margin:0"><button class="chip${proj?'':' on'}" type="button" data-src="rec" aria-pressed="${!proj}">Recordings</button><button class="chip${proj?' on':''}" type="button" data-src="proj" aria-pressed="${proj}">Projects</button></div></div>`;
+  if(proj){
+    if(!pfull.length)return h+`<div class="card"><p class="empty" style="margin:0">${pall.length?'None of your projects has a saved answer yet.':'No projects yet.'} Save answers from your recordings into a project, then come back to be quizzed on it.</p><div class="btns" style="margin-top:12px"><button class="btn" type="button" data-go="projects">Go to Projects</button></div></div>`;
+    h+=`<div class="card"><div class="card-head"><h2>Choose projects</h2><span class="ch-act"><button class="linkbtn" type="button" data-q="all">Select all</button> <button class="linkbtn" type="button" data-q="none" style="margin-left:10px">Clear</button></span></div>`;
+    h+=pfull.map(p=>{const m=qzMaterial({src:'proj',psel:[p.id],sel:[]},list);return `<label class="pick"><input type="checkbox" data-pid="${esc(p.id)}"${psel.has(p.id)?' checked':''}><span class="pk"><strong>${esc(p.name)}</strong><small>${plural(p.items.length,'saved answer','saved answers')}${m.ms?' · from '+fmtLen(m.ms)+' of recordings':''}</small></span></label>`}).join('');
+    h+=pall.filter(p=>!p.items.length).map(p=>`<div class="pick off"><input type="checkbox" disabled aria-label="${esc(p.name)} has nothing saved yet"><span class="pk"><strong>${esc(p.name)}</strong><small>Nothing saved yet</small></span></div>`).join('');
+    h+=`<p class="meta" id="qz-sum" style="margin:10px 0 0"></p></div>`;
+  }else{
+    if(!avail.length)return h+`<div class="card"><p class="empty" style="margin:0">${list.length?'None of your recordings has a transcript yet.':'No recordings yet.'} Record a lecture, meeting or talk, then come back here to be quizzed on it.</p></div>`;
+    h+=`<div class="card"><div class="card-head"><h2>Choose recordings</h2><span class="ch-act"><button class="linkbtn" type="button" data-q="all">Select all</button> <button class="linkbtn" type="button" data-q="none" style="margin-left:10px">Clear</button></span></div>`;
+    h+=avail.map(x=>`<label class="pick"><input type="checkbox" data-sid="${esc(x.s.id)}"${sel.has(x.s.id)?' checked':''}><span class="pk"><strong>${esc(x.s.title)}</strong><small>${stamp(x.s.startedAt)} · ${fmtLen(x.s.durationMs||0)}${x.s.words?' · '+x.s.words.toLocaleString()+' words':''}</small></span></label>`).join('');
+    h+=off.map(x=>`<div class="pick off"><input type="checkbox" disabled aria-label="${esc(x.s.title)} has no transcript"><span class="pk"><strong>${esc(x.s.title)}</strong><small>No transcript yet</small></span></div>`).join('');
+    h+=`<p class="meta" id="qz-sum" style="margin:10px 0 0"></p></div>`;
+  }
+  h+=`<div class="card"><h2 style="margin-bottom:10px">Questions</h2><div class="chips" role="group" aria-label="Number of questions" style="margin-bottom:6px">${QZ_COUNTS.map(n=>`<button class="chip${n===d.count?' on':''}" type="button" data-count="${n}" aria-pressed="${n===d.count}">${n}</button>`).join('')}</div><p class="meta" id="qz-lock" hidden style="margin:0 0 10px"></p><div class="field" style="margin:10px 0 0"><label for="qz-focus">Focus (optional)</label><input type="text" id="qz-focus" maxlength="200" placeholder="For example: chapter 3" value="${esc(d.focus)}"><small>Leave this empty to be quizzed on everything in the chosen ${proj?'projects':'recordings'}.</small></div></div>`;
   h+=`<div class="err" id="qz-err" ${QZ.err?'':'hidden'}>${esc(QZ.err)}${QZ.errKey?' <button class="linkbtn" type="button" data-go="settings">Open Settings</button>':''}</div>`;
   h+=`<div class="btns"><button class="btn primary" type="button" data-q="start" id="qz-start">Start quiz</button></div>`;
   if(d.history.length)h+=`<div class="card"><h2 style="margin-bottom:6px">Recent quizzes</h2>${d.history.slice(0,5).map(x=>`<div class="hist"><span>${esc(labelOf(x.titles))}<br><span class="meta">${fmtDate(x.at)}</span></span><span class="num"><strong>${x.score}</strong> of ${x.total}</span></div>`).join('')}</div>`;
   return h;
 }
-function qzSync(d,list){ /* keep the summary line and the Start button in step with the choices */
-  const avail=list.filter(x=>x.segs.length&&!x.live),n=d.sel.length;
-  const words=avail.filter(x=>d.sel.includes(x.s.id)).reduce((a,x)=>a+(x.s.words||0),0);
-  const s=$('#qz-sum');if(s)s.textContent=n?`${plural(n,'recording','recordings')} chosen${words?' · about '+words.toLocaleString()+' words':''}`:'Choose at least one recording.';
-  const b=$('#qz-start');if(b)b.disabled=!n;
+function qzSync(d,list){ /* keep the summary line, the question counts and the Start button in step with the choices */
+  const m=qzMaterial(d,list),a=qzAllowed(m);
+  if(!a.includes(d.count)){d.count=Math.max(5,...a.filter(n=>n<=d.count));qzSave()} /* a choice that no longer allows 30 or 45 steps down */
+  $$('#qz-root [data-count]').forEach(b=>{const n=+b.dataset.count,ok=a.includes(n),on=ok&&n===d.count;b.disabled=!ok;b.classList.toggle('on',on);b.setAttribute('aria-pressed',on);b.setAttribute('aria-label',ok?n+' questions':n+' questions, locked')});
+  const lk=$('#qz-lock');if(lk){const t=qzLockHint(m);lk.textContent=t;lk.hidden=!t}
+  const s=$('#qz-sum');
+  if(s)s.textContent=m.proj?(m.n?`${plural(m.n,'project','projects')} chosen · ${plural(m.items,'saved answer','saved answers')}`:'Choose at least one project.'):(m.n?`${plural(m.n,'recording','recordings')} chosen${m.words?' · about '+m.words.toLocaleString()+' words':''}`:'Choose at least one recording.');
+  const b=$('#qz-start');if(b)b.disabled=!m.n;
 }
-function busyHtml(d){return `<div class="card" role="status"><h2>Writing your quiz</h2><div class="prog"><div class="bar ind"><span></span></div><div class="meta">Reading your recordings and writing ${QZ.count} questions. This can take a minute or two.</div></div><div class="btns" style="margin-top:12px"><button class="btn" type="button" data-q="cancel">Stop</button></div></div>`}
+function busyHtml(d){return `<div class="card" role="status"><h2>Writing your quiz</h2><div class="prog"><div class="bar ind"><span></span></div><div class="meta" id="qz-prog-t">${qzProgText()}</div></div><div class="btns" style="margin-top:12px"><button class="btn" type="button" data-q="cancel">Stop</button></div></div>`}
 function questionHtml(c){
   const q=c.qs[c.idx],pick=c.picks[c.idx],answered=pick!=null,last=c.idx===c.qs.length-1;
   let h=`<div class="card"><div class="qz-top"><span class="meta">Question ${c.idx+1} of ${c.qs.length}${c.retry?' · missed questions':''}</span><button class="linkbtn" type="button" data-q="new">New quiz</button></div><div class="prog" aria-hidden="true"><div class="bar"><span style="width:${Math.round((c.idx+(answered?1:0))/c.qs.length*100)}%"></span></div></div>`;
-  if(c.idx===0&&!answered&&c.asked&&c.qs.length<c.asked&&!c.retry)h+=`<p class="meta" style="margin:8px 0 0">The assistant wrote ${c.qs.length} of the ${c.asked} questions you asked for.</p>`;
+  if(c.idx===0&&!answered&&c.asked&&c.qs.length<c.asked&&!c.retry)h+=`<p class="meta" style="margin:8px 0 0">The assistant wrote ${c.qs.length} of the ${c.asked} questions you asked for.${c.note?' '+esc(c.note):''}</p>`;
   if(c.idx===0&&!answered&&c.sampled)h+=`<p class="meta" style="margin:8px 0 0">These recordings are long, so the questions come from passages spread across them.</p>`;
   h+=`<h2 class="qz-q" id="qz-q" tabindex="-1">${esc(q.q)}</h2><div class="opts" role="group" aria-labelledby="qz-q">`;
   h+=q.opts.map((o,i)=>{
@@ -2000,7 +2382,7 @@ function qzFinish(d){
 }
 async function renderQuiz(focus){
   const tok=++QZ.tok,root=$('#qz-root');
-  let d,list;try{d=await qzLoad();list=await textSessions();await refreshTitles()}catch(e){root.innerHTML='<p class="empty">Could not read your recordings.</p>';return}
+  let d,list;try{d=await qzLoad();list=await textSessions();await refreshTitles();await pjLoad()}catch(e){root.innerHTML='<p class="empty">Could not read your recordings.</p>';return}
   if(tok!==QZ.tok||CUR!=='quiz')return;
   QZ.list=list; /* reused by the checkboxes, so a tap does not re-read every transcript */
   if(!QZ.mode)QZ.mode=d.cur?'play':'setup';
@@ -2016,22 +2398,33 @@ async function renderQuiz(focus){
   }
 }
 $('#qz-root').addEventListener('click',async e=>{
+  const pc=e.target.closest('button.cite[data-proj]');
+  if(pc){openProject(pc.dataset.proj,{item:pc.dataset.item,back:'quiz'});return}
   const cite=e.target.closest('button.cite');
   if(cite){openAt(cite.dataset.sid,Math.max(0,+cite.dataset.t-LEAD),'quiz');return}
   const d=await qzLoad();
+  const sc=e.target.closest('[data-src]');
+  if(sc){if(d.src!==sc.dataset.src){d.src=sc.dataset.src;qzSave();renderQuiz()}return}
   const pk=e.target.closest('[data-pick]');
   if(pk){
     const c=d.cur;if(!c||c.idx>=c.qs.length||c.picks[c.idx]!=null)return;
     c.picks[c.idx]=+pk.dataset.pick;qzSave();renderQuiz('next');return;
   }
   const cn=e.target.closest('[data-count]');
-  if(cn){d.count=+cn.dataset.count;qzSave();$$('#qz-root [data-count]').forEach(b=>{const on=+b.dataset.count===d.count;b.classList.toggle('on',on);b.setAttribute('aria-pressed',on)});return}
+  if(cn){d.count=+cn.dataset.count;qzSave();qzSync(d,QZ.list||await textSessions());return}
   const a=e.target.closest('[data-q]');if(!a)return;
   const act=a.dataset.q,c=d.cur;
   if(act==='all'||act==='none'){
     const list=QZ.list||await textSessions(),avail=list.filter(x=>x.segs.length&&!x.live);
-    d.sel=act==='all'?avail.map(x=>x.s.id):[];qzSave();
-    $$('#qz-root input[data-sid]').forEach(i=>{i.checked=d.sel.includes(i.dataset.sid)});qzSync(d,list);
+    if(d.src==='proj'){
+      const ok=(PJ.data?PJ.data.projects:[]).filter(p=>p.items.length).map(p=>p.id);
+      d.psel=act==='all'?ok:[];qzSave();
+      $$('#qz-root input[data-pid]').forEach(i=>{i.checked=d.psel.includes(i.dataset.pid)});
+    }else{
+      d.sel=act==='all'?avail.map(x=>x.s.id):[];qzSave();
+      $$('#qz-root input[data-sid]').forEach(i=>{i.checked=d.sel.includes(i.dataset.sid)});
+    }
+    qzSync(d,list);
   }else if(act==='start')qzStart();
   else if(act==='cancel'){if(QZ.abort)QZ.abort.abort()}
   else if(act==='resume'){QZ.mode='play';renderQuiz('top')}
@@ -2039,13 +2432,14 @@ $('#qz-root').addEventListener('click',async e=>{
   else if(act==='next'&&c&&c.idx<c.qs.length&&c.picks[c.idx]!=null){c.idx++;if(c.idx>=c.qs.length)qzFinish(d);qzSave();renderQuiz('top')}
   else if(act==='retry'&&c&&c.idx>=c.qs.length){
     const missed=c.qs.filter((q,i)=>c.picks[i]!==q.ans);
-    if(missed.length){d.cur={at:Date.now(),titles:c.titles,qs:missed.map(shuffleQ),idx:0,picks:missed.map(()=>null),sampled:c.sampled,retry:true,logged:true};qzSave();renderQuiz('top')}
+    if(missed.length){d.cur={at:Date.now(),titles:c.titles,qs:missed.map(shuffleQ),idx:0,picks:missed.map(()=>null),sampled:c.sampled,retry:true,logged:true,src:c.src};qzSave();renderQuiz('top')}
   }
 });
 $('#qz-root').addEventListener('change',async e=>{
-  const i=e.target.closest('input[data-sid]');if(!i)return;
+  const i=e.target.closest('input[data-sid],input[data-pid]');if(!i)return;
   const d=await qzLoad();
-  d.sel=i.checked?[...new Set([...d.sel,i.dataset.sid])]:d.sel.filter(x=>x!==i.dataset.sid);
+  if(i.dataset.pid)d.psel=i.checked?[...new Set([...d.psel,i.dataset.pid])]:d.psel.filter(x=>x!==i.dataset.pid);
+  else d.sel=i.checked?[...new Set([...d.sel,i.dataset.sid])]:d.sel.filter(x=>x!==i.dataset.sid);
   qzSave();qzSync(d,QZ.list||await textSessions());
 });
 $('#qz-root').addEventListener('input',async e=>{
