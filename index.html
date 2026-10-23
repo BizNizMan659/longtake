@@ -325,6 +325,17 @@ button.cite:hover{text-decoration:underline}
     <details class="adv" id="s-adv">
       <summary>Advanced</summary>
       <div class="field"><label for="s-model">Model</label><input type="text" id="s-model" spellcheck="false"></div>
+      <div class="field"><label>Sound check</label>
+        <div class="btns"><button class="btn" id="s-check" type="button">Record a 12-second test</button></div>
+        <small>Records a short clip with the settings below and plays it back, so you can hear the difference. Nothing is saved. Speak close to the phone, as you would in class.</small>
+        <div id="s-check-out" class="meta" style="margin-top:8px"></div></div>
+      <div class="field"><label for="s-sound">Recording sound</label>
+        <select id="s-sound"><option value="natural">Natural (recommended)</option><option value="filtered">Filtered by the phone</option></select>
+        <small>Natural turns off the phone's noise and echo filtering, which can make voices sound robotic. Applies to the next recording.</small></div>
+      <label class="check" style="margin-bottom:2px"><input type="checkbox" id="s-livetx"> Live transcript while recording</label>
+      <small style="display:block;color:var(--muted);margin-bottom:12px">Turn this off if recordings sound choppy or robotic. You can still make a transcript afterwards with Improve with AssemblyAI.</small>
+      <label class="check" style="margin-bottom:2px"><input type="checkbox" id="s-meter"> Level meter while recording</label>
+      <small style="display:block;color:var(--muted);margin-bottom:12px">Turn this off if the sound is distorted. The meter shows a flat line instead.</small>
       <div class="field"><label for="s-kbps">Audio quality</label><select id="s-kbps"></select><small id="s-kbps-note"></small></div>
       <div class="field"><label>Device storage</label><div id="s-store" class="meta">Checking…</div></div>
       <div class="btns">
@@ -332,6 +343,7 @@ button.cite:hover{text-decoration:underline}
         <button class="btn danger" id="s-clear">Delete all recordings</button>
       </div>
     </details>
+    <p class="meta" id="s-build" style="text-align:center"></p>
   </section>
 </main>
 
@@ -366,9 +378,12 @@ let toastT;
 function toast(m){const t=$('#toast');t.textContent=m;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>{t.hidden=true},4500)}
 
 /* ---------- settings ---------- */
-const DEF={apiKey:'',model:'claude-sonnet-5-5',lang:'',kbps:32,terms:'',aaiKey:'',speakers:false};
+const BUILD='23 Oct 2026, sound update';
+const DEF={apiKey:'',model:'claude-sonnet-5-5',lang:'',kbps:64,terms:'',aaiKey:'',speakers:false,sound:'natural',liveTx:true,meter:true};
 const settings=Object.assign({},DEF);
-try{Object.assign(settings,JSON.parse(localStorage.getItem('longtake.settings')||'{}'))}catch(e){}
+let savedSettings={};try{savedSettings=JSON.parse(localStorage.getItem('longtake.settings')||'{}')||{}}catch(e){}
+Object.assign(settings,savedSettings);
+if((savedSettings.qv||0)<2){settings.kbps=64;settings.qv=2;try{localStorage.setItem('longtake.settings',JSON.stringify(settings))}catch(e){}} /* one-time: earlier builds recorded at 32 kbps, which can sound rough */
 function saveSettings(){try{localStorage.setItem('longtake.settings',JSON.stringify(settings))}catch(e){}}
 
 /* ---------- storage (IndexedDB) ---------- */
@@ -419,6 +434,8 @@ function pickMime(){
   if(!window.MediaRecorder||!MediaRecorder.isTypeSupported)return '';
   return ['audio/webm;codecs=opus','audio/mp4;codecs=mp4a.40.2','audio/mp4','audio/webm','audio/ogg;codecs=opus'].find(m=>MediaRecorder.isTypeSupported(m))||'';
 }
+/* Natural capture turns off the phone's call-style filtering (echo cancelling, noise suppression, auto gain), which can make voices sound robotic. */
+function micOpts(){const f=settings.sound==='filtered';return {audio:{echoCancellation:f,noiseSuppression:f,autoGainControl:f,channelCount:{ideal:1}}}}
 const extFor=m=>/mp4/.test(m)?'m4a':/ogg/.test(m)?'ogg':'webm';
 const defaultTitle=()=>'Recording '+new Date().toLocaleString([],{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
 
@@ -428,7 +445,7 @@ async function startRecording(){
     toast('Recording needs a browser with microphone support, opened over https or localhost.');return;
   }
   let stream;
-  try{stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}})}
+  try{stream=await navigator.mediaDevices.getUserMedia(micOpts())}
   catch(e){toast('The microphone is blocked. Allow it for this page, then try again.');return}
   const mime=pickMime();
   let rec;
@@ -451,9 +468,12 @@ async function startRecording(){
   const track=stream.getAudioTracks()[0];
   if(track)track.onended=()=>stopRecording('The microphone was taken by the system (a call, another app or screen lock). What was captured has been saved.');
 
-  try{const AC=window.AudioContext||window.webkitAudioContext;R.ctx=new AC();
-    const src=R.ctx.createMediaStreamSource(stream);R.an=R.ctx.createAnalyser();R.an.fftSize=512;src.connect(R.an)}
-  catch(e){R.an=null}
+  R.ctx=null;R.an=null;
+  if(settings.meter!==false){
+    try{const AC=window.AudioContext||window.webkitAudioContext;R.ctx=new AC();
+      const src=R.ctx.createMediaStreamSource(stream);R.an=R.ctx.createAnalyser();R.an.fftSize=512;src.connect(R.an)}
+    catch(e){R.an=null}
+  }
   sizeMeter();
   rec.start(10000);
   keepAwake();
@@ -542,6 +562,7 @@ function drawMeter(){
 /* live transcription (browser speech recognition) */
 function setTx(s){R.txState=s;updateChips()}
 function startRecog(){
+  if(settings.liveTx===false){setTx('off');return}
   const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
   if(!SR){setTx('unsupported');return}
   R.recogWanted=true;spawnRecog(SR);
@@ -572,13 +593,13 @@ const segRow=s=>s.mark
 function renderLive(){
   const box=$('#live'),segs=R.segments.slice(-60);
   if(!segs.length&&!R.interim){
-    box.innerHTML='<p class="empty">'+(R.active?'Listening. Words appear here as you speak.':'Start recording to see a live transcript here.')+'</p>';return;
+    box.innerHTML='<p class="empty">'+(settings.liveTx===false?'The live transcript is turned off in Settings.':R.active?'Listening. Words appear here as you speak.':'Start recording to see a live transcript here.')+'</p>';return;
   }
   const near=box.scrollHeight-box.scrollTop-box.clientHeight<80;
   box.innerHTML=segs.map(segRow).join('')+(R.interim?`<div class="seg interim"><span class="ts">…</span><span class="t">${esc(R.interim)}</span></div>`:'');
   if(near)box.scrollTop=box.scrollHeight;
 }
-const TXLABEL={idle:'Transcript: idle',listening:'Transcript: listening',unsupported:'Transcript: not supported here',blocked:'Transcript: blocked',offline:'Transcript: needs internet'};
+const TXLABEL={idle:'Transcript: idle',listening:'Transcript: listening',unsupported:'Transcript: not supported here',blocked:'Transcript: blocked',offline:'Transcript: needs internet',off:'Transcript: off'};
 function updateChips(){
   const aw=$('#pill-awake');aw.textContent='Screen awake: '+(R.wake?'on':'off');aw.className='pill'+(R.active?(R.wake?' ok':' bad'):'');
   const tx=$('#pill-tx');tx.textContent=R.active&&R.paused?'Transcript: paused':TXLABEL[R.txState]||'';
@@ -736,7 +757,7 @@ $('#d-title').addEventListener('change',async e=>{
 function renderTx(){
   const box=$('#d-tx'),q=$('#d-search').value.trim().toLowerCase();
   $('#d-edit').textContent=D.edit?'Done':'Edit';$('#d-editbar').hidden=!D.edit;
-  if(!D.segs.length){box.innerHTML='<p class="empty">No transcript was captured for this recording. Live transcription depends on the browser; see the transcript status on the Home page.</p>';return}
+  if(!D.segs.length){box.innerHTML='<p class="empty">No transcript was captured for this recording. You can create one with Improve with AssemblyAI below.</p>';return}
   const segs=D.segs.map((s,i)=>({s,i})).filter(({s})=>!q||(!s.mark&&s.text.toLowerCase().includes(q)));
   if(!segs.length){box.innerHTML='<p class="empty">No matches.</p>';return}
   box.innerHTML=segs.map(({s,i})=>{
@@ -887,13 +908,13 @@ $('#quick').addEventListener('click',e=>{const c=e.target.closest('.chip');if(c)
 
 /* ---------- settings view ---------- */
 const LANGS=[['','Device language'],['en-US','English (US)'],['en-GB','English (UK)'],['es-ES','Spanish (Spain)'],['es-MX','Spanish (Mexico)'],['fr-FR','French'],['de-DE','German'],['it-IT','Italian'],['pt-BR','Portuguese (Brazil)'],['hi-IN','Hindi'],['ja-JP','Japanese'],['ko-KR','Korean'],['zh-CN','Chinese (Mandarin)']];
-const QUALITY=[24,32,64];
+const QUALITY=[24,32,64,96];
 const eightHr=k=>fmtBytes(k*125*28800);
 function renderSettings(){
-  $('#s-key').value=settings.apiKey;$('#s-model').value=settings.model;$('#s-terms').value=settings.terms||'';$('#s-speakers').checked=!!settings.speakers;$('#s-aai').value=settings.aaiKey||'';
+  $('#s-key').value=settings.apiKey;$('#s-model').value=settings.model;$('#s-terms').value=settings.terms||'';$('#s-speakers').checked=!!settings.speakers;$('#s-sound').value=settings.sound||'natural';$('#s-livetx').checked=settings.liveTx!==false;$('#s-meter').checked=settings.meter!==false;$('#s-build').textContent='Longtake build: '+BUILD;$('#s-check').disabled=R.active||!!SC;$('#s-aai').value=settings.aaiKey||'';
   $('#s-lang').innerHTML=LANGS.map(([v,n])=>`<option value="${v}"${v===settings.lang?' selected':''}>${n}</option>`).join('');
   $('#s-kbps').innerHTML=QUALITY.map(k=>`<option value="${k}"${k===settings.kbps?' selected':''}>${k} kbps · about ${eightHr(k)} per 8 hours</option>`).join('');
-  $('#s-kbps-note').textContent='Speech stays clear at 32 kbps. Applies to the next recording.';
+  $('#s-kbps-note').textContent='Higher quality sounds cleaner and uses more space. 64 kbps is a good balance. Applies to the next recording.';
   $('#s-clear').disabled=R.active;
   (async()=>{
     let t='Storage information is not available in this browser.';
@@ -905,6 +926,9 @@ function renderSettings(){
 $('#s-key').addEventListener('change',e=>{settings.apiKey=e.target.value.trim();saveSettings();toast('API key saved on this device.')});
 $('#s-model').addEventListener('change',e=>{settings.model=e.target.value.trim()||DEF.model;saveSettings()});
 $('#s-speakers').addEventListener('change',e=>{settings.speakers=e.target.checked;saveSettings()});
+$('#s-sound').addEventListener('change',e=>{settings.sound=e.target.value;saveSettings()});
+$('#s-livetx').addEventListener('change',e=>{settings.liveTx=e.target.checked;saveSettings()});
+$('#s-meter').addEventListener('change',e=>{settings.meter=e.target.checked;saveSettings()});
 $('#s-lang').addEventListener('change',e=>{settings.lang=e.target.value;saveSettings()});
 $('#s-kbps').addEventListener('change',e=>{settings.kbps=+e.target.value;saveSettings()});
 $('#s-persist').onclick=async()=>{
@@ -952,6 +976,55 @@ $('#d-replace').onclick=async()=>{
   if(!n){toast('No matches for "'+f+'".');return}
   await saveEdits();renderTx();toast('Replaced '+n+(n===1?' match.':' matches.'));
 };
+/* ---------- sound check ---------- */
+let SC=null,scUrl=null;
+async function soundCheck(){
+  const btn=$('#s-check'),out=$('#s-check-out');
+  if(SC||R.active||R.stopping){toast(R.active?'Stop the recording first.':'The sound check is already running.');return}
+  if(!window.MediaRecorder||!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){toast('This browser cannot record audio here.');return}
+  let stream;
+  try{stream=await navigator.mediaDevices.getUserMedia(micOpts())}catch(e){toast('The microphone is blocked. Allow it for this page, then try again.');return}
+  const mime=pickMime(),chunks=[];let rec,ctx=null,recog=null,heard='';
+  try{rec=new MediaRecorder(stream,Object.assign({audioBitsPerSecond:settings.kbps*1000},mime?{mimeType:mime}:{}))}
+  catch(e){stream.getTracks().forEach(t=>t.stop());toast('This browser could not start the recorder.');return}
+  SC={stream};btn.disabled=true;
+  if(scUrl){URL.revokeObjectURL(scUrl);scUrl=null}
+  out.textContent='';
+  rec.ondataavailable=e=>{if(e.data&&e.data.size)chunks.push(e.data)};
+  if(settings.meter!==false){try{const AC=window.AudioContext||window.webkitAudioContext;ctx=new AC();const src=ctx.createMediaStreamSource(stream);const an=ctx.createAnalyser();src.connect(an)}catch(e){ctx=null}}
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  let live=settings.liveTx!==false&&!!SR;const liveOn=live;
+  if(live){
+    const spawn=()=>{if(!live)return;const r=new SR();r.continuous=true;r.interimResults=true;r.lang=settings.lang||navigator.language||'en-US';
+      r.onresult=e=>{for(let i=e.resultIndex;i<e.results.length;i++)if(e.results[i].isFinal)heard+=e.results[i][0].transcript.trim()+' '};
+      r.onend=()=>{if(live)setTimeout(spawn,400)};
+      try{r.start();recog=r}catch(e){}};
+    spawn();
+  }
+  rec.start(10000);
+  const t0=Date.now(),LEN=12;
+  await new Promise(res=>{
+    const iv=setInterval(()=>{
+      const left=Math.max(0,LEN-Math.round((Date.now()-t0)/1000));
+      btn.textContent='Recording… '+left+'s';
+      if(left<=0){clearInterval(iv);res()}
+    },250);
+    btn.textContent='Recording… '+LEN+'s';
+  });
+  live=false;try{recog&&recog.stop()}catch(e){}
+  const done=new Promise(r=>rec.addEventListener('stop',r,{once:true}));
+  try{rec.stop()}catch(e){}
+  await Promise.race([done,sleep(3000)]);
+  stream.getTracks().forEach(t=>t.stop());try{ctx&&ctx.close()}catch(e){}
+  SC=null;btn.disabled=false;btn.textContent='Record a 12-second test';
+  const blob=new Blob(chunks,{type:String(rec.mimeType||mime||'audio/webm').split(';')[0]});
+  if(!blob.size){out.textContent='Nothing was captured. Try again.';return}
+  scUrl=URL.createObjectURL(blob);
+  const q=(settings.sound==='filtered'?'Filtered by the phone':'Natural')+' · '+settings.kbps+' kbps · '+(settings.liveTx===false?'live transcript off':'live transcript on')+' · '+(settings.meter===false?'meter off':'meter on');
+  out.innerHTML='<audio controls preload="auto" src="'+scUrl+'" style="width:100%;margin:4px 0"></audio><div>Recorded with: '+esc(q)+' · '+fmtBytes(blob.size)+' · '+esc((rec.mimeType||mime||'').split(';')[0]||'unknown format')+'</div>'+(liveOn?'<div>Live transcript heard: '+(heard.trim()?esc(heard.trim()):'nothing')+'</div>':settings.liveTx!==false?'<div>Live transcript is not supported in this browser.</div>':'');
+}
+$('#s-check').onclick=soundCheck;
+
 
 /* ---------- names and terms ---------- */
 function termsList(){return [settings.terms,D.session&&D.session.terms].map(t=>(t||'').trim()).filter(Boolean).join('\n')}
