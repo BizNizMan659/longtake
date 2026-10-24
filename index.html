@@ -389,9 +389,21 @@ form.pj-new .field{flex:1;min-width:0;margin:0}
 mark.hit{background:var(--accent-soft);color:var(--accent);border-radius:4px;padding:0 2px;font-weight:650}
 .seg{scroll-margin-top:calc(var(--bar-h) + var(--tab-h) + 70px)}
 .seg.flash{background:var(--accent-soft);border-radius:10px;box-shadow:-6px 0 0 var(--accent-soft),6px 0 0 var(--accent-soft)}
-#d-folder{display:inline-flex;align-items:center;gap:8px;max-width:100%}
-#d-folder svg{width:18px;height:18px;flex:none;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
-#d-folder span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#d-folder,#d-proj{display:inline-flex;align-items:center;gap:8px;max-width:100%}
+#d-folder svg,#d-proj svg,.sw-in svg{width:18px;height:18px;flex:none;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+#d-folder span,#d-proj span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#lib-tip{margin:2px 2px 8px}
+/* swipe a recording left: a little pull shows "Add to project", a harder pull fires it */
+.row.lrow.sw{--rev:92px;touch-action:pan-y;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;transform:translateX(calc(var(--sx,0px)*-1));transition:transform .26s cubic-bezier(.2,.8,.2,1),background .15s}
+.row.lrow.sw.sw-drag{transition:none}
+.sw-act{position:absolute;top:0;bottom:0;left:100%;width:100%;display:flex;align-items:center;background:var(--accent-soft);color:var(--accent);transition:background .12s,color .12s}
+.sw-in{flex:none;width:var(--rev);display:flex;flex-direction:column;align-items:center;gap:4px;font-size:.72rem;font-weight:650;line-height:1.1;text-align:center}
+.sw-in svg{width:24px;height:24px;transition:transform .14s}
+.sw-in::after{content:'Add to project'}
+.row.sw.armed .sw-act{background:var(--accent);color:var(--accent-ink)}
+.row.sw.armed .sw-in::after{content:'Release to add'}
+.row.sw.armed .sw-in svg{transform:scale(1.2)}
+@media (prefers-reduced-motion:reduce){.row.lrow.sw,.sw-act,.sw-in svg{transition:none}}
 .thumb.fthumb.sys{background:var(--line);color:var(--muted)}
 .thumb.fthumb svg{width:26px;height:22px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
 </style>
@@ -454,6 +466,7 @@ mark.hit{background:var(--accent-soft);color:var(--accent);border-radius:4px;pad
       </div>
       <div class="lib-sortbar" id="lib-sort" hidden><span class="meta" id="lib-sort-t"></span><button class="btn" id="lib-sort-go" type="button">Sort into folders</button></div>
       <div id="lib-folders" hidden></div>
+      <p class="meta" id="lib-tip" hidden>Tip: swipe a recording left to add it to a project. <button class="linkbtn" id="lib-tip-x" type="button">Got it</button></p>
       <div class="list" id="lib-list"></div>
     </div>
   </section>
@@ -526,7 +539,7 @@ mark.hit{background:var(--accent-soft);color:var(--accent);border-radius:4px;pad
     <div>
       <input type="text" class="title-input" id="d-title" aria-label="Recording title">
       <div class="meta" id="d-meta"></div>
-      <div class="btns" style="margin-top:10px"><button class="btn" id="d-folder" type="button" aria-label="Add this recording to a folder"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 7.5a2 2 0 0 1 2-2h4l2 2.2h7a2 2 0 0 1 2 2V17.5a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z"/></svg><span>Add to a folder</span></button></div>
+      <div class="btns" style="margin-top:10px"><button class="btn" id="d-folder" type="button" aria-label="Add this recording to a folder"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 7.5a2 2 0 0 1 2-2h4l2 2.2h7a2 2 0 0 1 2 2V17.5a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z"/></svg><span>Add to a folder</span></button><button class="btn" id="d-proj" type="button" aria-label="Add this whole recording to a project"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M4 12h7M4 17h7M17 12v7M13.5 15.5h7"/></svg><span>Add to a project</span></button></div>
     </div>
     <div class="card">
       <audio id="d-audio" controls preload="metadata"></audio>
@@ -708,7 +721,7 @@ let toastT;
 function toast(m){const t=$('#toast');t.textContent=m;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>{t.hidden=true},4500)}
 
 /* ---------- settings ---------- */
-const BUILD='24 Oct 2026, library search and folders';
+const BUILD='24 Oct 2026, swipe to add to a project';
 const DEF={apiKey:'',model:'claude-sonnet-5-5',lang:'',kbps:64,terms:'',aaiKey:'',speakers:false,sound:'natural',liveTx:true,meter:true,orb:true};
 const settings=Object.assign({},DEF);
 let savedSettings={};try{savedSettings=JSON.parse(localStorage.getItem('longtake.settings')||'{}')||{}}catch(e){}
@@ -1287,12 +1300,13 @@ function badgeFor(s){
   return ['Live transcript',''];
 }
 const clockOf=t=>new Date(t).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'});
+const swAct='<span class="sw-act" aria-hidden="true"><span class="sw-in"><svg viewBox="0 0 24 24"><path d="M4 7h10M4 12h7M4 17h7M17 12v7M13.5 15.5h7"/></svg></span></span>'; /* the "Add to project" action a swipe uncovers; its words come from CSS */
 const rowHtml=(s,sec,showFolder)=>{ /* one tidy row: the day comes from the heading above, so only the time is repeated; a tag shows only when something needs attention */
   const [b,c]=badgeFor(s);
   const when=sec&&/^d\d+$/.test(sec.key)?clockOf(s.startedAt):new Date(s.startedAt).toLocaleDateString([],{month:'short',day:'numeric'})+', '+clockOf(s.startedAt);
   const parts=[when,fmtLen(s.durationMs||0)];if(s.words)parts.push(s.words.toLocaleString()+' words');
   const fl=showFolder&&s.folder?`<span class="fl">${esc(s.folder)}</span>`:'';
-  return `<button class="row lrow" data-id="${esc(s.id)}">${thumbHtml(s.id)}<span class="txt"><span class="ttl">${esc(s.title)}</span><span class="sub">${fl}${parts.map(x=>'<span>'+esc(x)+'</span>').join('')}</span></span>${b==='Live transcript'?'':`<span class="badge ${c}">${b}</span>`}</button>`};
+  return `<button class="row lrow sw" data-id="${esc(s.id)}">${thumbHtml(s.id)}<span class="txt"><span class="ttl">${esc(s.title)}</span><span class="sub">${fl}${parts.map(x=>'<span>'+esc(x)+'</span>').join('')}</span></span>${b==='Live transcript'?'':`<span class="badge ${c}">${b}</span>`}${swAct}</button>`};
 function sectionFor(t,now){ /* today, yesterday and weekday names for the last week, then Last Week, then one group per month */
   const d0=x=>{const d=new Date(x);d.setHours(0,0,0,0);return d.getTime()};
   const days=Math.round((d0(now)-d0(t))/864e5);
@@ -1371,7 +1385,7 @@ function resHtml(r,terms){
   const x=r.e.s,n=r.lines.length,sub=[];
   if(x.folder)sub.push(x.folder);
   sub.push(new Date(x.startedAt).toLocaleDateString([],{month:'short',day:'numeric',year:'numeric'}));if(x.durationMs)sub.push(fmtLen(x.durationMs));
-  let h=`<div class="res"><button class="row lrow" type="button" data-id="${esc(x.id)}">${thumbHtml(x.id)}<span class="txt"><span class="ttl">${hlHtml(x.title||'',terms)}</span><span class="sub">${sub.map(v=>'<span>'+esc(v)+'</span>').join('')}</span></span><span class="badge">${n?plural(n,'match','matches'):'Title or folder'}</span></button>`;
+  let h=`<div class="res"><button class="row lrow sw" type="button" data-id="${esc(x.id)}">${thumbHtml(x.id)}<span class="txt"><span class="ttl">${hlHtml(x.title||'',terms)}</span><span class="sub">${sub.map(v=>'<span>'+esc(v)+'</span>').join('')}</span></span><span class="badge">${n?plural(n,'match','matches'):'Title or folder'}</span>${swAct}</button>`;
   for(const l of r.snips)h+=`<button class="snip" type="button" data-id="${esc(x.id)}" data-t="${Math.round(l.g.t)}"><span class="tl">${fmtDur(l.g.t)}</span><span class="tt">${hlHtml(l.g.text,terms,170)}</span></button>`;
   if(n>r.snips.length)h+=`<button class="snip more" type="button" data-id="${esc(x.id)}" data-all="1">See all ${n} matches in this recording</button>`;
   return h+'</div>';
@@ -1500,6 +1514,7 @@ const dayShort=t=>new Date(t).toLocaleDateString([],Object.assign({month:'short'
 const folderRow=(kind,name,n,last)=>`<button class="row lrow frow" type="button" data-kind="${kind}" data-name="${esc(name)}">${folderThumb(name,kind!=='name')}<span class="txt"><span class="ttl">${esc(kind==='all'?'All recordings':kind==='none'?'Unsorted':name)}</span><span class="sub"><span>${plural(n,'recording','recordings')}</span>${last?`<span>Latest ${esc(dayShort(last))}</span>`:''}</span></span><span class="chev" aria-hidden="true"></span></button>`;
 async function renderLibrary(fresh){
   LV.idx=null;const seq=++LV.seq;
+  $('#lib-tip').hidden=true;
   let all=[];try{all=(await idb.all('sessions')).sort((a,b)=>b.startedAt-a.startedAt)}catch(e){}
   if(seq!==LV.seq||CUR!=='library')return;
   if(fresh)$('#lib-q').value=LV.q;
@@ -1546,10 +1561,105 @@ async function renderLibrary(fresh){
       $('#lib-factions').hidden=!named;
     }
     list.innerHTML=rows.length?groupedHtml(rows,flat||LV.folder===F_ALL):`<p class="empty">No recordings from ${LV.year} here.</p>`;
+    $('#lib-tip').hidden=!rows.length||SW.tipDone;
   }
   libRestore();
 }
 $('#lib-list').addEventListener('click',e=>{const r=e.target.closest('.row');if(r){LV.restore=window.scrollY;openDetail(r.dataset.id)}});
+
+/* ---------- swipe a recording left: pull a little and "Add to project" shows; pull harder and it fires ---------- */
+const SW={row:null,pid:-1,x0:0,y0:0,base:0,p:0,mode:'',open:null,openY:0,armed:false,W:0,rev:92,commit:190,lastX:0,lastT:0,v:0,noClick:0,closedOther:false,tipDone:(()=>{try{return localStorage.getItem('longtake.swipeTip')==='1'}catch(e){return false}})()};
+const swPull=(p,W)=>Math.min(p<=SW.rev?p:SW.rev+(p-SW.rev)*0.8,W*0.88); /* the row follows the finger, then pulls back a little so the extra distance feels harder */
+function swClose(row){
+  if(!row)return;
+  row.classList.remove('armed','sw-open','sw-drag');row.style.setProperty('--sx','0px');
+  if(SW.open===row)SW.open=null;
+}
+function swOpen(row){
+  if(SW.open&&SW.open!==row)swClose(SW.open);
+  row.classList.remove('armed','sw-drag');row.classList.add('sw-open');row.style.setProperty('--sx',SW.rev+'px');
+  SW.open=row;SW.openY=window.scrollY;
+}
+function swTipDone(){
+  if(SW.tipDone)return;
+  SW.tipDone=true;try{localStorage.setItem('longtake.swipeTip','1')}catch(e){}
+  const t=$('#lib-tip');if(t)t.hidden=true;
+}
+const swCommit=id=>saveRecording(id);
+function swDown(e){
+  if(!e.isPrimary||(e.pointerType==='mouse'&&e.button!==0))return;
+  SW.noClick=0; /* a new touch means the click that followed the last drag has long since come */
+  if(SW.open&&!SW.open.isConnected)SW.open=null;
+  let row=e.target.closest('.row.sw');
+  if(!row&&SW.open){ /* a touch on the uncovered action lands on the panel, not on the row itself */
+    const r=SW.open.getBoundingClientRect();
+    if(e.clientY>=r.top&&e.clientY<=r.bottom&&e.clientX>=r.right-2&&e.clientX<=r.right+SW.rev+8)row=SW.open;
+  }
+  SW.closedOther=false;
+  if(SW.open&&SW.open!==row){swClose(SW.open);SW.closedOther=true}
+  if(!row){SW.row=null;return}
+  SW.row=row;SW.pid=e.pointerId;SW.x0=e.clientX;SW.y0=e.clientY;SW.mode='';
+  SW.W=row.offsetWidth;SW.commit=Math.max(SW.rev+60,Math.min(SW.W*0.5,230));
+  SW.base=row.classList.contains('sw-open')?SW.rev:0;SW.p=SW.base;SW.armed=row.classList.contains('armed');
+  SW.lastX=e.clientX;SW.lastT=e.timeStamp;SW.v=0;
+}
+function swMove(e){
+  const row=SW.row;if(!row||e.pointerId!==SW.pid)return;
+  const dx=e.clientX-SW.x0,dy=e.clientY-SW.y0;
+  if(!SW.mode){
+    if(Math.abs(dx)<8&&Math.abs(dy)<8)return;
+    if(Math.abs(dx)>Math.abs(dy)*1.3&&(dx<0||SW.base>0)){ /* sideways: this is a swipe */
+      SW.mode='x';try{row.setPointerCapture(e.pointerId)}catch(_){}
+      row.classList.add('sw-drag');
+    }else{SW.mode='y';return} /* up and down is the page scrolling; a pull to the right on a closed row does nothing */
+  }
+  if(SW.mode!=='x')return;
+  SW.p=Math.max(0,SW.base-dx);
+  const dt=e.timeStamp-SW.lastT;if(dt>0){SW.v=0.6*SW.v+0.4*((SW.lastX-e.clientX)/dt);SW.lastX=e.clientX;SW.lastT=e.timeStamp}
+  row.style.setProperty('--sx',swPull(SW.p,SW.W).toFixed(1)+'px');
+  const was=SW.armed;SW.armed=SW.p>=SW.commit;
+  if(SW.armed!==was){row.classList.toggle('armed',SW.armed);if(SW.armed&&navigator.vibrate)try{navigator.vibrate(12)}catch(_){}}
+}
+function swUp(e){
+  const row=SW.row;if(!row||e.pointerId!==SW.pid)return;
+  SW.row=null;try{row.releasePointerCapture(e.pointerId)}catch(_){}
+  if(SW.mode!=='x'){
+    if(SW.mode===''){
+      if(SW.open===row){ /* a tap on a row that is open: the action fires, anything else closes it */
+        SW.noClick=performance.now()+400;
+        const id=row.dataset.id,onAct=e.clientX>row.getBoundingClientRect().right-1;
+        swClose(row);if(onAct)swCommit(id);
+      }else if(SW.closedOther)SW.noClick=performance.now()+400; /* the tap that closed another row does nothing else */
+    }else SW.noClick=performance.now()+400; /* it moved without being a swipe (scrolling, or a drag with a mouse): not a tap either */
+    return;
+  }
+  SW.noClick=performance.now()+400; /* the click that follows a drag is not a tap */
+  row.classList.remove('sw-drag');swTipDone();
+  const flick=SW.v>0.7&&SW.p>24;
+  if(SW.p>=SW.commit){const id=row.dataset.id;swClose(row);swCommit(id)}
+  else if(SW.p>=SW.rev*0.5||flick)swOpen(row);
+  else swClose(row);
+}
+function swCancel(e){
+  const row=SW.row;if(!row||e.pointerId!==SW.pid)return;
+  SW.row=null;if(SW.mode==='x')swClose(row);
+}
+function swClick(e){
+  if(performance.now()<SW.noClick){SW.noClick=0;e.preventDefault();e.stopPropagation();return} /* the click that follows a drag or a closing tap is used up here, once */
+  const row=e.target.closest&&e.target.closest('.row.sw');
+  if(row&&row.classList.contains('sw-open')){e.preventDefault();e.stopPropagation();swClose(row)}
+}
+function swKey(e){ /* the same action without a finger: the left arrow on a focused recording */
+  const row=e.target.closest&&e.target.closest('.row.sw');
+  if(row&&e.key==='ArrowLeft'){e.preventDefault();swCommit(row.dataset.id)}
+}
+for(const box of [$('#lib-list'),$('#lib-results')]){
+  box.addEventListener('pointerdown',swDown);box.addEventListener('pointermove',swMove);
+  box.addEventListener('pointerup',swUp);box.addEventListener('pointercancel',swCancel);
+  box.addEventListener('click',swClick,true);box.addEventListener('keydown',swKey);
+}
+window.addEventListener('scroll',()=>{if(SW.open&&Math.abs(window.scrollY-SW.openY)>6)swClose(SW.open)},{passive:true});
+$('#lib-tip-x').onclick=swTipDone;
 $('#lib-folders').addEventListener('click',e=>{
   const r=e.target.closest('[data-kind]');if(!r)return;
   LV.folder=r.dataset.kind==='all'?F_ALL:r.dataset.kind==='none'?F_NONE:r.dataset.name;window.scrollTo(0,0);renderLibrary();
@@ -1576,7 +1686,7 @@ async function openDetail(sid,back){
   const [txr,notes,ch]=await Promise.all([idb.get('tx',sid),idb.get('notes',sid),idb.chunks(sid)]);
   Object.assign(D,{sid,session:s,segs:(txr&&txr.segments)||[],chat:(notes&&notes.messages)||[],digest:(notes&&notes.digest)||null,digestLen:(notes&&notes.digestLen)||0,busy:false});
   D.hl=null;$('#d-title').value=s.title;
-  $('#d-meta').textContent=metaText();updateFolderBtn();
+  $('#d-meta').textContent=metaText();updateFolderBtn();updateProjBtn();
   if(D.url)URL.revokeObjectURL(D.url);
   D.blob=new Blob(ch.map(c=>c.blob),{type:String(s.mime||'audio/webm').split(';')[0]});
   D.url=URL.createObjectURL(D.blob);audio.src=D.url;
@@ -1593,6 +1703,14 @@ function updateFolderBtn(){
   b.setAttribute('aria-label',x.folder?'Folder: '+x.folder+'. Tap to change.':'Add this recording to a folder');
 }
 $('#d-folder').onclick=()=>{if(D.session)openSheet({mode:'folder',sid:D.sid})};
+async function updateProjBtn(){ /* the button says so when this recording is already in a project */
+  const b=$('#d-proj'),sid=D.sid;if(!b||!sid)return;
+  let n=0;try{const d=await pjLoad();n=d.projects.filter(p=>p.items.some(it=>it.kind==='whole'&&it.sid===sid)).length}catch(e){}
+  if(D.sid!==sid)return;
+  b.querySelector('span').textContent=n?`In ${plural(n,'project','projects')}`:'Add to a project';
+  b.setAttribute('aria-label',n?`This recording is in ${plural(n,'project','projects')}. Tap to add it to another.`:'Add this whole recording to a project');
+}
+$('#d-proj').onclick=()=>{if(D.session)saveRecording(D.sid)};
 function leaveDetail(){
   if(J.ctl)try{J.ctl.abort()}catch(e){}
   if(D.abort)try{D.abort.abort()}catch(e){}
@@ -2547,9 +2665,11 @@ const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
 const PJ_MAXNAME=60;
 const pjClean=v=>clip(String(v==null?'':v),PJ_MAXNAME);
 function cleanSaved(r){
-  if(!r||typeof r!=='object'||typeof r.text!=='string'||!r.text.trim())return null;
+  if(!r||typeof r!=='object')return null;
+  const whole=r.kind==='whole'&&typeof r.sid==='string'&&!!r.sid; /* a whole recording kept in a project: it has no saved text, the quiz reads its transcript */
+  if(!whole&&(typeof r.text!=='string'||!r.text.trim()))return null;
   const srcs=(Array.isArray(r.srcs)?r.srcs:[]).filter(x=>x&&typeof x.sid==='string'&&x.sid).slice(0,40).map(x=>({sid:x.sid,dur:Number.isFinite(x.dur)?x.dur:0,title:clip(x.title||'',120)}));
-  return {id:typeof r.id==='string'&&r.id?r.id:uid(),q:clip(r.q,200)||'Saved answer',text:r.text.slice(0,60000),kind:r.kind==='lib'?'lib':'rec',sid:typeof r.sid==='string'?r.sid:'',rtitle:clip(r.rtitle||'',120),rat:Number.isFinite(r.rat)?r.rat:0,srcs,at:Number.isFinite(r.at)?r.at:Date.now()};
+  return {id:typeof r.id==='string'&&r.id?r.id:uid(),q:clip(r.q,200)||(whole?'A recording':'Saved answer'),text:whole?'':r.text.slice(0,60000),kind:whole?'whole':r.kind==='lib'?'lib':'rec',sid:typeof r.sid==='string'?r.sid:'',rtitle:clip(r.rtitle||'',120),rat:Number.isFinite(r.rat)?r.rat:0,srcs,at:Number.isFinite(r.at)?r.at:Date.now()};
 }
 async function pjLoad(){
   if(PJ.data)return PJ.data;
@@ -2560,7 +2680,13 @@ async function pjLoad(){
 const pjSave=()=>idb.put('notes',{sid:'__projects',projects:PJ.data.projects}).catch(()=>toast('Could not save your projects on this device.'));
 const pjById=id=>PJ.data?PJ.data.projects.find(p=>p.id===id):undefined;
 const pjTaken=(d,name,exceptId)=>d.projects.some(p=>p.id!==exceptId&&p.name.toLowerCase()===name.toLowerCase());
-const sameItem=(a,b)=>a.kind===b.kind&&a.sid===b.sid&&a.q===b.q&&a.text===b.text;
+const sameItem=(a,b)=>a.kind===b.kind&&a.sid===b.sid&&(a.kind==='whole'||(a.q===b.q&&a.text===b.text));
+function pjCount(items){ /* "2 recordings · 3 saved answers", or the plain old wording when a project holds only answers */
+  const r=items.filter(x=>x.kind==='whole').length,a=items.length-r,out=[];
+  if(r)out.push(plural(r,'recording','recordings'));
+  if(a)out.push(plural(a,'saved answer','saved answers'));
+  return out.join(' \u00b7 ')||'Nothing saved yet';
+}
 async function pjCreate(name){
   const d=await pjLoad(),n=pjClean(name);
   if(!n)return {err:'Give the project a name.'};
@@ -2596,6 +2722,14 @@ async function saveAnswer(payload){
   const p=Object.assign({},payload,{q:clip(payload.q,200)||'Saved answer'});
   try{p.srcs=await srcsFor(p.kind,p.sid,p.text)}catch(e){p.srcs=[]}
   openSheet({mode:'save',payload:p});
+}
+async function saveRecording(sid){ /* a whole recording goes into a project: from a swipe in the Library or the button on the recording page */
+  if(SH.busy||!sid)return;
+  let s=null;try{s=await idb.get('sessions',sid)}catch(e){}
+  if(!s){toast('That recording is not here any more.');return}
+  if(s.status==='recording'){toast('Finish recording first, then add it to a project.');return}
+  let srcs=[];try{srcs=await srcsFor('rec',sid,'')}catch(e){}
+  openSheet({mode:'save',payload:{kind:'whole',sid,q:s.title||'Recording',rtitle:s.title||'Recording',srcs}});
 }
 async function openSheet(o){
   Object.assign(SH,{mode:o.mode,payload:o.payload||null,from:o.from||null,itemId:o.itemId||null,sid:o.sid||null,fname:o.fname||'',merge:'',opener:document.activeElement,busy:false});
@@ -2644,23 +2778,24 @@ async function folderSubmit(){
 async function renderSheet(){
   if(SH.mode==='folder'||SH.mode==='rename')return renderFolderSheet();
   const nm0=$('#sheet-name');nm0.placeholder='New project name';nm0.setAttribute('aria-label','New project name');nm0.maxLength=PJ_MAXNAME;
-  const d=await pjLoad(),move=SH.mode==='move',pl=SH.payload;
-  $('#sheet-title').textContent=move?'Move to a project':'Save to a project';
-  $('#sheet-sub').textContent=move?'':`“${clip(pl.q,60)}” · ${pl.kind==='lib'?'From your library':(pl.rtitle||'A recording')}`;
-  $('#sheet-go').textContent=move?'Create and move':'Create and save';
+  const d=await pjLoad(),move=SH.mode==='move',pl=SH.payload,whole=!move&&!!pl&&pl.kind==='whole';
+  $('#sheet-title').textContent=move?'Move to a project':whole?'Add to a project':'Save to a project';
+  $('#sheet-sub').textContent=move?'':whole?`“${clip(pl.q,60)}” · The whole recording`:`“${clip(pl.q,60)}” · ${pl.kind==='lib'?'From your library':(pl.rtitle||'A recording')}`;
+  $('#sheet-go').textContent=move?'Create and move':whole?'Create and add':'Create and save';
   const ps=d.projects.filter(p=>!(move&&p.id===SH.from)).sort((a,b)=>b.updated-a.updated);
   $('#sheet-list').innerHTML=ps.length?ps.map(p=>{
     const has=!move&&p.items.some(it=>sameItem(it,pl));
-    return `<button class="sh-row" type="button" data-pid="${esc(p.id)}"><span><strong>${esc(p.name)}</strong><small>${p.items.length?plural(p.items.length,'saved answer','saved answers'):'Nothing saved yet'}</small></span>${has?'<span class="ok">Saved</span>':''}</button>`;
+    return `<button class="sh-row" type="button" data-pid="${esc(p.id)}"><span><strong>${esc(p.name)}</strong><small>${pjCount(p.items)}</small></span>${has?`<span class="ok">${whole?'Added':'Saved'}</span>`:''}</button>`;
   }).join(''):`<p class="meta" style="margin:8px 0 0">${move?'You have no other projects yet. Name a new one above.':'You have no projects yet. Name your first one above.'}</p>`;
 }
 async function sheetPickCore(pid){
   const d=await pjLoad(),p=d.projects.find(x=>x.id===pid);if(!p)return;
   if(SH.mode==='move'){await pjMove(SH.from,SH.itemId,pid);closeSheet();toast(`Moved to “${p.name}”.`);if(CUR==='project')renderProject();return}
-  const res=await pjAddItem(pid,SH.payload);
+  const res=await pjAddItem(pid,SH.payload),w=!!SH.payload&&SH.payload.kind==='whole';
   closeSheet();
-  toast(res==='dup'?`Already saved in “${p.name}”.`:res==='ok'?`Saved to “${p.name}”.`:'Nothing to save there.');
+  toast(res==='dup'?(w?`Already in “${p.name}”.`:`Already saved in “${p.name}”.`):res==='ok'?(w?`Added to “${p.name}”.`:`Saved to “${p.name}”.`):'Nothing to save there.');
   if(CUR==='projects')renderProjects();
+  if(CUR==='detail')updateProjBtn();
 }
 $('#sheet-list').addEventListener('click',async e=>{
   if(SH.mode==='folder'){const fb=e.target.closest('[data-fn]');if(!fb||SH.busy)return;SH.busy=true;try{await folderPick(fb.dataset.fn)}finally{SH.busy=false}return}
@@ -2695,7 +2830,7 @@ async function renderProjects(){
   let d;try{d=await pjLoad()}catch(e){$('#pj-list').innerHTML='<p class="empty">Could not read your projects.</p>';return}
   if(CUR!=='projects')return;
   const ps=d.projects.slice().sort((a,b)=>b.updated-a.updated);
-  $('#pj-list').innerHTML=ps.length?ps.map(p=>`<button class="pj-row" type="button" data-pid="${esc(p.id)}"><span class="pj-n"><strong>${esc(p.name)}</strong><span class="meta">${p.items.length?plural(p.items.length,'saved answer','saved answers'):'Nothing saved yet'} · ${fmtDate(p.updated)}</span></span><span class="chev" aria-hidden="true"></span></button>`).join(''):'<div class="card"><p class="empty" style="margin:0">No projects yet. Name one above, or open any answer, tap the three dots and save it to a new project.</p></div>';
+  $('#pj-list').innerHTML=ps.length?ps.map(p=>`<button class="pj-row" type="button" data-pid="${esc(p.id)}"><span class="pj-n"><strong>${esc(p.name)}</strong><span class="meta">${pjCount(p.items)} · ${fmtDate(p.updated)}</span></span><span class="chev" aria-hidden="true"></span></button>`).join(''):'<div class="card"><p class="empty" style="margin:0">No projects yet. Name one above, or open any answer, tap the three dots and save it to a new project. You can also swipe a recording left in your Library.</p></div>';
 }
 $('#pj-new').addEventListener('submit',async e=>{
   e.preventDefault();
@@ -2718,7 +2853,15 @@ function savedHtml(it){
   t=t.replace(/\[([a-z0-9]{2,20}),? (\d{1,2}):(\d{2}):(\d{2})\]/g,(m,id,h,mi,s)=>LIB.titles[id]?m:`${h}:${mi}:${s}`); /* a deleted recording leaves just the time */
   return md(t,true);
 }
+function pjWholeHtml(it){
+  const open=PJ.open===it.id,alive=LIB.titles[it.sid],title=alive||it.rtitle||it.q||'A recording',dur=(it.srcs&&it.srcs[0]&&it.srcs[0].dur)||0;
+  const sub=`Whole recording${alive?'':' (deleted)'}${dur?' \u00b7 '+fmtLen(dur):''} \u00b7 added ${dayShort(it.at)}`;
+  const note=alive?'The whole recording is part of this project. A quiz on this project uses everything that was said in it.':'This recording was deleted, so it can no longer be opened or used in a quiz.';
+  const acts=`<div class="qa-act">${alive?'<button class="btn sm" type="button" data-act="open">Open recording</button>':''}<button class="btn sm" type="button" data-act="move">Move</button><button class="btn sm danger" type="button" data-act="remove">Remove</button></div>`;
+  return `<div class="qa whole${open?' open':''}" data-id="${esc(it.id)}"><div class="qa-hd"><button class="qa-h" type="button" aria-expanded="${open}" aria-controls="pj-b-${esc(it.id)}">${thumbHtml(it.sid)}<span class="qa-tt"><span class="qa-t">${esc(title)}</span><span class="qa-s">${esc(sub)}</span></span><span class="sum-r"><span class="chev" aria-hidden="true"></span></span></button></div><div class="qa-b" id="pj-b-${esc(it.id)}"${open?'':' hidden'}><p class="meta" style="margin:2px 2px 0">${esc(note)}</p>${acts}</div></div>`;
+}
 function pjItemHtml(it){
+  if(it.kind==='whole')return pjWholeHtml(it);
   const open=PJ.open===it.id,alive=it.kind==='rec'&&it.sid&&LIB.titles[it.sid];
   const where=it.kind==='lib'?'Your library':(alive||it.rtitle||'A recording')+(it.kind==='rec'&&!alive?' (deleted)':'');
   const acts=`<div class="qa-act"><button class="btn sm" type="button" data-act="copy">Copy</button><button class="btn sm" type="button" data-act="move">Move</button>${alive?'<button class="btn sm" type="button" data-act="open">Open recording</button>':''}<button class="btn sm danger" type="button" data-act="remove">Remove</button></div>`;
@@ -2732,9 +2875,9 @@ async function renderProject(){
   $('#pj-back').textContent=PJ.back==='quiz'?'← Quiz':'← Projects';
   $('#pj-name').value=p.name;
   const n=p.items.length;
-  $('#pj-meta').textContent=(n?plural(n,'saved answer','saved answers')+' · ':'')+'created '+fmtDate(p.created);
+  $('#pj-meta').textContent=(n?pjCount(p.items)+' · ':'')+'created '+fmtDate(p.created);
   $('#pj-quiz').disabled=!n;
-  $('#pj-items').innerHTML=n?p.items.map(pjItemHtml).join(''):'<p class="meta" style="margin:2px 0">Nothing saved here yet. Open a recording, tap the three dots on an answer and choose this project.</p>';
+  $('#pj-items').innerHTML=n?p.items.map(pjItemHtml).join(''):'<p class="meta" style="margin:2px 0">Nothing saved here yet. Open a recording, tap the three dots on an answer and choose this project. Or swipe a recording left in your Library to add all of it.</p>';
   if(PJ.reveal){
     const el=$(`#pj-items .qa[data-id="${PJ.reveal}"]`);PJ.reveal=null;
     if(el)setTimeout(()=>el.scrollIntoView({block:'start'}),40);
@@ -2785,7 +2928,7 @@ $('#pj-quiz').addEventListener('click',async()=>{
 
 /* ---------- Quiz ---------- */
 const QZ_SYS='You write quiz questions that help a student study from recordings of lectures, meetings and talks. Use only what the speaker actually says in the transcripts; never rely on outside knowledge for a question or for its correct answer. The transcripts come from automatic speech recognition and can contain misheard words, so quietly fix obvious errors. Write clear multiple-choice questions, each with exactly four options and exactly one correct answer. The wrong options must be plausible but clearly wrong according to the transcript. Never use options such as \"all of the above\" or \"none of the above\". Test understanding of the real ideas, definitions, steps, examples, numbers, names and decisions, not trivia. Vary the kinds of question and spread them across the material in the order it was taught. For each question, write a short explanation in the voice of a good teacher: one or two sentences saying why the answer is right and what the speaker said.\n\nReturn one JSON object and nothing else, in exactly this shape: {"questions":[{"q":"the question","options":["first option","second option","third option","fourth option"],"answer":0,"why":"the explanation","rec":"the id of the recording the question comes from","time":"hh:mm:ss where the speaker said it"}]}. \"answer\" is the zero-based position of the correct option. Do not put letters such as A) in front of the options.';
-const QZ={data:null,mode:null,busy:false,abort:null,err:'',errKey:false,tok:0,count:0,part:null};
+const QZ={data:null,mode:null,busy:false,abort:null,err:'',errKey:false,tok:0,count:0,part:null,what:''};
 async function qzLoad(){
   if(QZ.data)return QZ.data;
   const r=await getRec('__quiz')||{};
@@ -2854,6 +2997,8 @@ const QZ_PART=15; /* long quizzes are written in parts of up to 15 questions */
 const splitN=(n,k)=>Array.from({length:k},(_,i)=>Math.floor(n/k)+(i<n%k?1:0));
 const wordsIn=t=>(String(t).match(/\S+/g)||[]).length;
 const QZ_SYS_P='You write quiz questions that help a student study from answers they saved to a study project. The saved answers were written by a teaching assistant from recordings of lectures, meetings and talks. Use only what the saved answers say; never rely on outside knowledge for a question or for its correct answer. Write clear multiple-choice questions, each with exactly four options and exactly one correct answer. The wrong options must be plausible but clearly wrong according to the saved answers. Never use options such as \"all of the above\" or \"none of the above\". Test understanding of the real ideas, definitions, steps, examples, numbers, names and decisions, not trivia. Vary the kinds of question and spread them across the saved answers. For each question, write a short explanation in the voice of a good teacher: one or two sentences saying why the answer is right.\n\nReturn one JSON object and nothing else, in exactly this shape: {"questions":[{"q":"the question","options":["first option","second option","third option","fourth option"],"answer":0,"why":"the explanation","rec":"the id of the saved answer the question comes from"}]}. \"answer\" is the zero-based position of the correct option. Do not put letters such as A) in front of the options.';
+const QZ_SYS_PR='You write quiz questions that help a student study from the material in a study project. The project holds two kinds of material. A <saved_answer> is an answer a teaching assistant wrote from a recording. A <recording> is the full transcript of a recording the student added, with the time of each line. Use only what the saved answers and the recordings say; never rely on outside knowledge for a question or for its correct answer. The transcripts come from automatic speech recognition and can contain misheard words, so quietly fix obvious errors. Write clear multiple-choice questions, each with exactly four options and exactly one correct answer. The wrong options must be plausible but clearly wrong according to the material. Never use options such as \"all of the above\" or \"none of the above\". Test understanding of the real ideas, definitions, steps, examples, numbers, names and decisions, not trivia. Vary the kinds of question and spread them across the material in the order it was taught. For each question, write a short explanation in the voice of a good teacher: one or two sentences saying why the answer is right.\n\nReturn one JSON object and nothing else, in exactly this shape: {"questions":[{"q":"the question","options":["first option","second option","third option","fourth option"],"answer":0,"why":"the explanation","rec":"the id of the saved answer or recording the question comes from","time":"hh:mm:ss where the speaker said it, only for a recording"}]}. \"answer\" is the zero-based position of the correct option. Do not put letters such as A) in front of the options.';
+const wholeOk=(it,list)=>list.some(x=>x.s.id===it.sid&&x.segs.length&&!x.live); /* a recording in a project can be quizzed on once it has a transcript */
 function sliceSegs(segs,k,K){ /* the k-th of K stretches of a recording, cut by amount of text */
   if(K<=1)return segs;
   let total=0;for(const g of segs)total+=g.text.length+1;
@@ -2868,15 +3013,20 @@ function salvageJson(txt){ /* an answer that was cut off part-way: keep the ques
 }
 function qzMaterial(d,list){ /* how much material the current choice stands on */
   if(d.src==='proj'){
-    const ps=PJ.data?PJ.data.projects.filter(p=>d.psel.includes(p.id)&&p.items.length):[],dur=new Map();let words=0,items=0;
+    const ps=PJ.data?PJ.data.projects.filter(p=>d.psel.includes(p.id)&&p.items.length):[],dur=new Map(),wh=new Set();let words=0,items=0,a=0,r=0;
     for(const p of ps)for(const it of p.items){
-      items++;words+=wordsIn(it.text);
+      if(it.kind==='whole'){ /* counted by its transcript, once, and only while there is one */
+        const cur=list.find(x=>x.s.id===it.sid&&x.segs.length&&!x.live);
+        if(!cur||wh.has(it.sid))continue;
+        wh.add(it.sid);items++;r++;words+=cur.s.words||0;dur.set(it.sid,Math.max(dur.get(it.sid)||0,cur.s.durationMs||0));continue;
+      }
+      items++;a++;words+=wordsIn(it.text);
       for(const s of it.srcs){const cur=list.find(x=>x.s.id===s.sid);dur.set(s.sid,Math.max(dur.get(s.sid)||0,cur?(cur.s.durationMs||0):(s.dur||0)))}
     }
-    return {proj:true,ms:[...dur.values()].reduce((a,b)=>a+b,0),words,n:ps.length,items};
+    return {proj:true,ms:[...dur.values()].reduce((x,y)=>x+y,0),words,n:ps.length,items,a,r};
   }
   const use=list.filter(x=>d.sel.includes(x.s.id)&&x.segs.length&&!x.live);
-  return {proj:false,ms:use.reduce((a,x)=>a+(x.s.durationMs||0),0),words:use.reduce((a,x)=>a+(x.s.words||0),0),n:use.length,items:0};
+  return {proj:false,ms:use.reduce((a,x)=>a+(x.s.durationMs||0),0),words:use.reduce((a,x)=>a+(x.s.words||0),0),n:use.length,items:0,a:0,r:0};
 }
 const qzAllowed=m=>QZ_COUNTS.filter(n=>n<=20||(m.ms>QZ_MIN[n]&&(!m.proj||m.words>=QZ_WORDS[n])));
 function qzLockHint(m){
@@ -2885,12 +3035,12 @@ function qzLockHint(m){
     if(!a.includes(30)&&m.ms>QZ_MIN[30]&&m.words<QZ_WORDS[30])return 'Save a few more answers to unlock 30 questions.';
     if(a.includes(30)&&m.ms>QZ_MIN[45]&&m.words<QZ_WORDS[45])return 'Save a few more answers to unlock 45 questions.';
   }
-  const of=m.proj?'recordings behind your saved answers':'recordings',have=m.n?(m.proj?` These projects cover ${fmtLen(m.ms)}.`:` You have chosen ${fmtLen(m.ms)}.`):'';
+  const of=m.proj?(m.r?'recordings in your projects':'recordings behind your saved answers'):'recordings',have=m.n?(m.proj?` These projects cover ${fmtLen(m.ms)}.`:` You have chosen ${fmtLen(m.ms)}.`):'';
   return (a.includes(30)?'':`30 questions need more than 45 minutes of ${of}, and `)+`45 questions need more than 1 hour.`+have;
 }
 const qzProgText=()=>{
   const proj=QZ.data&&QZ.data.src==='proj',pt=QZ.part&&QZ.part.n>1?` Part ${QZ.part.i} of ${QZ.part.n}.`:'';
-  return `${proj?'Reading your saved answers':'Reading your recordings'} and writing ${QZ.count} questions.${pt} This can take a minute or two.`;
+  return `Reading your ${QZ.what||(proj?'saved answers':'recordings')} and writing ${QZ.count} questions.${pt} This can take a minute or two.`;
 };
 async function qzStart(){
   if(QZ.busy)return;
@@ -2899,26 +3049,43 @@ async function qzStart(){
   let list;try{list=await textSessions();await pjLoad()}catch(e){QZ.busy=false;QZ.err='Could not read your '+(proj?'projects.':'recordings.');renderQuiz();return}
   const use=proj?[]:list.filter(x=>d.sel.includes(x.s.id)&&x.segs.length&&!x.live);
   const chosen=proj?PJ.data.projects.filter(p=>d.psel.includes(p.id)&&p.items.length):[];
-  const items=chosen.flatMap(p=>p.items.map(it=>({it,p})));
-  if(proj?!items.length:!use.length){QZ.busy=false;QZ.err=proj?'Choose at least one project that has saved answers.':'Choose at least one recording that has a transcript.';renderQuiz();return}
+  const wseen=new Set(),raw=chosen.flatMap(p=>p.items.map(it=>({it,p})));
+  const items=raw.filter(x=>{ /* a recording kept in a project joins the quiz through its transcript, once */
+    if(x.it.kind!=='whole')return true;
+    const e=list.find(v=>v.s.id===x.it.sid&&v.segs.length&&!v.live);
+    if(!e||wseen.has(x.it.sid))return false;
+    wseen.add(x.it.sid);x.e=e;return true;
+  });
+  if(proj?!items.length:!use.length){QZ.busy=false;QZ.err=proj?(raw.length?'The recordings in those projects have no transcript to quiz on yet.':'Choose at least one project that has saved answers.'):'Choose at least one recording that has a transcript.';renderQuiz();return}
   if(!settings.apiKey){QZ.busy=false;QZ.err=friendlyErr(new Error('NOKEY'));QZ.errKey=true;renderQuiz();return}
   if(!qzAllowed(qzMaterial(d,list)).includes(d.count)){QZ.busy=false;QZ.err='That many questions is not available for this choice yet. Pick a smaller number.';renderQuiz();return}
+  const answers=items.filter(x=>x.it.kind!=='whole'),wholes=items.filter(x=>x.it.kind==='whole'),hasW=wholes.length>0;
+  QZ.what=proj?(hasW?(answers.length?'saved answers and recordings':'recordings'):'saved answers'):'recordings';
   QZ.count=d.count;QZ.abort=new AbortController();renderQuiz();
   const signal=QZ.abort.signal;
   try{
-    const K=d.count<=20?1:Math.max(1,Math.min(Math.ceil(d.count/QZ_PART),proj?items.length:99)),sizes=splitN(d.count,K);
-    const termSrc=proj?list.filter(x=>items.some(y=>y.it.srcs.some(s=>s.sid===x.s.id))).map(x=>x.s):use.map(x=>x.s);
-    const system=withTerms(proj?QZ_SYS_P:QZ_SYS,termSrc);
-    const what=proj?'saved answers':'recordings';
+    const K=d.count<=20?1:Math.max(1,Math.min(Math.ceil(d.count/QZ_PART),proj&&!hasW?items.length:99)),sizes=splitN(d.count,K);
+    const termSrc=proj?list.filter(x=>items.some(y=>y.it.srcs.some(s=>s.sid===x.s.id)||(y.it.kind==='whole'&&y.it.sid===x.s.id))).map(x=>x.s):use.map(x=>x.s);
+    const system=withTerms(proj?(hasW?QZ_SYS_PR:QZ_SYS_P):QZ_SYS,termSrc);
+    const what=QZ.what;
     const focus=d.focus?`\n\nFocus the questions on: ${d.focus}. If the ${what} say nothing about that, return {"questions":[]}.`:'';
     const qs=[],seenQ=new Set();let sampled=false,partial='';
     for(let k=0;k<K;k++){
       QZ.part={i:k+1,n:K};const pt=$('#qz-prog-t');if(pt)pt.textContent=qzProgText();
       const stems=d.seen.slice(-30).concat(qs.map(q=>q.q)).slice(-60);
       const avoid=stems.length?`\n\nDo not repeat or closely reword these questions from earlier quizzes:\n${stems.map(s=>'- '+s.slice(0,160)).join('\n')}`:'';
-      const where=K>1?`\n\nThis is part ${k+1} of ${K}. Write questions only about the ${proj?'saved answers':'passages'} below.`:'';
+      const where=K>1?`\n\nThis is part ${k+1} of ${K}. Write questions only about the ${proj?(hasW?'material':'saved answers'):'passages'} below.`:'';
       let body,batchIds;
-      if(proj){
+      if(proj&&hasW){ /* saved answers are shared out between the parts; every recording is cut into the same number of stretches */
+        const mine=answers.slice(Math.floor(k*answers.length/K),Math.floor((k+1)*answers.length/K));
+        const aBud=Math.floor(QZ_BUDGET*0.3),per=Math.max(2000,Math.floor(aBud/Math.max(1,mine.length)));
+        if(mine.some(x=>x.it.text.length>per))sampled=true;
+        const wp=wholes.map(x=>({x,e:Object.assign({},x.e,{segs:sliceSegs(x.e.segs,k,K)})})).filter(v=>v.e.segs.length);
+        const src=quizSource(wp.map(v=>v.e),Math.floor(QZ_BUDGET*(answers.length?0.7:1)/K));if(src.sampled)sampled=true;
+        body=mine.map(x=>`<saved_answer id="${x.it.id}" project="${safeTitle(x.p.name)}" question="${safeTitle(x.it.q)}" from="${safeTitle(x.it.kind==='lib'?'the library':(LIB.titles[x.it.sid]||x.it.rtitle||'a recording'))}">\n${x.it.text.slice(0,per)}\n</saved_answer>`).concat(wp.map((v,i)=>`<recording id="${v.x.it.id}" title="${safeTitle(v.e.s.title)}" recorded="${dLong(v.e.s.startedAt)}">\n${src.texts[i]}\n</recording>`)).join('\n\n');
+        batchIds=mine.map(x=>x.it.id).concat(wp.map(v=>v.x.it.id));
+        if(!body)continue;
+      }else if(proj){
         const mine=items.slice(Math.floor(k*items.length/K),Math.floor((k+1)*items.length/K));
         const per=Math.max(2000,Math.floor(QZ_BUDGET/Math.max(1,mine.length)));
         if(mine.some(x=>x.it.text.length>per))sampled=true;
@@ -2942,7 +3109,11 @@ async function qzStart(){
     if(!qs.length)throw Object.assign(new Error(d.focus?`No questions could be written about that from the chosen ${proj?'projects':'recordings'}. Try clearing the focus or choosing other ${proj?'projects':'recordings'}.`:'No usable questions came back. Please try again.'),{bad:true});
     if(proj){ /* tie each question back to the saved answer it came from */
       const by=new Map(items.map(x=>[x.it.id,x]));
-      qs.forEach(q=>{const x=by.get(q.rec);if(x){q.item=x.it.id;q.proj=x.p.id;q.pname=x.p.name;q.rec=x.it.kind==='rec'?x.it.sid:''}else q.rec='';q.t=null});
+      qs.forEach(q=>{
+        const x=by.get(q.rec);
+        if(x){const w=x.it.kind==='whole';q.item=x.it.id;q.proj=x.p.id;q.pname=x.p.name;q.rec=w||x.it.kind==='rec'?x.it.sid:'';if(!w)q.t=null} /* a whole recording keeps the moment the speaker said it */
+        else{q.rec='';q.t=null}
+      });
     }
     d.cur={at:Date.now(),titles:proj?chosen.map(p=>p.name):use.map(x=>x.s.title),qs,idx:0,picks:qs.map(()=>null),sampled,asked:d.count,retry:false,logged:false,src:d.src,note:partial};
     d.seen=d.seen.concat(qs.map(q=>q.q)).slice(-40);
@@ -2967,7 +3138,7 @@ function setupHtml(d,list){
   const proj=d.src==='proj';
   const avail=list.filter(x=>x.segs.length&&!x.live),off=list.filter(x=>!x.segs.length&&!x.live);
   d.sel=d.sel.filter(id=>avail.some(x=>x.s.id===id));
-  const pall=PJ.data?PJ.data.projects:[],pfull=pall.filter(p=>p.items.length),psel=new Set(d.psel=d.psel.filter(id=>pfull.some(p=>p.id===id)));
+  const pall=PJ.data?PJ.data.projects:[],pfull=pall.filter(p=>p.items.some(it=>it.kind!=='whole'||wholeOk(it,list))),psel=new Set(d.psel=d.psel.filter(id=>pfull.some(p=>p.id===id)));
   const sel=new Set(d.sel);
   let h='';
   const c=d.cur;
@@ -2976,8 +3147,8 @@ function setupHtml(d,list){
   if(proj){
     if(!pfull.length)return h+`<div class="card"><p class="empty" style="margin:0">${pall.length?'None of your projects has a saved answer yet.':'No projects yet.'} Save answers from your recordings into a project, then come back to be quizzed on it.</p><div class="btns" style="margin-top:12px"><button class="btn" type="button" data-go="projects">Go to Projects</button></div></div>`;
     h+=`<div class="card"><div class="card-head"><h2>Choose projects</h2><span class="ch-act"><button class="linkbtn" type="button" data-q="all">Select all</button> <button class="linkbtn" type="button" data-q="none" style="margin-left:10px">Clear</button></span></div>`;
-    h+=pfull.map(p=>{const m=qzMaterial({src:'proj',psel:[p.id],sel:[]},list);return `<label class="pick"><input type="checkbox" data-pid="${esc(p.id)}"${psel.has(p.id)?' checked':''}><span class="pk"><strong>${esc(p.name)}</strong><small>${plural(p.items.length,'saved answer','saved answers')}${m.ms?' · from '+fmtLen(m.ms)+' of recordings':''}</small></span></label>`}).join('');
-    h+=pall.filter(p=>!p.items.length).map(p=>`<div class="pick off"><input type="checkbox" disabled aria-label="${esc(p.name)} has nothing saved yet"><span class="pk"><strong>${esc(p.name)}</strong><small>Nothing saved yet</small></span></div>`).join('');
+    h+=pfull.map(p=>{const m=qzMaterial({src:'proj',psel:[p.id],sel:[]},list);return `<label class="pick"><input type="checkbox" data-pid="${esc(p.id)}"${psel.has(p.id)?' checked':''}><span class="pk"><strong>${esc(p.name)}</strong><small>${pjCount(p.items)}${m.ms?' · from '+fmtLen(m.ms)+' of recordings':''}</small></span></label>`}).join('');
+    h+=pall.filter(p=>!pfull.includes(p)).map(p=>`<div class="pick off"><input type="checkbox" disabled aria-label="${esc(p.name)} ${p.items.length?'has nothing to quiz on yet':'has nothing saved yet'}"><span class="pk"><strong>${esc(p.name)}</strong><small>${p.items.length?'No transcript to quiz on yet':'Nothing saved yet'}</small></span></div>`).join('');
     h+=`<p class="meta" id="qz-sum" style="margin:10px 0 0"></p></div>`;
   }else{
     if(!avail.length)return h+`<div class="card"><p class="empty" style="margin:0">${list.length?'None of your recordings has a transcript yet.':'No recordings yet.'} Record a lecture, meeting or talk, then come back here to be quizzed on it.</p></div>`;
@@ -2998,7 +3169,7 @@ function qzSync(d,list){ /* keep the summary line, the question counts and the S
   $$('#qz-root [data-count]').forEach(b=>{const n=+b.dataset.count,ok=a.includes(n),on=ok&&n===d.count;b.disabled=!ok;b.classList.toggle('on',on);b.setAttribute('aria-pressed',on);b.setAttribute('aria-label',ok?n+' questions':n+' questions, locked')});
   const lk=$('#qz-lock');if(lk){const t=qzLockHint(m);lk.textContent=t;lk.hidden=!t}
   const s=$('#qz-sum');
-  if(s)s.textContent=m.proj?(m.n?`${plural(m.n,'project','projects')} chosen · ${plural(m.items,'saved answer','saved answers')}`:'Choose at least one project.'):(m.n?`${plural(m.n,'recording','recordings')} chosen${m.words?' · about '+m.words.toLocaleString()+' words':''}`:'Choose at least one recording.');
+  if(s)s.textContent=m.proj?(m.n?`${plural(m.n,'project','projects')} chosen · ${pjCount(Array.from({length:m.r},()=>({kind:'whole'})).concat(Array.from({length:m.a},()=>({kind:'rec'}))))}`:'Choose at least one project.'):(m.n?`${plural(m.n,'recording','recordings')} chosen${m.words?' · about '+m.words.toLocaleString()+' words':''}`:'Choose at least one recording.');
   const b=$('#qz-start');if(b)b.disabled=!m.n;
 }
 function busyHtml(d){return `<div class="card" role="status"><h2>Writing your quiz</h2><div class="prog"><div class="bar ind"><span></span></div><div class="meta" id="qz-prog-t">${qzProgText()}</div></div><div class="btns" style="margin-top:12px"><button class="btn" type="button" data-q="cancel">Stop</button></div></div>`}
@@ -3071,7 +3242,7 @@ $('#qz-root').addEventListener('click',async e=>{
   if(act==='all'||act==='none'){
     const list=QZ.list||await textSessions(),avail=list.filter(x=>x.segs.length&&!x.live);
     if(d.src==='proj'){
-      const ok=(PJ.data?PJ.data.projects:[]).filter(p=>p.items.length).map(p=>p.id);
+      const ok=(PJ.data?PJ.data.projects:[]).filter(p=>p.items.some(it=>it.kind!=='whole'||wholeOk(it,list))).map(p=>p.id);
       d.psel=act==='all'?ok:[];qzSave();
       $$('#qz-root input[data-pid]').forEach(i=>{i.checked=d.psel.includes(i.dataset.pid)});
     }else{
