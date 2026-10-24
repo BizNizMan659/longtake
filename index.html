@@ -432,6 +432,7 @@ mark.hit{background:var(--accent-soft);color:var(--accent);border-radius:4px;pad
       </div>
       <p class="err" id="rec-warn" role="alert" hidden></p>
       <p class="saved" id="saved-note" role="status" hidden></p>
+      <button class="btn" id="rec-reload" type="button" hidden>Reload Longtake</button>
       <p class="note">Saved to this device every few seconds. Keep this page open with the screen on.</p>
     </div>
     <details class="card livebox" id="live-box">
@@ -654,7 +655,7 @@ mark.hit{background:var(--accent-soft);color:var(--accent);border-radius:4px;pad
         <small>Sent to the assistant with every question so it spells these correctly. You can also add terms to a single recording.</small></div>
       <label class="check" style="margin:0"><input type="checkbox" id="s-speakers"> Label speakers when improving (meetings and interviews)</label>
     </div>
-    <div class="card" id="s-safe" hidden><p class="meta" style="margin:0">Basic recording is on for this phone, because the microphone stopped capturing sound with the live transcript or the moving particles running. <button class="linkbtn" id="s-safe-reset" type="button">Try the full recorder again</button></p></div>
+    <div class="card" id="s-safe" hidden><p class="meta" style="margin:0"><span id="s-safe-t">Basic recording is on for this phone, because the microphone stopped capturing sound with the live transcript or the moving particles running.</span> <button class="linkbtn" id="s-safe-reset" type="button">Try the full recorder again</button></p></div>
     <details class="adv" id="s-adv">
       <summary>Advanced</summary>
       <div class="field"><label for="s-model">Model</label><input type="text" id="s-model" spellcheck="false"></div>
@@ -731,16 +732,17 @@ let toastT;
 function toast(m){const t=$('#toast');t.textContent=m;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>{t.hidden=true},4500)}
 
 /* ---------- settings ---------- */
-const BUILD='24 Oct 2026, steadier recording and a recording log';
+const BUILD='24 Oct 2026, a stuck microphone is noticed in seconds and fixed';
 const DEF={apiKey:'',model:'claude-sonnet-5-5',lang:'',kbps:64,terms:'',aaiKey:'',speakers:false,sound:'natural',liveTx:true,meter:true,orb:true};
 const settings=Object.assign({},DEF);
 let savedSettings={};try{savedSettings=JSON.parse(localStorage.getItem('longtake.settings')||'{}')||{}}catch(e){}
 Object.assign(settings,savedSettings);
 if((savedSettings.qv||0)<2){settings.kbps=64;settings.qv=2;try{localStorage.setItem('longtake.settings',JSON.stringify(settings))}catch(e){}} /* one-time: earlier builds recorded at 32 kbps, which can sound rough */
 function saveSettings(){try{localStorage.setItem('longtake.settings',JSON.stringify(settings))}catch(e){}}
-let SAFE={fails:0,noLive:false,noMeter:false}; /* what this phone has shown it needs: set only after the full recorder failed twice and a plainer one worked */
+let SAFE={fails:0,noLive:false,noMeter:false,plain:false,ff:0,fl:0,later:null}; /* what this phone has shown it needs: set only after the full recorder failed twice and a plainer one worked. ff and fl count failures on the first and on the later recordings after Longtake was opened; later holds what the later recordings need */
 try{SAFE=Object.assign(SAFE,JSON.parse(localStorage.getItem('longtake.safe')||'{}')||{})}catch(e){}
 function saveSafe(){try{localStorage.setItem('longtake.safe',JSON.stringify(SAFE))}catch(e){}}
+const PAGE={recs:0,noLive:false,noMeter:false,plain:false}; /* what this opening of Longtake has learned: gone when the page is reloaded, which gives the phone a clean start */
 
 /* ---------- storage (IndexedDB) ---------- */
 let dbp;
@@ -783,7 +785,7 @@ function storageFail(e){
 
 /* ---------- recorder ---------- */
 const R={active:false,paused:false,stopping:false,accMs:0,segStart:0,rec:null,stream:null,ctx:null,an:null,sid:null,idx:0,bytes:0,inflight:0,
-  segments:[],dirty:false,session:null,levels:[],interim:'',wake:null,recogWanted:false,recog:null,recogTimer:0,raf:0,timer:0,lastDraw:0,stopArm:false,stopArmT:0,txState:'idle',tick:0,starting:false,restarting:false,stoppedAt:-1e9,log:[],t0:0,gen:0,noLive:false,tries:0,wd:0,muted:false,sound:0,sampled:0,ctxRan:false,warn:'',nchk:0,passed:false,noMeter:false,learned:false};
+  segments:[],dirty:false,session:null,levels:[],interim:'',wake:null,recogWanted:false,recog:null,recogTimer:0,raf:0,timer:0,lastDraw:0,stopArm:false,stopArmT:0,txState:'idle',tick:0,starting:false,restarting:false,stoppedAt:-1e9,log:[],t0:0,gen:0,noLive:false,tries:0,wd:0,muted:false,sound:0,sampled:0,ctxRan:false,warn:'',nchk:0,passed:false,noMeter:false,learned:false,peak:0,first:true,plain:false,lastB:0,lastBt:0,stall:false,dead:false,srev:{},srUsed:false};
 const elapsed=()=>R.accMs+((R.active&&!R.paused)?performance.now()-R.segStart:0);
 
 const APPLE=/iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
@@ -796,8 +798,14 @@ function pickMime(){ /* iPhones play .m4a (AAC) in every situation; their newer 
 function dlog(m){ /* a plain-words diary of what the recorder and the phone did, kept with the recording so a problem can be understood later */
   R.log.push(((performance.now()-R.t0)/1000).toFixed(1)+'s  '+m);if(R.log.length>300)R.log.splice(1,1);
 }
-/* Natural capture turns off the phone's call-style filtering (echo cancelling, noise suppression, auto gain), which can make voices sound robotic. */
-function micOpts(){const f=settings.sound==='filtered';return {audio:{echoCancellation:f,noiseSuppression:f,autoGainControl:f,channelCount:{ideal:1}}}}
+function audioSessionType(t){ /* tells the phone this page is about to record (or is finished), so a leftover playback setting cannot starve the microphone */
+  try{const a=navigator.audioSession;if(a&&a.type!==t)a.type=t}catch(e){}
+}
+function audioSessionNote(){try{const a=navigator.audioSession;dlog(a?'audio session: '+a.type+', '+a.state:'audio session: not offered by this browser')}catch(e){}}
+try{const a=navigator.audioSession;if(a&&a.addEventListener)a.addEventListener('statechange',()=>{if(R.active||R.starting)dlog('the phone changed the audio session to '+a.state)})}catch(e){}
+function micState(){try{const t=R.stream.getAudioTracks()[0];return t?t.readyState+(t.muted?', muted':''):'no track'}catch(e){return '?'}}
+/* Natural capture turns off the phone's call-style filtering (echo cancelling, noise suppression, auto gain), which can make voices sound robotic. Plain capture asks for nothing special; it is the last thing tried when sound will not arrive. */
+function micOpts(){if(R.plain)return {audio:true};const f=settings.sound==='filtered';return {audio:{echoCancellation:f,noiseSuppression:f,autoGainControl:f,channelCount:{ideal:1}}}}
 const extFor=m=>/mp4/.test(m)?'m4a':/ogg/.test(m)?'ogg':'webm';
 const defaultTitle=()=>'Recording '+new Date().toLocaleString([],{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
 
@@ -811,18 +819,23 @@ async function startRecording(){
   catch(e){try{dlog('could not start: '+(e&&e.message||e))}catch(x){}toast('Recording could not start. Try again.')}
   finally{R.starting=false}
 }
+function showReload(on){const b=$('#rec-reload');if(b)b.hidden=!on}
 function setWarn(m){R.warn=m||'';const w=$('#rec-warn');if(w){w.textContent=R.warn;w.hidden=!R.warn}}
 async function beginRecording(again){
   if(!again){
-    R.t0=performance.now();R.log=[];R.tries=0;R.noLive=!!SAFE.noLive;R.noMeter=!!SAFE.noMeter;R.learned=false;setWarn('');
-    dlog('Longtake '+BUILD);dlog('Phone: '+navigator.userAgent);
+    R.t0=performance.now();R.log=[];R.tries=0;R.learned=false;R.dead=false;R.srUsed=false;R.srev={};setWarn('');showReload(false);
+    R.first=PAGE.recs===0;PAGE.recs++;
+    const L=(!R.first&&SAFE.later)||{};
+    R.noLive=!!(SAFE.noLive||PAGE.noLive||L.noLive);R.noMeter=!!(SAFE.noMeter||PAGE.noMeter||L.noMeter);R.plain=!!(SAFE.plain||PAGE.plain||L.plain);
+    dlog('Longtake '+BUILD);dlog('Phone: '+navigator.userAgent);dlog('recording number '+PAGE.recs+' since Longtake was opened');
     dlog('Settings: '+settings.sound+' sound, '+settings.kbps+' kbps, live transcript '+(settings.liveTx===false?'off':'on')+', meter '+(settings.meter===false?'off':'on'));
-    if(SAFE.noLive||SAFE.noMeter)dlog('basic recording is on for this phone ('+(SAFE.noLive?'no live transcript':'')+(SAFE.noLive&&SAFE.noMeter?', ':'')+(SAFE.noMeter?'no level meter':'')+') because the full recorder failed here before');
-  }else dlog('starting again'+(R.noLive?' without the live transcript':'')+(R.noMeter?' and without the level meter':''));
+    if(R.noLive||R.noMeter||R.plain)dlog('basic recording for this one ('+[R.noLive&&'no live transcript',R.noMeter&&'no level meter',R.plain&&'plain microphone settings'].filter(Boolean).join(', ')+') because the full recorder failed on this phone before');
+  }else dlog('starting again'+(R.noLive?' without the live transcript':'')+(R.noMeter?' and without the level meter':'')+(R.plain?' with plain microphone settings':''));
   R.tries++;
   try{document.querySelectorAll('audio').forEach(a=>{try{a.pause()}catch(e){}})}catch(e){} /* a phone that is playing audio can keep the microphone tied up */
-  const gap=1000-(performance.now()-R.stoppedAt);
+  const gap=(R.tries>=3?3500:1000)-(performance.now()-R.stoppedAt); /* the last try gives the phone longer to let go */
   if(gap>0){dlog('waiting '+Math.round(gap)+' ms so the phone can let go of the microphone');await sleep(gap)}
+  audioSessionType('play-and-record');audioSessionNote();
   let stream;
   try{stream=await navigator.mediaDevices.getUserMedia(micOpts())}
   catch(e){
@@ -841,7 +854,7 @@ async function beginRecording(again){
   catch(e){dlog('recorder could not be created: '+(e&&e.message));stream.getTracks().forEach(t=>t.stop());toast('This browser could not start the recorder.');return}
   dlog('recording as '+(rec.mimeType||mime||'(browser default)')+(APPLE?' (iPhone or iPad)':''));
   const sid='s'+Date.now().toString(36);
-  Object.assign(R,{active:true,paused:false,stopping:false,accMs:0,segStart:performance.now(),rec,stream,sid,idx:0,bytes:0,inflight:0,segments:[],dirty:false,interim:'',levels:[],stopArm:false,muted:false,sound:0,sampled:0,ctxRan:false,nchk:0,passed:false});
+  Object.assign(R,{active:true,paused:false,stopping:false,accMs:0,segStart:performance.now(),rec,stream,sid,idx:0,bytes:0,inflight:0,segments:[],dirty:false,interim:'',levels:[],stopArm:false,muted:false,sound:0,sampled:0,ctxRan:false,nchk:0,passed:false,peak:0,lastB:-1,lastBt:performance.now(),stall:false});
   $('#saved-note').hidden=true;
   R.session={id:sid,title:defaultTitle(),startedAt:Date.now(),durationMs:0,bytes:0,mime:rec.mimeType||mime||'audio/webm',chunks:0,words:0,status:'recording'};
   try{await idb.put('sessions',R.session);await idb.put('tx',{sid,segments:[]})}
@@ -875,16 +888,17 @@ async function beginRecording(again){
   keepAwake();
   startRecog();
   R.timer=setInterval(tick,500);
-  clearTimeout(R.wd);R.wd=setTimeout(()=>capCheck(sid),11000);
+  clearTimeout(R.wd);R.wd=setTimeout(()=>capCheck(sid),7000);
   updateRecUI();renderLive();
 }
 
-/* After eleven seconds, make sure sound is really arriving. If it is not, say so and try once more without the live transcript. */
+/* After seven seconds, make sure sound is really arriving. If it is not, say so and try again with less switched on. */
 function silentSample(){ /* true while the level meter is running and has been handed nothing but exact zeros */
   if(!R.an||!R.ctx||R.ctx.state!=='running'||!R.an.getFloatTimeDomainData)return;
   const n=R.an.fftSize,b=R.fbuf&&R.fbuf.length===n?R.fbuf:(R.fbuf=new Float32Array(n));
   R.an.getFloatTimeDomainData(b);R.sampled++;
-  for(let i=0;i<n;i++)if(b[i]!==0){R.sound=performance.now();return}
+  for(let i=0;i<n;i++){const v=b[i]<0?-b[i]:b[i];if(v>R.peak)R.peak=v}
+  if(R.peak>0&&!R.sound)R.sound=performance.now();
 }
 async function capCheck(sid){
   R.wd=0;
@@ -902,16 +916,26 @@ async function capCheck(sid){
   if(!why){
     if(!R.sound&&(R.nchk=(R.nchk||0)+1)<12){R.wd=setTimeout(()=>capCheck(sid),10000)} /* a quiet room says nothing yet; look again, so a silent microphone is still caught once words are heard */
     if(!R.passed){R.passed=true;dlog('audio is arriving: '+R.bytes+' bytes saved so far'+(R.sound?', sound heard by the meter':''))}
-    if(R.tries>1&&!R.learned&&R.bytes>0){ /* the full recorder failed and a plainer one worked: after the second time, start plain from now on */
+    if(R.tries>1&&!R.learned&&R.bytes>0){ /* the full recorder failed and a plainer one worked: the rest of this opening of Longtake starts plain, and after the second time the phone remembers it */
       R.learned=true;SAFE.fails=(SAFE.fails||0)+1;
-      if(SAFE.fails>=2){SAFE.noLive=SAFE.noLive||R.noLive;SAFE.noMeter=SAFE.noMeter||R.noMeter;dlog('remembered: this phone records plainly from now on');toast('This phone needs basic recording, so it will start that way from now on. You can undo that in Settings.')}
-      saveSafe();
+      PAGE.noLive=PAGE.noLive||R.noLive;PAGE.noMeter=PAGE.noMeter||R.noMeter;PAGE.plain=PAGE.plain||R.plain;
+      dlog('this worked: '+[R.noLive&&'no live transcript',R.noMeter&&'no level meter',R.plain&&'plain microphone settings'].filter(Boolean).join(', ')+'; the next recordings until Longtake is reloaded start that way');
+      const key=R.first?'ff':'fl';SAFE[key]=(SAFE[key]||0)+1;
+      if(SAFE[key]>=2){
+        if(R.first){SAFE.noLive=SAFE.noLive||R.noLive;SAFE.noMeter=SAFE.noMeter||R.noMeter;SAFE.plain=SAFE.plain||R.plain}
+        else{const l=SAFE.later||{};SAFE.later={noLive:!!(l.noLive||R.noLive),noMeter:!!(l.noMeter||R.noMeter),plain:!!(l.plain||R.plain)}}
+        dlog('remembered: this phone '+(R.first?'records plainly from now on':'records plainly from the second recording after Longtake is opened'));
+        toast(R.first?'This phone needs basic recording, so it will start that way from now on. You can undo that in Settings.':'This phone loses the microphone on a second recording, so later recordings will start in basic mode. Reloading Longtake gives you the full recorder again. You can undo this in Settings.');
+      }
+      saveSafe();safeNote();
     }
     return;
   }
+  dlog('at the check: '+R.bytes+' bytes saved, level meter '+(R.sampled?(R.sound?'heard sound':'saw only silence'):(R.an?'had no readings':'off'))+', microphone '+micState()+', recorder '+(R.rec&&R.rec.state||'?')+(R.muted?', the phone muted the microphone':''));
   dlog('SOUND CHECK FAILED: '+why);
   if(R.tries<3){await restartCapture(why);return}
-  setWarn('No sound is reaching the recorder. Tap Stop, wait five seconds and try again. If it keeps happening, open the recording, then Tools, then Recording details.');
+  R.dead=true;
+  setWarn('No sound is reaching the recorder. Tap Stop, then Reload Longtake, then Record. If it keeps happening, open the recording, then Tools, then Recording details.');
 }
 function stopRecog(){ /* asks the speech recogniser to finish; done resolves when it has, abort() makes sure it lets go */
   R.recogWanted=false;clearTimeout(R.recogTimer);R.gen++;
@@ -925,14 +949,15 @@ async function releaseMic(){ /* everything that can keep the microphone busy is 
   try{R.wake&&R.wake.release()}catch(e){}
   const c=R.ctx;R.ctx=null;R.an=null;
   if(c){c.onstatechange=null;try{await Promise.race([c.close(),sleep(700)])}catch(e){}}
+  audioSessionType('auto');
 }
 async function restartCapture(why){
   if(R.restarting||!R.active)return;
   R.restarting=true;R.starting=true;
   try{
     const sid=R.sid,rec=R.rec;
-    if(!R.noLive)R.noLive=true;else R.noMeter=true;
-    dlog('restarting the recorder '+(R.noMeter?'without the live transcript or the level meter':'without the live transcript'));
+    if(!R.noLive)R.noLive=true;else{R.noMeter=true;R.plain=true}
+    dlog('restarting the recorder '+(R.noMeter?'without the live transcript, the level meter or the special microphone settings':'without the live transcript'));
     R.active=false;
     const sr=stopRecog();
     try{rec.ondataavailable=null;rec.onerror=null;if(rec.state!=='inactive')rec.stop()}catch(e){}
@@ -962,10 +987,14 @@ async function stopRecording(note){
   }
   await Promise.race([sr.done,sleep(1200)]);sr.abort(); /* the last words are caught, and the phone gets the microphone back before the next recording */
   for(let i=0;i<200&&R.inflight>0;i++)await sleep(50);
+  const meter=R.sampled>0?(R.sound?'heard sound, loudest '+R.peak.toFixed(3):'saw only silence'):(R.an?'had no readings':'was off'),
+        micWas=(()=>{try{const t=R.stream.getAudioTracks()[0];return t?t.readyState+(t.muted?', muted':''):'no track'}catch(e){return '?'}})(),
+        wordsHeard=R.segments.some(x=>!x.mark&&x.text),deaf=wordsHeard&&R.sampled>=2&&!R.sound;
   await releaseMic();
+  dlog('level meter '+meter+'; microphone was '+micWas+(R.muted?' (the phone muted it during the recording)':''));
   R.dirty=true;await saveTx();
   dlog('stopped after '+fmtDur(dur)+': '+R.idx+' audio pieces, '+R.bytes+' bytes, '+countWords(R.segments)+' words');
-  Object.assign(session,{durationMs:dur,bytes:R.bytes,chunks:R.idx,words:countWords(R.segments),status:'done',diag:R.log.join('\n')});
+  Object.assign(session,{durationMs:dur,bytes:R.bytes,chunks:R.idx,words:countWords(R.segments),status:'done',diag:R.log.join('\n'),silent:deaf||undefined});
   try{await idb.put('sessions',session)}catch(e){storageFail(e)}
   R.stoppedAt=performance.now();
   R.stopping=false;R.paused=false;R.stopArm=false;R.txState='idle';setWarn('');
@@ -973,17 +1002,34 @@ async function stopRecording(note){
   updateRecUI();
   const sn=$('#saved-note');
   sn.textContent='Saved as “'+clip(session.title||'Recording',40)+'” · '+fmtDur(dur)+'. Open Library to read the transcript.';sn.hidden=false;
-  if(R.noLive&&settings.liveTx!==false)sn.textContent+=' The live transcript was off, because the phone was not giving the recorder sound.';
+  if(R.noLive&&settings.liveTx!==false){
+    sn.textContent+=' The live transcript was off for this recording, to keep the microphone working.';
+    if(!SAFE.noLive){sn.textContent+=' Tap Reload Longtake to get it back for the next one.';showReload(true)}
+  }
+  if(R.dead)showReload(true);
   toast(typeof note==='string'?note:'Saved to your library.');
   autoFolder(sid).then(n=>{if(n&&CUR==='library')renderLibrary()}).catch(()=>{})
     .then(()=>verifyAudio(sid)).then(r=>{
       if(!r||r==='ok')return;
-      const m=r==='none'?'No audio was captured for this recording, only the transcript.':'Saved, but this phone could not play the new recording back. Open it, then Tools, then Download audio.';
-      sn.textContent=sn.textContent+' '+m;toast(m);if(CUR==='library')renderLibrary();
+      const m=r==='none'?'No audio was captured for this recording, only the transcript. Tap Reload Longtake before the next one.'
+        :r==='silent'?'The phone understood your words, but the audio it saved is silent. Open Settings, turn off Live transcript while recording, and record again. You can make the transcript afterwards with Improve with AssemblyAI.'
+        :'Saved, but this phone could not play the new recording back. Open it, then Tools, then Download audio.';
+      sn.textContent=sn.textContent+' '+m;toast(m);showReload(true);if(CUR==='library')renderLibrary();
     }).catch(()=>{});
   /* the person stays where they are; they open the recording from the Library when they want it */
 }
-async function verifyAudio(sid){ /* asks the phone to open the start of the saved audio, the way the player will, and writes down what happened */
+async function loudness(blob){ /* decodes the audio the way a player would and measures it, so a silent recording is found right away */
+  try{
+    const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return null;
+    const ac=new AC(),buf=await blob.arrayBuffer();
+    const ab=await new Promise((res,rej)=>{const p=ac.decodeAudioData(buf,res,rej);if(p&&p.catch)p.catch(rej)});
+    try{ac.close()}catch(e){}
+    const d=ab.getChannelData(0);let pk=0,sum=0;
+    for(let i=0;i<d.length;i++){const v=d[i]<0?-d[i]:d[i];if(v>pk)pk=v;sum+=d[i]*d[i]}
+    return {peak:pk,rms:Math.sqrt(sum/Math.max(1,d.length)),secs:ab.duration};
+  }catch(e){return {err:String((e&&e.message)||e||'could not be decoded')}}
+}
+async function verifyAudio(sid){ /* asks the phone to open the start of the saved audio, the way the player will, listens to how loud it is, and writes down what happened */
   let res='ok',info='';
   try{
     const ch=await idb.chunks(sid),cur=await idb.get('sessions',sid);if(!cur)return 'ok';
@@ -994,12 +1040,24 @@ async function verifyAudio(sid){ /* asks the phone to open the start of the save
       const r=await new Promise(done=>{const t=setTimeout(()=>done('slow'),8000);a.onloadedmetadata=()=>{clearTimeout(t);done('ok')};a.onerror=()=>{clearTimeout(t);done('error '+(a.error?a.error.code:'?'))};a.src=url;try{a.load()}catch(e){}});
       try{a.removeAttribute('src');a.load()}catch(e){}URL.revokeObjectURL(url);
       res=r==='ok'?'ok':r==='slow'?'slow':'error';info=r+' ('+type+', first '+fmtBytes(blob.size)+' of '+ch.length+' pieces)';
+      if(res!=='error'){
+        const L=await loudness(blob);
+        if(L&&L.err)info+='; decoding: '+L.err;
+        else if(L){
+          info+='; saved audio peak '+L.peak.toFixed(3)+', average '+L.rms.toFixed(4)+' over '+L.secs.toFixed(1)+' s';
+          if(L.peak<0.0005){ /* nothing but silence was saved */
+            if(cur.silent||cur.words>0){res='silent';info+=' - SILENT although words were understood'}
+            else info+=' - silent (nobody spoke, or the microphone gave nothing)';
+          }
+        }
+      }
     }
     const fresh=await idb.get('sessions',sid);
     if(fresh){fresh.check=res;fresh.diag=(fresh.diag||'')+'\nplayback check: '+res+(info?' - '+info:'');await idb.put('sessions',fresh)}
   }catch(e){res='ok'}
   return res;
 }
+if(/[?&]orbdebug/.test(location.search))window.__verify=verifyAudio; /* test hook, same switch as the orb debug view */
 
 function togglePause(){
   if(!R.active)return;
@@ -1008,7 +1066,7 @@ function togglePause(){
     R.accMs=elapsed();R.paused=true;stopRecog();
   }else{
     try{R.rec.resume()}catch(e){return}
-    R.segStart=performance.now();R.paused=false;startRecog();
+    R.segStart=performance.now();R.paused=false;R.lastBt=performance.now();startRecog();
   }
   updateRecUI();
 }
@@ -1027,7 +1085,14 @@ function tick(){
   $('#timer').textContent=fmtDur(elapsed());
   R.tick++;updateAppbar();
   if(R.tick%4===0)updateChips();
-  if(R.active&&!R.paused&&!R.sound)silentSample();
+  if(R.active&&!R.paused){
+    silentSample();
+    if(R.passed&&!R.restarting){ /* sound was arriving; warn if the saving stops moving */
+      const now=performance.now();
+      if(R.bytes!==R.lastB){R.lastB=R.bytes;R.lastBt=now;if(R.stall){R.stall=false;dlog('audio is arriving again');setWarn('')}}
+      else if(!R.stall&&now-R.lastBt>15000){R.stall=true;dlog('no new audio for 15 seconds');setWarn('Recording looks stuck: nothing new has been saved for 15 seconds. Tap Stop, then Reload Longtake, then Record.')}
+    }
+  }
 }
 
 /* wake lock */
@@ -1300,7 +1365,9 @@ function spawnRecog(SR,gen,segs){ /* gen and segs tie this recogniser to one rec
     else if(e.error==='network'){setTx('offline')}
   };
   r.onend=()=>{if(R.recogWanted&&gen===R.gen){clearTimeout(R.recogTimer);R.recogTimer=setTimeout(()=>spawnRecog(SR,gen,segs),400)}};
-  try{r.start();R.recog=r;if(R.txState!=='offline')setTx('listening')}catch(e){dlog('speech recogniser could not start: '+(e&&e.message))}
+  const ev=(k,m)=>{r['on'+k]=()=>{if(gen===R.gen&&!R.srev[k]){R.srev[k]=1;dlog('speech recogniser: '+m)}}};
+  ev('audiostart','the phone opened the microphone for it');ev('soundstart','it heard sound');ev('speechstart','it heard speech');
+  try{r.start();R.recog=r;R.srUsed=true;if(R.txState!=='offline')setTx('listening')}catch(e){dlog('speech recogniser could not start: '+(e&&e.message))}
 }
 
 /* record view rendering */
@@ -1459,6 +1526,7 @@ function badgeFor(s){
   if(s.status==='recovered')return ['Recovered','warn'];
   if(s.status==='done'&&s.bytes===0)return ['No audio','warn'];
   if(s.check==='error')return ['Audio problem','warn'];
+  if(s.check==='silent')return ['Silent audio','warn'];
   if(s.improvedAt)return ['Improved','ok'];
   if(!(s.words>0))return ['No transcript','warn'];
   return ['Live transcript',''];
@@ -1885,6 +1953,7 @@ function leaveDetail(){
 function audioNote(failed){ /* a plain sentence instead of a bare "Error" on the player */
   const e=$('#d-audio-err'),x=D.session;if(!e||!x)return;
   const m=x.status==='done'&&x.bytes===0?'No audio was captured for this recording, so there is nothing to play. The transcript is still here.'
+    :x.check==='silent'?'The audio saved for this recording is silent, although the phone understood the words. The transcript is still here. To record sound next time, turn off Live transcript while recording in Settings.'
     :(failed||x.check==='error')?'This phone could not play the audio here. It is saved: open Tools, then Download audio, to listen in another app.':'';
   e.textContent=m;e.hidden=!m;
   const d=$('#d-diag');if(d){d.textContent=x.diag||'No details were kept for this recording.';$('#d-diag-card').hidden=false}
@@ -2150,8 +2219,9 @@ $('#s-speakers').addEventListener('change',e=>{settings.speakers=e.target.checke
 $('#s-sound').addEventListener('change',e=>{settings.sound=e.target.value;saveSettings()});
 $('#s-livetx').addEventListener('change',e=>{settings.liveTx=e.target.checked;saveSettings()});
 $('#s-meter').addEventListener('change',e=>{settings.meter=e.target.checked;saveSettings()});
-function safeNote(){const b=!!(SAFE.noLive||SAFE.noMeter),n=$('#s-safe');if(n)n.hidden=!b}
-$('#s-safe-reset').addEventListener('click',()=>{SAFE={fails:0,noLive:false,noMeter:false};saveSafe();safeNote();toast('The full recorder is back on for the next recording.')});
+function safeNote(){const b=!!(SAFE.noLive||SAFE.noMeter||SAFE.plain||SAFE.later),n=$('#s-safe');if(n)n.hidden=!b;const t=$('#s-safe-t');if(t)t.textContent=(SAFE.noLive||SAFE.noMeter||SAFE.plain)?'Basic recording is on for this phone, because the microphone stopped capturing sound with the live transcript or the moving particles running.':'Basic recording is on from the second recording after Longtake is opened, because this phone lost the microphone on a second recording. The first recording after opening or reloading Longtake still uses the full recorder.'}
+$('#s-safe-reset').addEventListener('click',()=>{SAFE={fails:0,noLive:false,noMeter:false,plain:false,ff:0,fl:0,later:null};PAGE.noLive=PAGE.noMeter=PAGE.plain=false;saveSafe();safeNote();toast('The full recorder is back on for the next recording.')});
+$('#rec-reload').addEventListener('click',()=>{if(R.active||R.stopping){toast('Tap Stop first.');return}location.reload()});
 $('#s-orb').addEventListener('change',e=>{settings.orb=e.target.checked;saveSettings();ORB.refresh()});
 $('#s-lang').addEventListener('change',e=>{settings.lang=e.target.value;saveSettings()});
 $('#s-kbps').addEventListener('change',e=>{settings.kbps=+e.target.value;saveSettings()});
