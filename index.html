@@ -732,7 +732,7 @@ let toastT;
 function toast(m){const t=$('#toast');t.textContent=m;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>{t.hidden=true},4500)}
 
 /* ---------- settings ---------- */
-const BUILD='24 Oct 2026, a stuck microphone is noticed in seconds and fixed';
+const BUILD='24 Oct 2026, the record button spins clockwise only';
 const DEF={apiKey:'',model:'claude-sonnet-5-5',lang:'',kbps:64,terms:'',aaiKey:'',speakers:false,sound:'natural',liveTx:true,meter:true,orb:true};
 const settings=Object.assign({},DEF);
 let savedSettings={};try{savedSettings=JSON.parse(localStorage.getItem('longtake.settings')||'{}')||{}}catch(e){}
@@ -1123,7 +1123,7 @@ const ORB=(()=>{
   function mk(hx,hy,nx,ny,nz,kind,i){
     return {hx,hy,x:S.cx+hx,y:S.cy+hy,vx:0,vy:0,nx,ny,nz,kind,i,
       f:kind?0.74+0.24*Math.random():0.18+0.82*Math.sqrt(Math.random()), /* how far from the middle it floats while recording */
-      a0:Math.random()*6.2832,w:(Math.random()<0.12?-1:1)*(0.2+0.6*Math.random()),ph:Math.random()*6.2832,
+      a0:Math.random()*6.2832,w:0.2+0.6*Math.random(), /* every dot turns clockwise, some a little faster than others */ph:Math.random()*6.2832,
       base:0.34+0.52*Math.random(),dg:Math.random()<0.16,dv:Math.random(),wait:-1,tx:0,ty:0};
   }
   function target(p){
