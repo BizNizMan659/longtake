@@ -168,6 +168,7 @@ audio{width:100%;margin:6px 0 10px}
 .chat-form{display:flex;gap:8px;align-items:flex-end}
 .chat-form textarea{flex:1;min-width:0}
 .err{color:var(--warn);font-size:.9rem;margin:6px 0}
+.diag{white-space:pre-wrap;word-break:break-word;font:12px/1.45 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:var(--muted);margin:0 0 10px;max-height:240px;overflow:auto}
 
 /* Transcript editing and terms */
 textarea.seg-edit{min-height:0;padding:6px 10px;border-radius:8px;line-height:1.4}
@@ -429,8 +430,9 @@ mark.hit{background:var(--accent-soft);color:var(--accent);border-radius:4px;pad
         <button class="side l" id="btn-pause" disabled>Pause</button>
         <button class="side r" id="btn-mark" disabled>Mark</button>
       </div>
+      <p class="err" id="rec-warn" role="alert" hidden></p>
       <p class="saved" id="saved-note" role="status" hidden></p>
-      <p class="note">Saved to this device every 10 seconds. Keep this page open with the screen on.</p>
+      <p class="note">Saved to this device every few seconds. Keep this page open with the screen on.</p>
     </div>
     <details class="card livebox" id="live-box">
       <summary><span class="h2">Live transcript</span><span class="sum-r"><span class="pill" id="pill-tx">Transcript: idle</span><span class="chev" aria-hidden="true"></span></span></summary>
@@ -543,6 +545,7 @@ mark.hit{background:var(--accent-soft);color:var(--accent);border-radius:4px;pad
     </div>
     <div class="card">
       <audio id="d-audio" controls preload="metadata"></audio>
+      <p class="err" id="d-audio-err" role="status" hidden></p>
       <div class="btns"><button class="btn" id="d-mark" type="button">Mark this moment</button></div>
     </div>
     <div class="dtabs" role="tablist" aria-label="This recording">
@@ -614,6 +617,12 @@ mark.hit{background:var(--accent-soft);color:var(--accent);border-radius:4px;pad
             <button class="btn" id="d-copy">Copy transcript</button>
           </div>
         </div>
+        <div class="card" id="d-diag-card" hidden>
+          <h2>Recording details</h2>
+          <p class="meta" style="margin:0 0 8px">A plain-words diary of what the recorder and the phone did. Copy it if something went wrong.</p>
+          <pre class="diag" id="d-diag"></pre>
+          <div class="btns"><button class="btn" id="d-diag-copy" type="button">Copy details</button></div>
+        </div>
         <div class="card">
           <h2>Delete this recording</h2>
           <p class="meta" style="margin:0 0 10px">Removes the audio and the transcript from this device.</p>
@@ -645,6 +654,7 @@ mark.hit{background:var(--accent-soft);color:var(--accent);border-radius:4px;pad
         <small>Sent to the assistant with every question so it spells these correctly. You can also add terms to a single recording.</small></div>
       <label class="check" style="margin:0"><input type="checkbox" id="s-speakers"> Label speakers when improving (meetings and interviews)</label>
     </div>
+    <div class="card" id="s-safe" hidden><p class="meta" style="margin:0">Basic recording is on for this phone, because the microphone stopped capturing sound with the live transcript or the moving particles running. <button class="linkbtn" id="s-safe-reset" type="button">Try the full recorder again</button></p></div>
     <details class="adv" id="s-adv">
       <summary>Advanced</summary>
       <div class="field"><label for="s-model">Model</label><input type="text" id="s-model" spellcheck="false"></div>
@@ -721,13 +731,16 @@ let toastT;
 function toast(m){const t=$('#toast');t.textContent=m;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>{t.hidden=true},4500)}
 
 /* ---------- settings ---------- */
-const BUILD='24 Oct 2026, record button fits and follows your voice';
+const BUILD='24 Oct 2026, steadier recording and a recording log';
 const DEF={apiKey:'',model:'claude-sonnet-5-5',lang:'',kbps:64,terms:'',aaiKey:'',speakers:false,sound:'natural',liveTx:true,meter:true,orb:true};
 const settings=Object.assign({},DEF);
 let savedSettings={};try{savedSettings=JSON.parse(localStorage.getItem('longtake.settings')||'{}')||{}}catch(e){}
 Object.assign(settings,savedSettings);
 if((savedSettings.qv||0)<2){settings.kbps=64;settings.qv=2;try{localStorage.setItem('longtake.settings',JSON.stringify(settings))}catch(e){}} /* one-time: earlier builds recorded at 32 kbps, which can sound rough */
 function saveSettings(){try{localStorage.setItem('longtake.settings',JSON.stringify(settings))}catch(e){}}
+let SAFE={fails:0,noLive:false,noMeter:false}; /* what this phone has shown it needs: set only after the full recorder failed twice and a plainer one worked */
+try{SAFE=Object.assign(SAFE,JSON.parse(localStorage.getItem('longtake.safe')||'{}')||{})}catch(e){}
+function saveSafe(){try{localStorage.setItem('longtake.safe',JSON.stringify(SAFE))}catch(e){}}
 
 /* ---------- storage (IndexedDB) ---------- */
 let dbp;
@@ -770,12 +783,18 @@ function storageFail(e){
 
 /* ---------- recorder ---------- */
 const R={active:false,paused:false,stopping:false,accMs:0,segStart:0,rec:null,stream:null,ctx:null,an:null,sid:null,idx:0,bytes:0,inflight:0,
-  segments:[],dirty:false,session:null,levels:[],interim:'',wake:null,recogWanted:false,recog:null,recogTimer:0,raf:0,timer:0,lastDraw:0,stopArm:false,stopArmT:0,txState:'idle',tick:0};
+  segments:[],dirty:false,session:null,levels:[],interim:'',wake:null,recogWanted:false,recog:null,recogTimer:0,raf:0,timer:0,lastDraw:0,stopArm:false,stopArmT:0,txState:'idle',tick:0,starting:false,restarting:false,stoppedAt:-1e9,log:[],t0:0,gen:0,noLive:false,tries:0,wd:0,muted:false,sound:0,sampled:0,ctxRan:false,warn:'',nchk:0,passed:false,noMeter:false,learned:false};
 const elapsed=()=>R.accMs+((R.active&&!R.paused)?performance.now()-R.segStart:0);
 
-function pickMime(){
+const APPLE=/iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+function pickMime(){ /* iPhones play .m4a (AAC) in every situation; their newer WebM recorder is young, so iPhones prefer m4a */
   if(!window.MediaRecorder||!MediaRecorder.isTypeSupported)return '';
-  return ['audio/webm;codecs=opus','audio/mp4;codecs=mp4a.40.2','audio/mp4','audio/webm','audio/ogg;codecs=opus'].find(m=>MediaRecorder.isTypeSupported(m))||'';
+  const web=['audio/webm;codecs=opus','audio/mp4;codecs=mp4a.40.2','audio/mp4','audio/webm','audio/ogg;codecs=opus'],
+        mp4=['audio/mp4;codecs=mp4a.40.2','audio/mp4','audio/webm;codecs=opus','audio/webm','audio/ogg;codecs=opus'];
+  return (APPLE?mp4:web).find(m=>MediaRecorder.isTypeSupported(m))||'';
+}
+function dlog(m){ /* a plain-words diary of what the recorder and the phone did, kept with the recording so a problem can be understood later */
+  R.log.push(((performance.now()-R.t0)/1000).toFixed(1)+'s  '+m);if(R.log.length>300)R.log.splice(1,1);
 }
 /* Natural capture turns off the phone's call-style filtering (echo cancelling, noise suppression, auto gain), which can make voices sound robotic. */
 function micOpts(){const f=settings.sound==='filtered';return {audio:{echoCancellation:f,noiseSuppression:f,autoGainControl:f,channelCount:{ideal:1}}}}
@@ -783,53 +802,157 @@ const extFor=m=>/mp4/.test(m)?'m4a':/ogg/.test(m)?'ogg':'webm';
 const defaultTitle=()=>'Recording '+new Date().toLocaleString([],{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
 
 async function startRecording(){
-  if(R.active||R.stopping)return;
+  if(R.active||R.stopping||R.starting)return;
   if(!window.MediaRecorder||!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){
     toast('Recording needs a browser with microphone support, opened over https or localhost.');return;
   }
+  R.starting=true;
+  try{await beginRecording(false)}
+  catch(e){try{dlog('could not start: '+(e&&e.message||e))}catch(x){}toast('Recording could not start. Try again.')}
+  finally{R.starting=false}
+}
+function setWarn(m){R.warn=m||'';const w=$('#rec-warn');if(w){w.textContent=R.warn;w.hidden=!R.warn}}
+async function beginRecording(again){
+  if(!again){
+    R.t0=performance.now();R.log=[];R.tries=0;R.noLive=!!SAFE.noLive;R.noMeter=!!SAFE.noMeter;R.learned=false;setWarn('');
+    dlog('Longtake '+BUILD);dlog('Phone: '+navigator.userAgent);
+    dlog('Settings: '+settings.sound+' sound, '+settings.kbps+' kbps, live transcript '+(settings.liveTx===false?'off':'on')+', meter '+(settings.meter===false?'off':'on'));
+    if(SAFE.noLive||SAFE.noMeter)dlog('basic recording is on for this phone ('+(SAFE.noLive?'no live transcript':'')+(SAFE.noLive&&SAFE.noMeter?', ':'')+(SAFE.noMeter?'no level meter':'')+') because the full recorder failed here before');
+  }else dlog('starting again'+(R.noLive?' without the live transcript':'')+(R.noMeter?' and without the level meter':''));
+  R.tries++;
+  try{document.querySelectorAll('audio').forEach(a=>{try{a.pause()}catch(e){}})}catch(e){} /* a phone that is playing audio can keep the microphone tied up */
+  const gap=1000-(performance.now()-R.stoppedAt);
+  if(gap>0){dlog('waiting '+Math.round(gap)+' ms so the phone can let go of the microphone');await sleep(gap)}
   let stream;
   try{stream=await navigator.mediaDevices.getUserMedia(micOpts())}
-  catch(e){toast('The microphone is blocked. Allow it for this page, then try again.');return}
+  catch(e){
+    const n=(e&&e.name)||'';dlog('the phone refused the microphone: '+n+' '+((e&&e.message)||''));
+    toast(n==='NotReadableError'||n==='AbortError'||n==='TrackStartError'?'The microphone is busy. Close any call or other app using it, wait a few seconds, then try again.':'The microphone is blocked. Allow it for this page, then try again.');return;
+  }
+  const track=stream.getAudioTracks()[0];
+  if(track){
+    let st={};try{st=track.getSettings()||{}}catch(e){}
+    dlog('microphone: '+(track.label||'unnamed')+', '+track.readyState+(track.muted?', MUTED':'')+', '+(st.sampleRate||'?')+' Hz, echo cancelling '+st.echoCancellation+', noise suppression '+st.noiseSuppression);
+    if(track.muted){dlog('the microphone started muted; waiting for the phone to open it');for(let i=0;i<15&&track.muted;i++)await sleep(100);dlog(track.muted?'it is still muted':'it opened')}
+  }else dlog('the phone gave no audio track');
   const mime=pickMime();
   let rec;
   try{rec=new MediaRecorder(stream,Object.assign({audioBitsPerSecond:settings.kbps*1000},mime?{mimeType:mime}:{}))}
-  catch(e){stream.getTracks().forEach(t=>t.stop());toast('This browser could not start the recorder.');return}
+  catch(e){dlog('recorder could not be created: '+(e&&e.message));stream.getTracks().forEach(t=>t.stop());toast('This browser could not start the recorder.');return}
+  dlog('recording as '+(rec.mimeType||mime||'(browser default)')+(APPLE?' (iPhone or iPad)':''));
   const sid='s'+Date.now().toString(36);
-  Object.assign(R,{active:true,paused:false,stopping:false,accMs:0,segStart:performance.now(),rec,stream,sid,idx:0,bytes:0,inflight:0,segments:[],dirty:false,interim:'',levels:[],stopArm:false});
+  Object.assign(R,{active:true,paused:false,stopping:false,accMs:0,segStart:performance.now(),rec,stream,sid,idx:0,bytes:0,inflight:0,segments:[],dirty:false,interim:'',levels:[],stopArm:false,muted:false,sound:0,sampled:0,ctxRan:false,nchk:0,passed:false});
   $('#saved-note').hidden=true;
   R.session={id:sid,title:defaultTitle(),startedAt:Date.now(),durationMs:0,bytes:0,mime:rec.mimeType||mime||'audio/webm',chunks:0,words:0,status:'recording'};
   try{await idb.put('sessions',R.session);await idb.put('tx',{sid,segments:[]})}
   catch(e){storageFail(e);stream.getTracks().forEach(t=>t.stop());R.active=false;return}
 
   rec.ondataavailable=e=>{
-    if(!e.data||!e.data.size)return;
+    if(!e.data||!e.data.size){if(R.sid===sid)dlog('an empty piece arrived');return}
     const i=R.idx++;R.bytes+=e.data.size;const t=elapsed();R.inflight++;
+    if(i<3||i%40===0)dlog('audio piece '+i+': '+e.data.size+' bytes at '+fmtDur(t));
     idb.put('chunks',{sid,idx:i,blob:e.data,t})
       .then(()=>{if(R.sid===sid){R.session.durationMs=t;R.session.bytes=R.bytes;R.session.chunks=R.idx;return idb.put('sessions',R.session)}})
       .catch(storageFail).finally(()=>{R.inflight--});
   };
-  rec.onerror=()=>stopRecording('The recorder reported an error. What was captured has been saved.');
-  const track=stream.getAudioTracks()[0];
-  if(track)track.onended=()=>stopRecording('The microphone was taken by the system (a call, another app or screen lock). What was captured has been saved.');
+  rec.onstart=()=>dlog('recorder started');
+  rec.onerror=e=>{dlog('recorder error: '+(e&&e.error&&e.error.name||'unknown'));stopRecording('The recorder reported an error. What was captured has been saved.')};
+  if(track){
+    track.onended=()=>{dlog('the phone ended the microphone');stopRecording('The microphone was taken by the system (a call, another app or screen lock). What was captured has been saved.')};
+    track.onmute=()=>{R.muted=true;dlog('the phone muted the microphone');updateChips()};
+    track.onunmute=()=>{R.muted=false;dlog('the microphone is back');updateChips()};
+  }
 
   R.ctx=null;R.an=null;
-  if(settings.meter!==false){
+  if(settings.meter!==false&&!R.noMeter){
     try{const AC=window.AudioContext||window.webkitAudioContext;R.ctx=new AC();
-      const src=R.ctx.createMediaStreamSource(stream);R.an=R.ctx.createAnalyser();R.an.fftSize=512;R.an.smoothingTimeConstant=0.5;src.connect(R.an);try{R.ctx.resume().catch(()=>{})}catch(e){}}
-    catch(e){R.an=null}
+      const src=R.ctx.createMediaStreamSource(stream);R.an=R.ctx.createAnalyser();R.an.fftSize=512;R.an.smoothingTimeConstant=0.5;src.connect(R.an);
+      const cx=R.ctx;cx.onstatechange=()=>{if(R.ctx===cx){dlog('level meter '+cx.state);if(cx.state==='running')R.ctxRan=true}};
+      try{R.ctx.resume().catch(()=>{})}catch(e){}}
+    catch(e){R.an=null;dlog('level meter could not start: '+(e&&e.message))}
   }
-  rec.start(10000);
+  rec.start(3000);
   keepAwake();
   startRecog();
   R.timer=setInterval(tick,500);
+  clearTimeout(R.wd);R.wd=setTimeout(()=>capCheck(sid),11000);
   updateRecUI();renderLive();
+}
+
+/* After eleven seconds, make sure sound is really arriving. If it is not, say so and try once more without the live transcript. */
+function silentSample(){ /* true while the level meter is running and has been handed nothing but exact zeros */
+  if(!R.an||!R.ctx||R.ctx.state!=='running'||!R.an.getFloatTimeDomainData)return;
+  const n=R.an.fftSize,b=R.fbuf&&R.fbuf.length===n?R.fbuf:(R.fbuf=new Float32Array(n));
+  R.an.getFloatTimeDomainData(b);R.sampled++;
+  for(let i=0;i<n;i++)if(b[i]!==0){R.sound=performance.now();return}
+}
+async function capCheck(sid){
+  R.wd=0;
+  if(!R.active||R.stopping||R.sid!==sid)return;
+  if(R.paused){R.wd=setTimeout(()=>capCheck(sid),3000);return}
+  let why='';
+  if(R.bytes===0){ /* the first piece can be slow; ask for it before judging */
+    try{R.rec.requestData()}catch(e){}
+    await sleep(1500);
+    if(!R.active||R.stopping||R.sid!==sid)return;
+  }
+  const heardWords=R.segments.length>0||!!R.interim;
+  if(R.bytes===0)why='no audio data had arrived after '+Math.round(elapsed()/1000)+' seconds';
+  else if(heardWords&&R.sampled>=8&&!R.sound)why='the phone understood spoken words, but the microphone handed the recorder only silence'; /* the speech recogniser is holding the microphone */
+  if(!why){
+    if(!R.sound&&(R.nchk=(R.nchk||0)+1)<12){R.wd=setTimeout(()=>capCheck(sid),10000)} /* a quiet room says nothing yet; look again, so a silent microphone is still caught once words are heard */
+    if(!R.passed){R.passed=true;dlog('audio is arriving: '+R.bytes+' bytes saved so far'+(R.sound?', sound heard by the meter':''))}
+    if(R.tries>1&&!R.learned&&R.bytes>0){ /* the full recorder failed and a plainer one worked: after the second time, start plain from now on */
+      R.learned=true;SAFE.fails=(SAFE.fails||0)+1;
+      if(SAFE.fails>=2){SAFE.noLive=SAFE.noLive||R.noLive;SAFE.noMeter=SAFE.noMeter||R.noMeter;dlog('remembered: this phone records plainly from now on');toast('This phone needs basic recording, so it will start that way from now on. You can undo that in Settings.')}
+      saveSafe();
+    }
+    return;
+  }
+  dlog('SOUND CHECK FAILED: '+why);
+  if(R.tries<3){await restartCapture(why);return}
+  setWarn('No sound is reaching the recorder. Tap Stop, wait five seconds and try again. If it keeps happening, open the recording, then Tools, then Recording details.');
+}
+function stopRecog(){ /* asks the speech recogniser to finish; done resolves when it has, abort() makes sure it lets go */
+  R.recogWanted=false;clearTimeout(R.recogTimer);R.gen++;
+  const r=R.recog;R.recog=null;
+  if(!r)return {done:Promise.resolve(),abort(){}};
+  return {done:new Promise(res=>{r.onend=()=>res();try{r.stop()}catch(e){res()}}),abort(){r.onend=null;try{r.abort()}catch(e){}}};
+}
+async function releaseMic(){ /* everything that can keep the microphone busy is shut and, where the phone is slow, waited for */
+  try{R.stream&&R.stream.getTracks().forEach(t=>{t.onended=t.onmute=t.onunmute=null;t.stop()})}catch(e){}
+  clearInterval(R.timer);
+  try{R.wake&&R.wake.release()}catch(e){}
+  const c=R.ctx;R.ctx=null;R.an=null;
+  if(c){c.onstatechange=null;try{await Promise.race([c.close(),sleep(700)])}catch(e){}}
+}
+async function restartCapture(why){
+  if(R.restarting||!R.active)return;
+  R.restarting=true;R.starting=true;
+  try{
+    const sid=R.sid,rec=R.rec;
+    if(!R.noLive)R.noLive=true;else R.noMeter=true;
+    dlog('restarting the recorder '+(R.noMeter?'without the live transcript or the level meter':'without the live transcript'));
+    R.active=false;
+    const sr=stopRecog();
+    try{rec.ondataavailable=null;rec.onerror=null;if(rec.state!=='inactive')rec.stop()}catch(e){}
+    await Promise.race([sr.done,sleep(800)]);sr.abort();
+    for(let i=0;i<60&&R.inflight>0;i++)await sleep(50);
+    await releaseMic();
+    try{await idb.delChunks(sid);await idb.del('sessions',sid);await idb.del('tx',sid)}catch(e){}
+    R.stoppedAt=performance.now();R.paused=false;
+    updateRecUI();
+    toast(R.noMeter?'Still no sound, so the recorder restarted in basic mode: no live transcript and no moving particles.':'No sound was arriving, so the recorder restarted without the live transcript.');
+    await beginRecording(true);
+  }catch(e){dlog('restart failed: '+(e&&e.message||e));toast('Recording could not restart. Try again.')}
+  finally{R.restarting=false;R.starting=false}
 }
 
 async function stopRecording(note){
   if(!R.active||R.stopping)return;
-  R.stopping=true;
+  R.stopping=true;clearTimeout(R.wd);R.wd=0;
   const rec=R.rec,sid=R.sid,session=R.session;
-  R.recogWanted=false;clearTimeout(R.recogTimer);try{R.recog&&R.recog.stop()}catch(e){}
+  const sr=stopRecog();
   const dur=elapsed();R.accMs=dur;R.active=false;
   $('#state').textContent='Saving…';
   if(rec.state!=='inactive'){
@@ -837,29 +960,52 @@ async function stopRecording(note){
     try{rec.stop()}catch(e){}
     await Promise.race([done,sleep(4000)]);
   }
+  await Promise.race([sr.done,sleep(1200)]);sr.abort(); /* the last words are caught, and the phone gets the microphone back before the next recording */
   for(let i=0;i<200&&R.inflight>0;i++)await sleep(50);
-  R.stream.getTracks().forEach(t=>{t.onended=null;t.stop()});
-  try{R.ctx&&R.ctx.close()}catch(e){}
-  clearInterval(R.timer);
-  try{R.wake&&R.wake.release()}catch(e){}
+  await releaseMic();
   R.dirty=true;await saveTx();
-  Object.assign(session,{durationMs:dur,bytes:R.bytes,chunks:R.idx,words:countWords(R.segments),status:'done'});
+  dlog('stopped after '+fmtDur(dur)+': '+R.idx+' audio pieces, '+R.bytes+' bytes, '+countWords(R.segments)+' words');
+  Object.assign(session,{durationMs:dur,bytes:R.bytes,chunks:R.idx,words:countWords(R.segments),status:'done',diag:R.log.join('\n')});
   try{await idb.put('sessions',session)}catch(e){storageFail(e)}
-  R.stopping=false;R.paused=false;R.stopArm=false;R.txState='idle';
+  R.stoppedAt=performance.now();
+  R.stopping=false;R.paused=false;R.stopArm=false;R.txState='idle';setWarn('');
   if(!R.dirty){R.segments=[];R.interim='';LIVE.key=''} /* the words are safe in storage; Home goes back to a clean Ready screen */
   updateRecUI();
   const sn=$('#saved-note');
-  sn.textContent='Saved as \u201c'+clip(session.title||'Recording',40)+'\u201d \u00b7 '+fmtDur(dur)+'. Open Library to read the transcript.';sn.hidden=false;
+  sn.textContent='Saved as “'+clip(session.title||'Recording',40)+'” · '+fmtDur(dur)+'. Open Library to read the transcript.';sn.hidden=false;
+  if(R.noLive&&settings.liveTx!==false)sn.textContent+=' The live transcript was off, because the phone was not giving the recorder sound.';
   toast(typeof note==='string'?note:'Saved to your library.');
-  autoFolder(sid).then(n=>{if(n&&CUR==='library')renderLibrary()}).catch(()=>{});
+  autoFolder(sid).then(n=>{if(n&&CUR==='library')renderLibrary()}).catch(()=>{})
+    .then(()=>verifyAudio(sid)).then(r=>{
+      if(!r||r==='ok')return;
+      const m=r==='none'?'No audio was captured for this recording, only the transcript.':'Saved, but this phone could not play the new recording back. Open it, then Tools, then Download audio.';
+      sn.textContent=sn.textContent+' '+m;toast(m);if(CUR==='library')renderLibrary();
+    }).catch(()=>{});
   /* the person stays where they are; they open the recording from the Library when they want it */
+}
+async function verifyAudio(sid){ /* asks the phone to open the start of the saved audio, the way the player will, and writes down what happened */
+  let res='ok',info='';
+  try{
+    const ch=await idb.chunks(sid),cur=await idb.get('sessions',sid);if(!cur)return 'ok';
+    if(!ch.length||!(cur.bytes>0)){res='none';info='no audio was saved'}
+    else{
+      const type=String(cur.mime||'audio/webm').split(';')[0],blob=new Blob(ch.slice(0,4).map(c=>c.blob),{type}),url=URL.createObjectURL(blob),a=new Audio();
+      a.preload='metadata';
+      const r=await new Promise(done=>{const t=setTimeout(()=>done('slow'),8000);a.onloadedmetadata=()=>{clearTimeout(t);done('ok')};a.onerror=()=>{clearTimeout(t);done('error '+(a.error?a.error.code:'?'))};a.src=url;try{a.load()}catch(e){}});
+      try{a.removeAttribute('src');a.load()}catch(e){}URL.revokeObjectURL(url);
+      res=r==='ok'?'ok':r==='slow'?'slow':'error';info=r+' ('+type+', first '+fmtBytes(blob.size)+' of '+ch.length+' pieces)';
+    }
+    const fresh=await idb.get('sessions',sid);
+    if(fresh){fresh.check=res;fresh.diag=(fresh.diag||'')+'\nplayback check: '+res+(info?' - '+info:'');await idb.put('sessions',fresh)}
+  }catch(e){res='ok'}
+  return res;
 }
 
 function togglePause(){
   if(!R.active)return;
   if(!R.paused){
     try{R.rec.pause()}catch(e){return}
-    R.accMs=elapsed();R.paused=true;R.recogWanted=false;clearTimeout(R.recogTimer);try{R.recog&&R.recog.stop()}catch(e){}
+    R.accMs=elapsed();R.paused=true;stopRecog();
   }else{
     try{R.rec.resume()}catch(e){return}
     R.segStart=performance.now();R.paused=false;startRecog();
@@ -881,6 +1027,7 @@ function tick(){
   $('#timer').textContent=fmtDur(elapsed());
   R.tick++;updateAppbar();
   if(R.tick%4===0)updateChips();
+  if(R.active&&!R.paused&&!R.sound)silentSample();
 }
 
 /* wake lock */
@@ -942,7 +1089,7 @@ const ORB=(()=>{
   }
   function fire(p){
     let dx=p.x-S.cx,dy=p.y-S.cy,m=Math.hypot(dx,dy);if(m<1){dx=p.hx;dy=p.hy;m=Math.hypot(dx,dy)||1}
-    const sp=240+420*Math.random()+(p.kind?160:0);
+    const sp=190+330*Math.random()+(p.kind?120:0);
     p.vx+=dx/m*sp-dy/m*70;p.vy+=dy/m*sp+dx/m*70;p.wait=-1;
   }
   function level(){
@@ -1007,9 +1154,10 @@ const ORB=(()=>{
     }
     if(S.mode==='gather'&&S.gt>1.5){S.mode='idle';home()}
   }
-  function soft(o,L){ /* leaves the middle alone and eases anything near the edge in, so it can never pass L */
-    const a=o<0?-o:o,k=L*0.8;if(a<=k)return o;
-    const r=k+(L-k)*Math.tanh((a-k)/(L-k));return o<0?-r:r;
+  function fade(px,py,Wh,Hh,u0){ /* 1 in the middle, easing to 0 before the edge of the button, so nothing is ever cut off or piled up at an invisible border */
+    const a=(px-S.cx)/Wh,b=(py-S.cy)/Hh,q=a*a+b*b;
+    if(q<=u0*u0)return 1;if(q>=1)return 0;
+    const t=(1-Math.sqrt(q))/(1-u0);return t*t*(3-2*t);
   }
   function draw(){
     const g=S.g,W=S.W,H=S.H,key=mqD.matches?'dark':'light',cols=S.cols[key]||(S.cols[key]=ramp(key)),pal=PAL[key];
@@ -1023,7 +1171,7 @@ const ORB=(()=>{
     let lx=Math.cos(S.light)*0.62,ly=-0.42,lz=Math.sin(S.light)*0.4+0.62;const lm=Math.hypot(lx,ly,lz);lx/=lm;ly/=lm;lz/=lm;
     const af=key==='dark'?0.42:0.6,breath=1+0.04*Math.sin(S.t*1.6),blink=S.armed?0.55+0.45*Math.abs(Math.sin(S.t*8)):1,dim=S.paused?0.55:1;
     let last=-1;
-    const eq=mix>0.3&&S.bmax>0.02;
+    const eq=mix>0.3&&S.bmax>0.02,Wh=W/2-S.cw-4,Hh=H/2-S.fs*0.45-4.5,u0=0.97-0.25*mix; /* the fade starts further in while the cloud is out and about */
     for(const p of S.ps){
       let bI,chI;
       if(p.kind){bI=0.42+0.22*Math.sin(S.t*1.5+p.i*0.7);chI=p.i%6===0?'+':'.'}
@@ -1043,14 +1191,14 @@ const ORB=(()=>{
       let ch=RAMP[idx];
       if(mix>0.5){if((p.dg||p.dv<S.e*0.5)&&b>0.15)ch=((S.t*(4+13*S.e)+p.ph*9)|0)&1?'1':'0'}
       else if(p.kind)ch=chI;
-      const ci=Math.round(b*(NB-1));if(ci!==last){g.fillStyle=cols[ci];last=ci}
-      g.globalAlpha=Math.min(1,af+0.8*b)*blink*dim;
       let px=p.wait>0?p.x+(Math.random()-0.5)*1.6:p.x,py=p.y;
       if(eq&&p.wait<=0){ /* the real sound spectrum bulges the cloud outward, so you can see which tones you are making */
         const dx=px-S.cx,dy=py-S.cy,m=Math.hypot(dx,dy)||1,push=bandAt(Math.atan2(dy,dx))*S.amp*(0.35+0.65*p.f)*mix;
         px+=dx/m*push;py+=dy/m*push;
       }
-      px=S.cx+soft(px-S.cx,W/2-10);py=S.cy+soft(py-S.cy,H/2-12);
+      const fd=fade(px,py,Wh,Hh,u0);if(fd<0.02)continue;
+      const ci=Math.round(b*(NB-1));if(ci!==last){g.fillStyle=cols[ci];last=ci}
+      g.globalAlpha=Math.min(1,af+0.8*b)*blink*dim*fd;
       g.fillText(ch,px,py);
     }
     g.globalAlpha=1;
@@ -1128,29 +1276,31 @@ ORB.S.lvlFn=()=>{ /* how loud it is right now, 0 to about 1; -1 when the level m
 /* live transcription (browser speech recognition) */
 function setTx(s){R.txState=s;updateChips()}
 function startRecog(){
-  if(settings.liveTx===false){setTx('off');return}
+  if(settings.liveTx===false||R.noLive){setTx('off');dlog('live transcript is off');return}
   const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
   if(!SR){setTx('unsupported');return}
-  R.recogWanted=true;spawnRecog(SR);
+  R.recogWanted=true;R.gen++;spawnRecog(SR,R.gen,R.segments);
 }
-function spawnRecog(SR){
-  if(!R.recogWanted||!R.active||R.paused)return;
+function spawnRecog(SR,gen,segs){ /* gen and segs tie this recogniser to one recording, so an old one can never restart itself or write words into a new recording */
+  if(!R.recogWanted||!R.active||R.paused||gen!==R.gen)return;
   const r=new SR();r.continuous=true;r.interimResults=true;r.lang=settings.lang||navigator.language||'en-US';
   r.onresult=e=>{
-    try{ORB.voice()}catch(x){}
+    if(gen===R.gen){try{ORB.voice()}catch(x){}}
     let interim='';
     for(let i=e.resultIndex;i<e.results.length;i++){
       const res=e.results[i],txt=res[0].transcript.trim();
-      if(res.isFinal){if(txt){R.segments.push({t:elapsed(),text:txt});R.dirty=true}}else interim+=txt+' ';
+      if(res.isFinal){if(txt&&segs===R.segments){segs.push({t:elapsed(),text:txt});R.dirty=true}}else interim+=txt+' ';
     }
-    R.interim=interim.trim();renderLive();
+    if(segs===R.segments&&gen===R.gen){R.interim=interim.trim();renderLive()}
   };
   r.onerror=e=>{
+    if(gen!==R.gen)return;
+    if(R.log.length<200)dlog('speech recogniser: '+e.error);
     if(e.error==='not-allowed'||e.error==='service-not-allowed'){R.recogWanted=false;setTx('blocked')}
     else if(e.error==='network'){setTx('offline')}
   };
-  r.onend=()=>{if(R.recogWanted){clearTimeout(R.recogTimer);R.recogTimer=setTimeout(()=>spawnRecog(SR),400)}};
-  try{r.start();R.recog=r;if(R.txState!=='offline')setTx('listening')}catch(e){}
+  r.onend=()=>{if(R.recogWanted&&gen===R.gen){clearTimeout(R.recogTimer);R.recogTimer=setTimeout(()=>spawnRecog(SR,gen,segs),400)}};
+  try{r.start();R.recog=r;if(R.txState!=='offline')setTx('listening')}catch(e){dlog('speech recogniser could not start: '+(e&&e.message))}
 }
 
 /* record view rendering */
@@ -1179,7 +1329,7 @@ function updateChips(){
   const aw=$('#pill-awake');aw.textContent='Screen awake: '+(R.wake?'on':'off');aw.className='pill'+(R.active?(R.wake?' ok':' bad'):'');
   const tx=$('#pill-tx');tx.textContent=R.active&&R.paused?'Transcript: paused':TXLABEL[R.txState]||'';
   tx.className='pill'+(R.txState==='listening'&&R.active&&!R.paused?' ok':(R.txState==='unsupported'||R.txState==='blocked'||R.txState==='offline')&&R.active?' bad':'');
-  if(R.active||R.stopping)$('#pill-size').textContent=fmtBytes(R.bytes)+' saved';
+  if(R.active||R.stopping)$('#pill-size').textContent=R.active&&R.muted?'Phone muted the mic':fmtBytes(R.bytes)+' saved';
 }
 async function showFree(){
   try{if(navigator.storage&&navigator.storage.estimate&&!R.active){const e=await navigator.storage.estimate();$('#pill-size').textContent=fmtBytes(Math.max(0,e.quota-e.usage))+' free'}}catch(e){}
@@ -1307,6 +1457,8 @@ const stamp=t=>{const d=new Date(t);return d.toLocaleDateString([],{weekday:'sho
 function badgeFor(s){
   if(s.status==='recording')return ['Recording','rec'];
   if(s.status==='recovered')return ['Recovered','warn'];
+  if(s.status==='done'&&s.bytes===0)return ['No audio','warn'];
+  if(s.check==='error')return ['Audio problem','warn'];
   if(s.improvedAt)return ['Improved','ok'];
   if(!(s.words>0))return ['No transcript','warn'];
   return ['Live transcript',''];
@@ -1701,7 +1853,8 @@ async function openDetail(sid,back){
   $('#d-meta').textContent=metaText();updateFolderBtn();updateProjBtn();
   if(D.url)URL.revokeObjectURL(D.url);
   D.blob=new Blob(ch.map(c=>c.blob),{type:String(s.mime||'audio/webm').split(';')[0]});
-  D.url=URL.createObjectURL(D.blob);audio.src=D.url;
+  if(D.blob.size){D.url=URL.createObjectURL(D.blob);audio.src=D.url}else{D.url=null;audio.removeAttribute('src');try{audio.load()}catch(e){}} /* nothing was captured: do not hand the player an empty file */
+  audioNote();
   $('#d-search').value='';$('#chat-err').hidden=true;$('#d-ctx').textContent='';
   D.edit=false;$('#d-find').value='';$('#d-repl').value='';
   D.prev=(txr&&txr.prev)||null;J.arm=false;$('#d-prog').hidden=true;$('#d-improve-err').hidden=true;updateImproveUI();
@@ -1729,6 +1882,14 @@ function leaveDetail(){
   try{audio.pause()}catch(e){}
   if(D.url){audio.removeAttribute('src');audio.load();URL.revokeObjectURL(D.url);D.url=null}
 }
+function audioNote(failed){ /* a plain sentence instead of a bare "Error" on the player */
+  const e=$('#d-audio-err'),x=D.session;if(!e||!x)return;
+  const m=x.status==='done'&&x.bytes===0?'No audio was captured for this recording, so there is nothing to play. The transcript is still here.'
+    :(failed||x.check==='error')?'This phone could not play the audio here. It is saved: open Tools, then Download audio, to listen in another app.':'';
+  e.textContent=m;e.hidden=!m;
+  const d=$('#d-diag');if(d){d.textContent=x.diag||'No details were kept for this recording.';$('#d-diag-card').hidden=false}
+}
+audio.addEventListener('error',()=>{if(D.url)audioNote(true)});
 audio.addEventListener('loadedmetadata',()=>{
   if(audio.duration===Infinity){ /* recordings have no duration header; force the browser to find it */
     const fix=()=>{audio.removeEventListener('timeupdate',fix);audio.currentTime=0};
@@ -1768,6 +1929,7 @@ function download(blob,name){
   setTimeout(()=>URL.revokeObjectURL(a.href),15000);
 }
 const safeName=()=>(D.session.title||'recording').replace(/[^\w\- ]+/g,'').trim().replace(/\s+/g,'-')||'recording';
+$('#d-diag-copy').onclick=async()=>{try{await navigator.clipboard.writeText($('#d-diag').textContent);toast('Details copied.')}catch(e){toast('Copy was blocked. Press and hold the text to select it.')}};
 $('#d-dl-audio').onclick=()=>D.blob&&download(D.blob,safeName()+'.'+extFor(D.session.mime));
 $('#d-dl-tx').onclick=()=>{if(!D.segs.length){toast('There is no transcript to download.');return}download(new Blob([transcriptText()],{type:'text/plain'}),safeName()+'.txt')};
 $('#d-copy').onclick=async()=>{
@@ -1969,6 +2131,7 @@ const LANGS=[['','Device language'],['en-US','English (US)'],['en-GB','English (
 const QUALITY=[24,32,64,96];
 const eightHr=k=>fmtBytes(k*125*28800);
 function renderSettings(){
+  safeNote();
   $('#s-key').value=settings.apiKey;$('#s-model').value=settings.model;$('#s-terms').value=settings.terms||'';$('#s-speakers').checked=!!settings.speakers;$('#s-sound').value=settings.sound||'natural';$('#s-livetx').checked=settings.liveTx!==false;$('#s-meter').checked=settings.meter!==false;$('#s-orb').checked=settings.orb!==false;$('#s-build').textContent='Longtake build: '+BUILD;$('#s-check').disabled=R.active||!!SC;$('#s-aai').value=settings.aaiKey||'';
   $('#s-lang').innerHTML=LANGS.map(([v,n])=>`<option value="${v}"${v===settings.lang?' selected':''}>${n}</option>`).join('');
   $('#s-kbps').innerHTML=QUALITY.map(k=>`<option value="${k}"${k===settings.kbps?' selected':''}>${k} kbps · about ${eightHr(k)} per 8 hours</option>`).join('');
@@ -1987,6 +2150,8 @@ $('#s-speakers').addEventListener('change',e=>{settings.speakers=e.target.checke
 $('#s-sound').addEventListener('change',e=>{settings.sound=e.target.value;saveSettings()});
 $('#s-livetx').addEventListener('change',e=>{settings.liveTx=e.target.checked;saveSettings()});
 $('#s-meter').addEventListener('change',e=>{settings.meter=e.target.checked;saveSettings()});
+function safeNote(){const b=!!(SAFE.noLive||SAFE.noMeter),n=$('#s-safe');if(n)n.hidden=!b}
+$('#s-safe-reset').addEventListener('click',()=>{SAFE={fails:0,noLive:false,noMeter:false};saveSafe();safeNote();toast('The full recorder is back on for the next recording.')});
 $('#s-orb').addEventListener('change',e=>{settings.orb=e.target.checked;saveSettings();ORB.refresh()});
 $('#s-lang').addEventListener('change',e=>{settings.lang=e.target.value;saveSettings()});
 $('#s-kbps').addEventListener('change',e=>{settings.kbps=+e.target.value;saveSettings()});
@@ -2070,12 +2235,12 @@ async function soundCheck(){
     },250);
     btn.textContent='Recording… '+LEN+'s';
   });
-  live=false;try{recog&&recog.stop()}catch(e){}
+  live=false;if(recog){await new Promise(res=>{const t=setTimeout(res,1200);recog.onend=()=>{clearTimeout(t);res()};try{recog.stop()}catch(e){clearTimeout(t);res()}})} /* let the speech recogniser finish, so the next recording has the microphone to itself */
   const done=new Promise(r=>rec.addEventListener('stop',r,{once:true}));
   try{rec.stop()}catch(e){}
   await Promise.race([done,sleep(3000)]);
-  stream.getTracks().forEach(t=>t.stop());try{ctx&&ctx.close()}catch(e){}
-  SC=null;btn.disabled=false;btn.textContent='Record a 12-second test';
+  stream.getTracks().forEach(t=>t.stop());try{ctx&&await Promise.race([ctx.close(),sleep(700)])}catch(e){}
+  R.stoppedAt=performance.now();SC=null;btn.disabled=false;btn.textContent='Record a 12-second test';
   const blob=new Blob(chunks,{type:String(rec.mimeType||mime||'audio/webm').split(';')[0]});
   if(!blob.size){out.textContent='Nothing was captured. Try again.';return}
   scUrl=URL.createObjectURL(blob);
