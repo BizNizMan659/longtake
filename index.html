@@ -69,7 +69,7 @@ button{cursor:pointer}
 .controls{display:flex;justify-content:center;align-items:center;gap:12px;width:100%;margin-top:2px}
 .side{min-width:84px;height:46px;padding:0 16px;border-radius:23px;border:0;background:var(--bubble)}
 .side:disabled{opacity:.6;cursor:default}
-.main{position:relative;display:block;width:100%;max-width:440px;height:clamp(190px,60vw,250px);border:0;border-radius:28px;background:transparent;padding:0;color:var(--rec);cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.main{position:relative;display:block;width:100%;max-width:440px;height:clamp(176px,54vw,228px);border:0;border-radius:28px;background:transparent;padding:0;color:var(--rec);cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
 .main canvas{position:absolute;inset:0;width:100%;height:100%;display:block;pointer-events:none;transition:transform .15s}
 .main:active canvas{transform:scale(.985)}
 @media (prefers-reduced-motion:reduce){.main canvas{transition:none}}
@@ -721,7 +721,7 @@ let toastT;
 function toast(m){const t=$('#toast');t.textContent=m;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>{t.hidden=true},4500)}
 
 /* ---------- settings ---------- */
-const BUILD='24 Oct 2026, light grey and livelier record button';
+const BUILD='24 Oct 2026, record button fits and follows your voice';
 const DEF={apiKey:'',model:'claude-sonnet-5-5',lang:'',kbps:64,terms:'',aaiKey:'',speakers:false,sound:'natural',liveTx:true,meter:true,orb:true};
 const settings=Object.assign({},DEF);
 let savedSettings={};try{savedSettings=JSON.parse(localStorage.getItem('longtake.settings')||'{}')||{}}catch(e){}
@@ -916,16 +916,16 @@ const ORB=(()=>{
   }
   function target(p){
     const th=p.a0+p.w*S.spin*(1.6-0.9*p.f); /* like a whirlpool: the middle turns faster than the edge */
-    const sc=S.sc*p.f*(1+0.06*Math.sin(S.t*1.4+p.ph)+0.07*S.mix*Math.sin(2*th-S.t*0.9)); /* two slow spiral arms */
+    const sc=S.sc*p.f*(1+0.06*Math.sin(S.t*1.4+p.ph));
     p.tx=S.cx+Math.cos(th)*S.rx*sc;
-    p.ty=S.cy+Math.sin(th)*S.ry*sc+Math.sin(th*3+S.t*2.2)*S.e*15*p.f;
+    p.ty=S.cy+Math.sin(th)*S.ry*sc+Math.sin(th*3+S.t*2.2)*S.e*10*p.f;
   }
   function build(){
     const W=S.btn.clientWidth,H=S.btn.clientHeight;if(!W||!H)return false;
     if(W===S.W&&H===S.H&&S.ps.length)return true;
     const d=Math.min(2,window.devicePixelRatio||1);
     S.W=W;S.H=H;S.d=d;S.cv.width=Math.round(W*d);S.cv.height=Math.round(H*d);
-    S.cx=W/2;S.cy=H/2;S.R=Math.min(W*0.3,H*0.365);S.ry=H/2-18;S.rx=Math.min(W/2-14,S.ry*1.5);S.amp=Math.max(10,Math.min(S.rx,S.ry)*0.2);
+    S.cx=W/2;S.cy=H/2;S.R=Math.min(W*0.28,H*0.335);S.ry=H/2-28;S.rx=Math.min(W/2-28,S.ry*1.5);S.amp=Math.max(10,Math.min(S.rx,S.ry)*0.26);
     const fs=Math.max(9,Math.min(12,Math.round(H/21)));S.fs=fs;S.cw=fs*0.58;S.ch=fs*0.9;
     const ps=[],R=S.R;
     for(let y=-R+S.ch/2;y<R;y+=S.ch)for(let x=-R+S.cw/2;x<R;x+=S.cw){const nx=x/R,ny=y/R,q=nx*nx+ny*ny;if(q<=1)ps.push(mk(x,y,nx,ny,Math.sqrt(1-q),0,0))}
@@ -948,7 +948,7 @@ const ORB=(()=>{
   function level(){
     if(S.forceLv!=null)return S.forceLv;
     if(!S.active||S.paused)return 0;
-    const r=S.lvlFn?S.lvlFn():-1,heard=Math.max(0,1-(S.t-S.vt)/1.8)*0.55; /* the phone just heard words: keep moving even if the meter did not catch them */
+    const r=S.lvlFn?S.lvlFn():-1,heard=Math.max(0,1-(S.t-S.vt)/1.3)*0.5; /* the phone just heard words: keep moving even if the meter did not catch them */
     const m=r<0?0.16+0.07*Math.sin(S.t*0.9):Math.min(1,Math.pow(Math.max(0,r-0.035)*2,0.6)); /* a quiet room reads as zero; no meter: a calm drift, not a fake voice */
     return m>heard?m:heard;
   }
@@ -984,13 +984,13 @@ const ORB=(()=>{
     let kick=0;
     if(liveNow&&S.pcool<=0&&lv>0.22&&lv-S.lb>0.16){kick=Math.min(1,0.4+lv*0.6);S.pulse=Math.max(S.pulse,kick);S.pcool=0.14}
     if(S.kv>0){if(liveNow&&S.kv>kick){kick=S.kv;S.pulse=Math.max(S.pulse,kick)}S.kv=0}
-    S.spin+=dtr*(S.paused?0.12:0.95+3.2*S.e+1.2*S.pulse); /* always turning while recording, faster as the voice gets louder */
+    S.spin+=dtr*(S.paused?0.12:0.4+2.9*S.e+0.9*S.pulse); /* a slow drift in a quiet room; the swirl comes from the voice */
     if(!S.calm)S.light+=dtr*0.45;
     const live=S.mode==='burst'||S.mode==='live';
     S.mix+=((live?1:0)-S.mix)*(1-Math.exp(-dtr*(live?6:3)));
-    S.sc=S.armed?0.4:S.paused?0.6:Math.min(1,0.72+0.2*S.e+0.08*S.pulse);
+    S.sc=S.armed?0.4:S.paused?0.6:Math.min(0.9,0.7+0.15*S.e+0.05*S.pulse);
     if(S.mode==='idle'){home();return}
-    if(kick>0){for(const p of S.ps){if(p.wait>0)continue;let dx=p.x-S.cx,dy=p.y-S.cy;const m=Math.hypot(dx,dy)||1,sp=(70+150*kick)*(0.4+p.f);p.vx+=dx/m*sp;p.vy+=dy/m*sp}}
+    if(kick>0){for(const p of S.ps){if(p.wait>0)continue;let dx=p.x-S.cx,dy=p.y-S.cy;const m=Math.hypot(dx,dy)||1,sp=(40+90*kick)*(0.4+p.f);p.vx+=dx/m*sp;p.vy+=dy/m*sp}}
     const n=Math.max(1,Math.ceil(dtr/0.034)),dt=dtr/n;
     for(let s=0;s<n;s++){
       if(S.mode==='burst'){S.bt+=dt;if(S.bt>0.6)S.mode='live'}
@@ -1001,17 +1001,21 @@ const ORB=(()=>{
         if(S.mode==='gather'){tx=S.cx+p.hx;ty=S.cy+p.hy;k=26;c=7.6}
         else{target(p);tx=p.tx;ty=p.ty;k=16;c=6}
         p.vx+=((tx-p.x)*k-p.vx*c)*dt;p.vy+=((ty-p.y)*k-p.vy*c)*dt;
-        if(S.e>0.04&&S.mode!=='gather'){const j=S.e*480*dt;p.vx+=(Math.random()-0.5)*j;p.vy+=(Math.random()-0.5)*j}
+        if(S.e>0.04&&S.mode!=='gather'){const j=S.e*280*dt;p.vx+=(Math.random()-0.5)*j;p.vy+=(Math.random()-0.5)*j}
         p.x+=p.vx*dt;p.y+=p.vy*dt;
       }
     }
     if(S.mode==='gather'&&S.gt>1.5){S.mode='idle';home()}
   }
+  function soft(o,L){ /* leaves the middle alone and eases anything near the edge in, so it can never pass L */
+    const a=o<0?-o:o,k=L*0.8;if(a<=k)return o;
+    const r=k+(L-k)*Math.tanh((a-k)/(L-k));return o<0?-r:r;
+  }
   function draw(){
     const g=S.g,W=S.W,H=S.H,key=mqD.matches?'dark':'light',cols=S.cols[key]||(S.cols[key]=ramp(key)),pal=PAL[key];
     g.setTransform(S.d,0,0,S.d,0,0);g.clearRect(0,0,W,H);
     const mix=S.mix,act=S.calm&&S.active;
-    const rg=g.createRadialGradient(S.cx,S.cy,0,S.cx,S.cy,Math.min(S.rx,S.ry)*1.4);
+    const rg=g.createRadialGradient(S.cx,S.cy,0,S.cx,S.cy,Math.min(W,H)/2-1);
     const ga=(key==='dark'?0.26:0.16)*(0.55+mix*(0.6+S.e*1.7+S.pulse*0.8)+(act?0.5+S.e:0));
     rg.addColorStop(0,'rgba('+pal.glow+','+ga.toFixed(3)+')');rg.addColorStop(1,'rgba('+pal.glow+',0)');
     g.fillStyle=rg;g.fillRect(0,0,W,H);
@@ -1045,9 +1049,8 @@ const ORB=(()=>{
       if(eq&&p.wait<=0){ /* the real sound spectrum bulges the cloud outward, so you can see which tones you are making */
         const dx=px-S.cx,dy=py-S.cy,m=Math.hypot(dx,dy)||1,push=bandAt(Math.atan2(dy,dx))*S.amp*(0.35+0.65*p.f)*mix;
         px+=dx/m*push;py+=dy/m*push;
-        px=px<4?4:px>W-4?W-4:px;py=py<4?4:py>H-4?H-4:py;
       }
-      px=px<5?5:px>W-5?W-5:px;py=py<6?6:py>H-6?H-6:py;
+      px=S.cx+soft(px-S.cx,W/2-10);py=S.cy+soft(py-S.cy,H/2-12);
       g.fillText(ch,px,py);
     }
     g.globalAlpha=1;
@@ -1091,7 +1094,7 @@ const ORB=(()=>{
   }
   function voice(){ /* the live transcript just received words: someone is speaking, whatever the meter says */
     S.vt=S.t;
-    if(S.active&&!S.paused&&S.pcool<=0){S.kv=0.55;S.pcool=0.14}
+    if(S.active&&!S.paused&&S.pcool<=0){S.kv=0.4;S.pcool=0.14}
   }
   return {S,init,set,wake,refresh,voice};
 })();
