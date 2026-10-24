@@ -4,17 +4,17 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
-<meta name="theme-color" content="#f1f3f8" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#e3e5ea" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#17181b" media="(prefers-color-scheme: dark)">
 <title>Longtake</title>
 <style>
 /* Layout: one column, three tabs (Record, Library, Settings); a recording opens as a detail page under Library. */
 :root{
   /* Graphite: cool neutral surfaces, one soft-blue accent. Surfaces are told apart by tone, not outlines. */
-  --bg:#f1f3f8; --surface:#ffffff; --raised:#e9ecf3; --bubble:#e0e4ed; --drawer:#ffffff;
-  --ink:#1a1c22; --muted:#5a6070; --line:#dfe2ea;
-  --accent:#2f55cc; --accent-ink:#ffffff; --accent-soft:#dde5fb;
-  --rec:#d4351f; --warn:#8a5300;
+  --bg:#e3e5ea; --surface:#eceef2; --raised:#dadde4; --bubble:#d0d4dc; --drawer:#eceef2;
+  --ink:#1a1c22; --muted:#4d5362; --line:#cdd1da;
+  --accent:#2848b8; --accent-ink:#ffffff; --accent-soft:#d3dcf4;
+  --rec:#c42d18; --warn:#7d4a00;
   --font-ui:system-ui,-apple-system,"SF Pro Text","Segoe UI",Roboto,"Helvetica Neue",sans-serif;
   --font-serif:ui-serif,"Iowan Old Style","Palatino Linotype",Georgia,serif;
   --font-num:ui-monospace,"SF Mono","Cascadia Mono",Menlo,Consolas,monospace;
@@ -721,7 +721,7 @@ let toastT;
 function toast(m){const t=$('#toast');t.textContent=m;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>{t.hidden=true},4500)}
 
 /* ---------- settings ---------- */
-const BUILD='24 Oct 2026, swipe to add to a project';
+const BUILD='24 Oct 2026, light grey and livelier record button';
 const DEF={apiKey:'',model:'claude-sonnet-5-5',lang:'',kbps:64,terms:'',aaiKey:'',speakers:false,sound:'natural',liveTx:true,meter:true,orb:true};
 const settings=Object.assign({},DEF);
 let savedSettings={};try{savedSettings=JSON.parse(localStorage.getItem('longtake.settings')||'{}')||{}}catch(e){}
@@ -895,12 +895,12 @@ window.addEventListener('beforeunload',e=>{if(R.active){e.preventDefault();e.ret
 const ORB=(()=>{
   const RAMP=' .:-=+*#%@',NR=RAMP.length-1,NB=16,NBD=12;
   const PAL={
-    dark:{dim:[150,18,36],mid:[255,46,46],hot:[255,150,120],glow:'255,36,30'},
+    dark:{dim:[172,22,40],mid:[255,52,50],hot:[255,158,126],glow:'255,40,32'},
     light:{dim:[238,84,78],mid:[226,18,30],hot:[158,0,24],glow:'236,30,30'}
   };
   const FONT='ui-monospace,SFMono-Regular,Menlo,Consolas,monospace';
   const mqD=window.matchMedia('(prefers-color-scheme: dark)'),mqM=window.matchMedia('(prefers-reduced-motion: reduce)');
-  const S={cv:null,g:null,btn:null,W:0,H:0,d:1,fs:11,cw:7,ch:11,cx:0,cy:0,R:0,rx:0,ry:0,ps:[],mode:'idle',active:false,paused:false,armed:false,calm:false,e:0,mix:0,t:0,spin:0,light:.9,bt:0,gt:0,sc:.5,last:0,tm:0,raf:0,run:false,lvlFn:null,forceLv:null,bandFn:null,forceBands:null,raw:new Float32Array(NBD),bs:new Float32Array(NBD),bmax:0,pk:0.5,lb:0,lp:0,pulse:0,pcool:0,amp:20,frames:0,cols:{}};
+  const S={cv:null,g:null,btn:null,W:0,H:0,d:1,fs:11,cw:7,ch:11,cx:0,cy:0,R:0,rx:0,ry:0,ps:[],mode:'idle',active:false,paused:false,armed:false,calm:false,e:0,mix:0,t:0,spin:0,light:.9,bt:0,gt:0,sc:.5,last:0,tm:0,raf:0,run:false,lvlFn:null,forceLv:null,bandFn:null,forceBands:null,raw:new Float32Array(NBD),bs:new Float32Array(NBD),bmax:0,pk:0.5,lb:0,lp:0,pulse:0,pcool:0,kv:0,vt:-99,amp:20,frames:0,cols:{}};
   const lerpc=(a,b,k)=>Math.round(a+(b-a)*k);
   function ramp(key){ /* 16 colours from dim to hot, one string each, so drawing does not build strings */
     const p=PAL[key],o=[];
@@ -911,11 +911,12 @@ const ORB=(()=>{
   function mk(hx,hy,nx,ny,nz,kind,i){
     return {hx,hy,x:S.cx+hx,y:S.cy+hy,vx:0,vy:0,nx,ny,nz,kind,i,
       f:kind?0.74+0.24*Math.random():0.18+0.82*Math.sqrt(Math.random()), /* how far from the middle it floats while recording */
-      a0:Math.random()*6.2832,w:(Math.random()<0.22?-1:1)*(0.16+0.5*Math.random()),ph:Math.random()*6.2832,
+      a0:Math.random()*6.2832,w:(Math.random()<0.12?-1:1)*(0.2+0.6*Math.random()),ph:Math.random()*6.2832,
       base:0.34+0.52*Math.random(),dg:Math.random()<0.16,dv:Math.random(),wait:-1,tx:0,ty:0};
   }
   function target(p){
-    const sc=S.sc*p.f*(1+0.06*Math.sin(S.t*1.4+p.ph)),th=p.a0+p.w*S.spin;
+    const th=p.a0+p.w*S.spin*(1.6-0.9*p.f); /* like a whirlpool: the middle turns faster than the edge */
+    const sc=S.sc*p.f*(1+0.06*Math.sin(S.t*1.4+p.ph)+0.07*S.mix*Math.sin(2*th-S.t*0.9)); /* two slow spiral arms */
     p.tx=S.cx+Math.cos(th)*S.rx*sc;
     p.ty=S.cy+Math.sin(th)*S.ry*sc+Math.sin(th*3+S.t*2.2)*S.e*15*p.f;
   }
@@ -924,8 +925,8 @@ const ORB=(()=>{
     if(W===S.W&&H===S.H&&S.ps.length)return true;
     const d=Math.min(2,window.devicePixelRatio||1);
     S.W=W;S.H=H;S.d=d;S.cv.width=Math.round(W*d);S.cv.height=Math.round(H*d);
-    S.cx=W/2;S.cy=H/2;S.R=Math.min(W*0.3,H*0.36);S.ry=H/2-18;S.rx=Math.min(W/2-14,S.ry*1.5);S.amp=Math.max(10,Math.min(S.rx,S.ry)*0.2);
-    const fs=Math.max(9,Math.min(12,Math.round(H/21)));S.fs=fs;S.cw=fs*0.62;S.ch=fs*0.98;
+    S.cx=W/2;S.cy=H/2;S.R=Math.min(W*0.3,H*0.365);S.ry=H/2-18;S.rx=Math.min(W/2-14,S.ry*1.5);S.amp=Math.max(10,Math.min(S.rx,S.ry)*0.2);
+    const fs=Math.max(9,Math.min(12,Math.round(H/21)));S.fs=fs;S.cw=fs*0.58;S.ch=fs*0.9;
     const ps=[],R=S.R;
     for(let y=-R+S.ch/2;y<R;y+=S.ch)for(let x=-R+S.cw/2;x<R;x+=S.cw){const nx=x/R,ny=y/R,q=nx*nx+ny*ny;if(q<=1)ps.push(mk(x,y,nx,ny,Math.sqrt(1-q),0,0))}
     const n=Math.round(2*Math.PI*R*1.28/(S.cw*2.1));
@@ -947,8 +948,9 @@ const ORB=(()=>{
   function level(){
     if(S.forceLv!=null)return S.forceLv;
     if(!S.active||S.paused)return 0;
-    const r=S.lvlFn?S.lvlFn():-1;
-    return r<0?0.16+0.07*Math.sin(S.t*0.9):Math.min(1,Math.pow(Math.max(0,r-0.035)*2,0.6)); /* a quiet room reads as zero; no meter: a calm drift, not a fake voice */
+    const r=S.lvlFn?S.lvlFn():-1,heard=Math.max(0,1-(S.t-S.vt)/1.8)*0.55; /* the phone just heard words: keep moving even if the meter did not catch them */
+    const m=r<0?0.16+0.07*Math.sin(S.t*0.9):Math.min(1,Math.pow(Math.max(0,r-0.035)*2,0.6)); /* a quiet room reads as zero; no meter: a calm drift, not a fake voice */
+    return m>heard?m:heard;
   }
   function bandAt(a){ /* the sound spectrum wrapped round the circle, low tones at the bottom, mirrored left and right */
     let ph=a-1.5708;ph-=6.2832*Math.round(ph/6.2832);
@@ -981,7 +983,8 @@ const ORB=(()=>{
     S.lb+=(lv-S.lb)*(1-Math.exp(-dtr*(lv>S.lb?3:10)));
     let kick=0;
     if(liveNow&&S.pcool<=0&&lv>0.22&&lv-S.lb>0.16){kick=Math.min(1,0.4+lv*0.6);S.pulse=Math.max(S.pulse,kick);S.pcool=0.14}
-    S.spin+=dtr*(S.paused?0.12:0.5+2.4*S.e);
+    if(S.kv>0){if(liveNow&&S.kv>kick){kick=S.kv;S.pulse=Math.max(S.pulse,kick)}S.kv=0}
+    S.spin+=dtr*(S.paused?0.12:0.95+3.2*S.e+1.2*S.pulse); /* always turning while recording, faster as the voice gets louder */
     if(!S.calm)S.light+=dtr*0.45;
     const live=S.mode==='burst'||S.mode==='live';
     S.mix+=((live?1:0)-S.mix)*(1-Math.exp(-dtr*(live?6:3)));
@@ -1008,13 +1011,13 @@ const ORB=(()=>{
     const g=S.g,W=S.W,H=S.H,key=mqD.matches?'dark':'light',cols=S.cols[key]||(S.cols[key]=ramp(key)),pal=PAL[key];
     g.setTransform(S.d,0,0,S.d,0,0);g.clearRect(0,0,W,H);
     const mix=S.mix,act=S.calm&&S.active;
-    const rg=g.createRadialGradient(S.cx,S.cy,0,S.cx,S.cy,Math.min(S.rx,S.ry)*1.25);
-    const ga=(key==='dark'?0.17:0.1)*(0.5+mix*(0.55+S.e*1.7+S.pulse*0.8)+(act?0.5+S.e:0));
+    const rg=g.createRadialGradient(S.cx,S.cy,0,S.cx,S.cy,Math.min(S.rx,S.ry)*1.4);
+    const ga=(key==='dark'?0.26:0.16)*(0.55+mix*(0.6+S.e*1.7+S.pulse*0.8)+(act?0.5+S.e:0));
     rg.addColorStop(0,'rgba('+pal.glow+','+ga.toFixed(3)+')');rg.addColorStop(1,'rgba('+pal.glow+',0)');
     g.fillStyle=rg;g.fillRect(0,0,W,H);
     g.font='700 '+S.fs+'px '+FONT;g.textAlign='center';g.textBaseline='middle';
     let lx=Math.cos(S.light)*0.62,ly=-0.42,lz=Math.sin(S.light)*0.4+0.62;const lm=Math.hypot(lx,ly,lz);lx/=lm;ly/=lm;lz/=lm;
-    const af=key==='dark'?0.3:0.5,breath=1+0.04*Math.sin(S.t*1.6),blink=S.armed?0.55+0.45*Math.abs(Math.sin(S.t*8)):1,dim=S.paused?0.55:1;
+    const af=key==='dark'?0.42:0.6,breath=1+0.04*Math.sin(S.t*1.6),blink=S.armed?0.55+0.45*Math.abs(Math.sin(S.t*8)):1,dim=S.paused?0.55:1;
     let last=-1;
     const eq=mix>0.3&&S.bmax>0.02;
     for(const p of S.ps){
@@ -1022,12 +1025,12 @@ const ORB=(()=>{
       if(p.kind){bI=0.42+0.22*Math.sin(S.t*1.5+p.i*0.7);chI=p.i%6===0?'+':'.'}
       else{
         const l=Math.max(0,p.nx*lx+p.ny*ly+p.nz*lz);
-        bI=(0.1+0.9*Math.pow(l,1.4))*breath+Math.pow(1-p.nz,3)*0.2+0.05*Math.sin(S.t*2+p.ph*3);
+        bI=(0.17+0.83*Math.pow(l,1.15))*breath+Math.pow(1-p.nz,3)*0.2+0.05*Math.sin(S.t*2+p.ph*3);
       }
       if(act)bI=bI*(0.78+0.6*S.e)+0.16; /* calm mode: the still orb glows brighter with your voice */
       let b=bI;
       if(mix>0.02){
-        let bL=p.base*(0.55+1.0*S.e)+0.16*Math.sin(S.t*3.1+p.ph)+Math.min(0.28,(Math.abs(p.vx)+Math.abs(p.vy))*0.0012)+0.28*S.pulse;
+        let bL=p.base*(0.68+0.95*S.e)+0.07+0.16*Math.sin(S.t*3.1+p.ph)+Math.min(0.28,(Math.abs(p.vx)+Math.abs(p.vy))*0.0012)+0.28*S.pulse;
         if(eq){const a=Math.atan2(p.y-S.cy,p.x-S.cx);bL+=0.42*bandAt(a)}
         b=mix>0.98?bL:bI+(bL-bI)*mix;
       }
@@ -1044,12 +1047,13 @@ const ORB=(()=>{
         px+=dx/m*push;py+=dy/m*push;
         px=px<4?4:px>W-4?W-4:px;py=py<4?4:py>H-4?H-4:py;
       }
+      px=px<5?5:px>W-5?W-5:px;py=py<6?6:py>H-6?H-6:py;
       g.fillText(ch,px,py);
     }
     g.globalAlpha=1;
     S.frames++;
   }
-  const fps=()=>S.calm?4:S.mode==='live'?(S.e>0.05||S.pulse>0.04||S.bmax>0.05?30:16):S.mode==='idle'?10:30;
+  const fps=()=>S.calm?4:S.mode==='live'?(S.e>0.05||S.pulse>0.04||S.bmax>0.05?30:20):S.mode==='idle'?10:30;
   function loop(){
     S.raf=0;S.tm=0;
     if(!visible()){S.run=false;return}
@@ -1085,7 +1089,11 @@ const ORB=(()=>{
     document.addEventListener('visibilitychange',()=>{if(!document.hidden)wake()});
     if(/[?&]orbdebug\b/.test(location.search))window.__orb=S;
   }
-  return {S,init,set,wake,refresh};
+  function voice(){ /* the live transcript just received words: someone is speaking, whatever the meter says */
+    S.vt=S.t;
+    if(S.active&&!S.paused&&S.pcool<=0){S.kv=0.55;S.pcool=0.14}
+  }
+  return {S,init,set,wake,refresh,voice};
 })();
 function wakeMeter(){ /* iPhone Safari can start the audio meter asleep; nudge it awake, at most once a second */
   if(R.ctx&&R.ctx.state!=='running'&&R.ctx.state!=='closed'&&performance.now()-(R.rz||0)>1000){R.rz=performance.now();try{R.ctx.resume().catch(()=>{})}catch(e){}}
@@ -1126,6 +1134,7 @@ function spawnRecog(SR){
   if(!R.recogWanted||!R.active||R.paused)return;
   const r=new SR();r.continuous=true;r.interimResults=true;r.lang=settings.lang||navigator.language||'en-US';
   r.onresult=e=>{
+    try{ORB.voice()}catch(x){}
     let interim='';
     for(let i=e.resultIndex;i<e.results.length;i++){
       const res=e.results[i],txt=res[0].transcript.trim();
