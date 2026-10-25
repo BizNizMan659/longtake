@@ -6,7 +6,7 @@
 <meta name="color-scheme" content="light dark">
 <meta name="theme-color" content="#e3e5ea" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#17181b" media="(prefers-color-scheme: dark)">
-<title>Longtake</title>
+<title>Yukon</title>
 <style>
 /* Layout: one column, three tabs (Record, Library, Settings); a recording opens as a detail page under Library. */
 :root{
@@ -448,10 +448,10 @@ mark.hit{background:var(--accent-soft);color:var(--accent);border-radius:4px;pad
 <main>
   <header class="appbar">
     <button class="iconbtn" id="menu-btn" type="button" aria-label="Open menu" aria-expanded="false" aria-controls="drawer"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
-    <div class="appbar-title" id="appbar-title">Longtake</div>
+    <div class="appbar-title" id="appbar-title">Yukon</div>
     <button class="rec-chip" id="rec-chip" type="button" hidden aria-label="Recording in progress. Go to the recorder"></button>
   </header>
-  <div id="upd" role="status" hidden><span class="grow" id="upd-t">A newer version of Longtake is ready.</span><span class="upd-b"><button class="btn primary" id="upd-go" type="button">Reload</button><button class="linkbtn" id="upd-x" type="button">Later</button></span></div>
+  <div id="upd" role="status" hidden><span class="grow" id="upd-t">A newer version of Yukon is ready.</span><span class="upd-b"><button class="btn primary" id="upd-go" type="button">Reload</button><button class="linkbtn" id="upd-x" type="button">Later</button></span></div>
 
   <!-- HOME: recorder and library assistant -->
   <section id="view-home" class="view" hidden style="flex-direction:column;gap:16px">
@@ -467,7 +467,7 @@ mark.hit{background:var(--accent-soft);color:var(--accent);border-radius:4px;pad
       </div>
       <p class="err" id="rec-warn" role="alert" hidden></p>
       <p class="saved" id="saved-note" role="status" hidden></p>
-      <button class="btn" id="rec-reload" type="button" hidden>Reload Longtake</button>
+      <button class="btn" id="rec-reload" type="button" hidden>Reload Yukon</button>
       <p class="note">Saved to this device every few seconds. Keep this page open with the screen on.</p>
     </div>
     <details class="card livebox" id="live-box">
@@ -724,7 +724,7 @@ mark.hit{background:var(--accent-soft);color:var(--accent);border-radius:4px;pad
 
 <div id="scrim"></div>
 <aside id="drawer" role="dialog" aria-modal="true" aria-label="Menu">
-  <div class="dr-head"><span class="wordmark">Longtake</span><button class="iconbtn" id="dr-close" type="button" aria-label="Close menu"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+  <div class="dr-head"><span class="wordmark">Yukon</span><button class="iconbtn" id="dr-close" type="button" aria-label="Close menu"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
   <nav aria-label="Sections">
     <button class="dr-item" data-view="home" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 11 12 4l8.5 7"/><path d="M5.5 9.8V20h13V9.8"/><path d="M10 20v-5.5h4V20"/></svg>Home</button>
     <button class="dr-item" data-view="library" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 7.5a2 2 0 0 1 2-2h4l2 2.2h7a2 2 0 0 1 2 2V17.5a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z"/></svg>Library</button>
@@ -769,17 +769,17 @@ let toastT;
 function toast(m){const t=$('#toast');t.textContent=m;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>{t.hidden=true},4500)}
 
 /* ---------- settings ---------- */
-const BUILD='25 Oct 2026, assignments fold open and shut, with Study and a quick quiz';
+const BUILD='25 Oct 2026, the app is now called Yukon';
 const DEF={apiKey:'',model:'claude-sonnet-5-5',lang:'',kbps:64,terms:'',aaiKey:'',speakers:false,sound:'natural',liveTx:true,meter:true,orb:true};
 const settings=Object.assign({},DEF);
 let savedSettings={};try{savedSettings=JSON.parse(localStorage.getItem('longtake.settings')||'{}')||{}}catch(e){}
 Object.assign(settings,savedSettings);
 if((savedSettings.qv||0)<2){settings.kbps=64;settings.qv=2;try{localStorage.setItem('longtake.settings',JSON.stringify(settings))}catch(e){}} /* one-time: earlier builds recorded at 32 kbps, which can sound rough */
 function saveSettings(){try{localStorage.setItem('longtake.settings',JSON.stringify(settings))}catch(e){}}
-let SAFE={fails:0,noLive:false,noMeter:false,plain:false,ff:0,fl:0,later:null}; /* what this phone has shown it needs: set only after the full recorder failed twice and a plainer one worked. ff and fl count failures on the first and on the later recordings after Longtake was opened; later holds what the later recordings need */
+let SAFE={fails:0,noLive:false,noMeter:false,plain:false,ff:0,fl:0,later:null}; /* what this phone has shown it needs: set only after the full recorder failed twice and a plainer one worked. ff and fl count failures on the first and on the later recordings after Yukon was opened; later holds what the later recordings need */
 try{SAFE=Object.assign(SAFE,JSON.parse(localStorage.getItem('longtake.safe')||'{}')||{})}catch(e){}
 function saveSafe(){try{localStorage.setItem('longtake.safe',JSON.stringify(SAFE))}catch(e){}}
-const PAGE={recs:0,noLive:false,noMeter:false,plain:false}; /* what this opening of Longtake has learned: gone when the page is reloaded, which gives the phone a clean start */
+const PAGE={recs:0,noLive:false,noMeter:false,plain:false}; /* what this opening of Yukon has learned: gone when the page is reloaded, which gives the phone a clean start */
 
 /* ---------- storage (IndexedDB) ---------- */
 let dbp;
@@ -864,7 +864,7 @@ async function beginRecording(again){
     R.first=PAGE.recs===0;PAGE.recs++;
     const L=(!R.first&&SAFE.later)||{};
     R.noLive=!!(SAFE.noLive||PAGE.noLive||L.noLive);R.noMeter=!!(SAFE.noMeter||PAGE.noMeter||L.noMeter);R.plain=!!(SAFE.plain||PAGE.plain||L.plain);
-    dlog('Longtake '+BUILD);dlog('Phone: '+navigator.userAgent);dlog('recording number '+PAGE.recs+' since Longtake was opened');
+    dlog('Yukon '+BUILD);dlog('Phone: '+navigator.userAgent);dlog('recording number '+PAGE.recs+' since Yukon was opened');
     dlog('Settings: '+settings.sound+' sound, '+settings.kbps+' kbps, live transcript '+(settings.liveTx===false?'off':'on')+', meter '+(settings.meter===false?'off':'on'));
     if(R.noLive||R.noMeter||R.plain)dlog('basic recording for this one ('+[R.noLive&&'no live transcript',R.noMeter&&'no level meter',R.plain&&'plain microphone settings'].filter(Boolean).join(', ')+') because the full recorder failed on this phone before');
   }else dlog('starting again'+(R.noLive?' without the live transcript':'')+(R.noMeter?' and without the level meter':'')+(R.plain?' with plain microphone settings':''));
@@ -953,16 +953,16 @@ async function capCheck(sid){
   if(!why){
     if(!R.sound&&(R.nchk=(R.nchk||0)+1)<12){R.wd=setTimeout(()=>capCheck(sid),10000)} /* a quiet room says nothing yet; look again, so a silent microphone is still caught once words are heard */
     if(!R.passed){R.passed=true;dlog('audio is arriving: '+R.bytes+' bytes saved so far'+(R.sound?', sound heard by the meter':''))}
-    if(R.tries>1&&!R.learned&&R.bytes>0){ /* the full recorder failed and a plainer one worked: the rest of this opening of Longtake starts plain, and after the second time the phone remembers it */
+    if(R.tries>1&&!R.learned&&R.bytes>0){ /* the full recorder failed and a plainer one worked: the rest of this opening of Yukon starts plain, and after the second time the phone remembers it */
       R.learned=true;SAFE.fails=(SAFE.fails||0)+1;
       PAGE.noLive=PAGE.noLive||R.noLive;PAGE.noMeter=PAGE.noMeter||R.noMeter;PAGE.plain=PAGE.plain||R.plain;
-      dlog('this worked: '+[R.noLive&&'no live transcript',R.noMeter&&'no level meter',R.plain&&'plain microphone settings'].filter(Boolean).join(', ')+'; the next recordings until Longtake is reloaded start that way');
+      dlog('this worked: '+[R.noLive&&'no live transcript',R.noMeter&&'no level meter',R.plain&&'plain microphone settings'].filter(Boolean).join(', ')+'; the next recordings until Yukon is reloaded start that way');
       const key=R.first?'ff':'fl';SAFE[key]=(SAFE[key]||0)+1;
       if(SAFE[key]>=2){
         if(R.first){SAFE.noLive=SAFE.noLive||R.noLive;SAFE.noMeter=SAFE.noMeter||R.noMeter;SAFE.plain=SAFE.plain||R.plain}
         else{const l=SAFE.later||{};SAFE.later={noLive:!!(l.noLive||R.noLive),noMeter:!!(l.noMeter||R.noMeter),plain:!!(l.plain||R.plain)}}
-        dlog('remembered: this phone '+(R.first?'records plainly from now on':'records plainly from the second recording after Longtake is opened'));
-        toast(R.first?'This phone needs basic recording, so it will start that way from now on. You can undo that in Settings.':'This phone loses the microphone on a second recording, so later recordings will start in basic mode. Reloading Longtake gives you the full recorder again. You can undo this in Settings.');
+        dlog('remembered: this phone '+(R.first?'records plainly from now on':'records plainly from the second recording after Yukon is opened'));
+        toast(R.first?'This phone needs basic recording, so it will start that way from now on. You can undo that in Settings.':'This phone loses the microphone on a second recording, so later recordings will start in basic mode. Reloading Yukon gives you the full recorder again. You can undo this in Settings.');
       }
       saveSafe();safeNote();
     }
@@ -972,7 +972,7 @@ async function capCheck(sid){
   dlog('SOUND CHECK FAILED: '+why);
   if(R.tries<3){await restartCapture(why);return}
   R.dead=true;
-  setWarn('No sound is reaching the recorder. Tap Stop, then Reload Longtake, then Record. If it keeps happening, open the recording, then Tools, then Recording details.');
+  setWarn('No sound is reaching the recorder. Tap Stop, then Reload Yukon, then Record. If it keeps happening, open the recording, then Tools, then Recording details.');
 }
 function stopRecog(){ /* asks the speech recogniser to finish; done resolves when it has, abort() makes sure it lets go */
   R.recogWanted=false;clearTimeout(R.recogTimer);R.gen++;
@@ -1041,14 +1041,14 @@ async function stopRecording(note){
   sn.textContent='Saved as “'+clip(session.title||'Recording',40)+'” · '+fmtDur(dur)+'. Open Library to read the transcript.';sn.hidden=false;
   if(R.noLive&&settings.liveTx!==false){
     sn.textContent+=' The live transcript was off for this recording, to keep the microphone working.';
-    if(!SAFE.noLive){sn.textContent+=' Tap Reload Longtake to get it back for the next one.';showReload(true)}
+    if(!SAFE.noLive){sn.textContent+=' Tap Reload Yukon to get it back for the next one.';showReload(true)}
   }
   if(R.dead)showReload(true);
   toast(typeof note==='string'?note:'Saved to your library.');
   autoFolder(sid).then(n=>{if(n&&CUR==='library')renderLibrary()}).catch(()=>{})
     .then(()=>verifyAudio(sid)).then(r=>{
       if(!r||r==='ok')return;
-      const m=r==='none'?'No audio was captured for this recording, only the transcript. Tap Reload Longtake before the next one.'
+      const m=r==='none'?'No audio was captured for this recording, only the transcript. Tap Reload Yukon before the next one.'
         :r==='silent'?'The phone understood your words, but the audio it saved is silent. Open Settings, turn off Live transcript while recording, and record again. You can make the transcript afterwards with Improve with AssemblyAI.'
         :'Saved, but this phone could not play the new recording back. Open it, then Tools, then Download audio.';
       sn.textContent=sn.textContent+' '+m;toast(m);showReload(true);if(CUR==='library')renderLibrary();
@@ -1127,7 +1127,7 @@ function tick(){
     if(R.passed&&!R.restarting){ /* sound was arriving; warn if the saving stops moving */
       const now=performance.now();
       if(R.bytes!==R.lastB){R.lastB=R.bytes;R.lastBt=now;if(R.stall){R.stall=false;dlog('audio is arriving again');setWarn('')}}
-      else if(!R.stall&&now-R.lastBt>15000){R.stall=true;dlog('no new audio for 15 seconds');setWarn('Recording looks stuck: nothing new has been saved for 15 seconds. Tap Stop, then Reload Longtake, then Record.')}
+      else if(!R.stall&&now-R.lastBt>15000){R.stall=true;dlog('no new audio for 15 seconds');setWarn('Recording looks stuck: nothing new has been saved for 15 seconds. Tap Stop, then Reload Yukon, then Record.')}
     }
   }
 }
@@ -1482,7 +1482,7 @@ async function recover(){
 }
 
 /* ---------- navigation and side menu ---------- */
-const TITLES={home:'Longtake',library:'Library',chats:'Chats',chat:'Chat',marked:'Marked',assign:'Assignments',quiz:'Quiz',projects:'Projects',project:'Project',detail:'Recording',settings:'Settings'};
+const TITLES={home:'Yukon',library:'Library',chats:'Chats',chat:'Chat',marked:'Marked',assign:'Assignments',quiz:'Quiz',projects:'Projects',project:'Project',detail:'Recording',settings:'Settings'};
 let CUR='home',HOMECTX=true; /* HOMECTX: on Home, or on a recording opened from a Home answer */
 const drawer=$('#drawer'),scrim=$('#scrim'),menuBtn=$('#menu-btn');
 function show(view){
@@ -2343,7 +2343,7 @@ const QUALITY=[24,32,64,96];
 const eightHr=k=>fmtBytes(k*125*28800);
 function renderSettings(){
   safeNote();
-  $('#s-key').value=settings.apiKey;$('#s-model').value=settings.model;$('#s-terms').value=settings.terms||'';$('#s-speakers').checked=!!settings.speakers;$('#s-sound').value=settings.sound||'natural';$('#s-livetx').checked=settings.liveTx!==false;$('#s-meter').checked=settings.meter!==false;$('#s-orb').checked=settings.orb!==false;$('#s-build').textContent='Longtake build: '+BUILD;$('#s-check').disabled=R.active||!!SC;$('#s-aai').value=settings.aaiKey||'';
+  $('#s-key').value=settings.apiKey;$('#s-model').value=settings.model;$('#s-terms').value=settings.terms||'';$('#s-speakers').checked=!!settings.speakers;$('#s-sound').value=settings.sound||'natural';$('#s-livetx').checked=settings.liveTx!==false;$('#s-meter').checked=settings.meter!==false;$('#s-orb').checked=settings.orb!==false;$('#s-build').textContent='Yukon build: '+BUILD;$('#s-check').disabled=R.active||!!SC;$('#s-aai').value=settings.aaiKey||'';
   $('#s-lang').innerHTML=LANGS.map(([v,n])=>`<option value="${v}"${v===settings.lang?' selected':''}>${n}</option>`).join('');
   $('#s-kbps').innerHTML=QUALITY.map(k=>`<option value="${k}"${k===settings.kbps?' selected':''}>${k} kbps · about ${eightHr(k)} per 8 hours</option>`).join('');
   $('#s-kbps-note').textContent='Higher quality sounds cleaner and uses more space. 64 kbps is a good balance. Applies to the next recording.';
@@ -2361,7 +2361,7 @@ $('#s-speakers').addEventListener('change',e=>{settings.speakers=e.target.checke
 $('#s-sound').addEventListener('change',e=>{settings.sound=e.target.value;saveSettings()});
 $('#s-livetx').addEventListener('change',e=>{settings.liveTx=e.target.checked;saveSettings()});
 $('#s-meter').addEventListener('change',e=>{settings.meter=e.target.checked;saveSettings()});
-function safeNote(){const b=!!(SAFE.noLive||SAFE.noMeter||SAFE.plain||SAFE.later),n=$('#s-safe');if(n)n.hidden=!b;const t=$('#s-safe-t');if(t)t.textContent=(SAFE.noLive||SAFE.noMeter||SAFE.plain)?'Basic recording is on for this phone, because the microphone stopped capturing sound with the live transcript or the moving particles running.':'Basic recording is on from the second recording after Longtake is opened, because this phone lost the microphone on a second recording. The first recording after opening or reloading Longtake still uses the full recorder.'}
+function safeNote(){const b=!!(SAFE.noLive||SAFE.noMeter||SAFE.plain||SAFE.later),n=$('#s-safe');if(n)n.hidden=!b;const t=$('#s-safe-t');if(t)t.textContent=(SAFE.noLive||SAFE.noMeter||SAFE.plain)?'Basic recording is on for this phone, because the microphone stopped capturing sound with the live transcript or the moving particles running.':'Basic recording is on from the second recording after Yukon is opened, because this phone lost the microphone on a second recording. The first recording after opening or reloading Yukon still uses the full recorder.'}
 $('#s-safe-reset').addEventListener('click',()=>{SAFE={fails:0,noLive:false,noMeter:false,plain:false,ff:0,fl:0,later:null};PAGE.noLive=PAGE.noMeter=PAGE.plain=false;saveSafe();safeNote();toast('The full recorder is back on for the next recording.')});
 $('#rec-reload').addEventListener('click',()=>{if(R.active||R.stopping){toast('Tap Stop first.');return}location.reload()});
 $('#s-orb').addEventListener('change',e=>{settings.orb=e.target.checked;saveSettings();ORB.refresh()});
@@ -3031,7 +3031,7 @@ async function renderAssign(){
   if(AS.busy)status='Reading your recordings for anything the teacher or speaker requires.';
   else if(!list.length)status='No recordings yet. Record a lecture, meeting or talk, then come back here.';
   else if(!ready.length)status='None of your recordings has a transcript yet.';
-  else if(!everScanned)status=`Longtake can read your recordings and list the assignments, quizzes, tests, presentations and due dates that a teacher or speaker mentions.`;
+  else if(!everScanned)status=`Yukon can read your recordings and list the assignments, quizzes, tests, presentations and due dates that a teacher or speaker mentions.`;
   else if(pending.length)status=`${plural(pending.length,'recording is','recordings are')} new or changed since the last check.`;
   else status=`All ${plural(ready.length,'recording','recordings')} checked. Last check: ${fmtDate(last)}.`;
   if(skipped&&!AS.busy&&ready.length)status+=` ${plural(skipped,'recording has','recordings have')} no transcript and ${skipped===1?'was':'were'} skipped.`;
@@ -3906,7 +3906,7 @@ function updBusy(){return R.active||R.stopping||QZ.busy||AS.busy||['#chat-send',
 function renderUpd(){
   const show=!!UPD.ready&&UPD.ready!==UPD.dismissed;
   $('#upd').hidden=!show;if(!show)return;
-  $('#upd-t').textContent=R.active?'A newer version of Longtake is ready. Stop recording, then reload to get it.':'A newer version of Longtake is ready.';
+  $('#upd-t').textContent=R.active?'A newer version of Yukon is ready. Stop recording, then reload to get it.':'A newer version of Yukon is ready.';
   $('#upd-go').hidden=!!R.active;
 }
 async function updCheck(manual){ /* resolves to 'new', 'same' or 'fail'; never throws and never touches a recording */
