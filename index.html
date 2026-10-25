@@ -7,6 +7,13 @@
 <meta name="theme-color" content="#e3e5ea" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#17181b" media="(prefers-color-scheme: dark)">
 <title>Yukon</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Yukon">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <style>
 /* Layout: one column, three tabs (Record, Library, Settings); a recording opens as a detail page under Library. */
 :root{
@@ -366,6 +373,7 @@ form.pj-new .field{flex:1;min-width:0;margin:0}
 #upd{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;background:var(--accent-soft);color:var(--ink);border-radius:16px;padding:10px 14px;margin:2px 0 6px;font-size:.92rem}
 #upd[hidden]{display:none}
 #upd .grow{flex:1 1 130px;min-width:0}
+#upd #upd-t{cursor:pointer}
 #upd .upd-b{display:flex;align-items:center;gap:12px;margin-left:auto}
 #toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(86px + env(safe-area-inset-bottom,0px));max-width:min(92vw,520px);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:14px;font-size:.9rem;z-index:9;text-align:center}
 /* Library: search, folders, years */
@@ -451,7 +459,7 @@ mark.hit{background:var(--accent-soft);color:var(--accent);border-radius:4px;pad
     <div class="appbar-title" id="appbar-title">Yukon</div>
     <button class="rec-chip" id="rec-chip" type="button" hidden aria-label="Recording in progress. Go to the recorder"></button>
   </header>
-  <div id="upd" role="status" hidden><span class="grow" id="upd-t">A newer version of Yukon is ready.</span><span class="upd-b"><button class="btn primary" id="upd-go" type="button">Reload</button><button class="linkbtn" id="upd-x" type="button">Later</button></span></div>
+  <div id="upd" role="status" hidden><span class="grow" id="upd-t">Update available, tap to refresh.</span><span class="upd-b"><button class="btn primary" id="upd-go" type="button">Refresh</button><button class="linkbtn" id="upd-x" type="button">Later</button></span></div>
 
   <!-- HOME: recorder and library assistant -->
   <section id="view-home" class="view" hidden style="flex-direction:column;gap:16px">
@@ -769,7 +777,7 @@ let toastT;
 function toast(m){const t=$('#toast');t.textContent=m;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>{t.hidden=true},4500)}
 
 /* ---------- settings ---------- */
-const BUILD='25 Oct 2026, the app is now called Yukon';
+const BUILD='25 Oct 2026, installs on your phone, opens offline, and says when an update is ready';
 const DEF={apiKey:'',model:'claude-sonnet-5-5',lang:'',kbps:64,terms:'',aaiKey:'',speakers:false,sound:'natural',liveTx:true,meter:true,orb:true};
 const settings=Object.assign({},DEF);
 let savedSettings={};try{savedSettings=JSON.parse(localStorage.getItem('longtake.settings')||'{}')||{}}catch(e){}
@@ -3906,7 +3914,7 @@ function updBusy(){return R.active||R.stopping||QZ.busy||AS.busy||['#chat-send',
 function renderUpd(){
   const show=!!UPD.ready&&UPD.ready!==UPD.dismissed;
   $('#upd').hidden=!show;if(!show)return;
-  $('#upd-t').textContent=R.active?'A newer version of Yukon is ready. Stop recording, then reload to get it.':'A newer version of Yukon is ready.';
+  $('#upd-t').textContent=R.active?'Update available. Stop recording, then tap to refresh.':'Update available, tap to refresh.';
   $('#upd-go').hidden=!!R.active;
 }
 async function updCheck(manual){ /* resolves to 'new', 'same' or 'fail'; never throws and never touches a recording */
@@ -3925,14 +3933,15 @@ async function updCheck(manual){ /* resolves to 'new', 'same' or 'fail'; never t
   finally{UPD.busy=false}
 }
 $('#upd-go').addEventListener('click',()=>{
-  if(updBusy()){toast(R.active?'Stop recording first, then reload.':'Wait for the assistant to finish, then reload.');return}
+  if(updBusy()){toast(R.active?'Stop recording first, then refresh.':'Wait for the assistant to finish, then refresh.');return}
   location.replace(location.pathname+'?v='+Date.now().toString(36)); /* a new address, so no old saved copy is used */
 });
 $('#upd-x').addEventListener('click',()=>{UPD.dismissed=UPD.ready;renderUpd()});
+$('#upd-t').addEventListener('click',()=>$('#upd-go').click());
 $('#s-upd').addEventListener('click',async()=>{
   const t=$('#s-upd-t'),b=$('#s-upd');b.disabled=true;t.textContent='Checking…';
   const r=await updCheck(true);b.disabled=false;
-  t.textContent=r==='new'?'A newer version is ready. Use the Reload bar at the top of the page.':r==='same'?'You have the newest version.':r==='busy'?'Already checking.':'Could not reach the website. Check your connection and try again.';
+  t.textContent=r==='new'?'A newer version is ready. Use the Refresh bar at the top of the page.':r==='same'?'You have the newest version.':r==='busy'?'Already checking.':'Could not reach the website. Check your connection and try again.';
 });
 setTimeout(()=>updCheck(),2500);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&Date.now()-UPD.last>120000)updCheck()});
@@ -3942,6 +3951,15 @@ setInterval(()=>{if(!document.hidden&&Date.now()-UPD.last>1800000)updCheck()},30
 ORB.init();
 loadLib();
 recover().then(()=>{updateRecUI();show('home')});
+})();
+</script>
+<script>
+/* Home-screen install and offline support. This only asks the browser to start sw.js; the app code above never calls it,
+   and it never touches recording, saving or audio. If anything fails the app simply carries on as a normal web page. */
+(function(){
+  if(!('serviceWorker' in navigator))return;
+  var go=function(){setTimeout(function(){try{navigator.serviceWorker.register('sw.js').catch(function(){})}catch(e){}},1500)};
+  if(document.readyState==='complete')go();else window.addEventListener('load',go);
 })();
 </script>
 </body>
