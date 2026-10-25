@@ -285,6 +285,8 @@ button.cite:hover{text-decoration:underline}
 .due.late{color:var(--warn)}
 .as-title{font-weight:700;font-size:1.04rem;overflow-wrap:anywhere}
 .as-det{font-size:.95rem;overflow-wrap:anywhere}
+.as-help{font-size:.92rem;overflow-wrap:anywhere}
+.as.done .as-help{color:var(--muted)}
 .as-src{align-self:flex-start;text-align:left;margin-top:2px;padding:3px 8px!important}
 .as.done .as-title{text-decoration:line-through;color:var(--muted)}
 .as.done .as-det{color:var(--muted)}
@@ -756,7 +758,7 @@ let toastT;
 function toast(m){const t=$('#toast');t.textContent=m;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>{t.hidden=true},4500)}
 
 /* ---------- settings ---------- */
-const BUILD='25 Oct 2026, assistant never stalls on Thinking, and knows your newest recording';
+const BUILD='25 Oct 2026, assignments keep how to hand in and who to email';
 const DEF={apiKey:'',model:'claude-sonnet-5-5',lang:'',kbps:64,terms:'',aaiKey:'',speakers:false,sound:'natural',liveTx:true,meter:true,orb:true};
 const settings=Object.assign({},DEF);
 let savedSettings={};try{savedSettings=JSON.parse(localStorage.getItem('longtake.settings')||'{}')||{}}catch(e){}
@@ -2929,7 +2931,7 @@ $('#d-mark').onclick=async()=>{
 
 /* ---------- Assignments ---------- */
 const KINDS={assignment:'Assignment',quiz:'Quiz',test:'Test',exam:'Exam',project:'Project',presentation:'Presentation',reading:'Reading',other:'Other'};
-const AS_SYS='You read one transcript from a voice recorder and list everything the teacher, presenter, speaker or organizer says the listeners must do or prepare for: homework, assignments, readings, projects, papers, labs, quizzes, tests, exams, presentations they have to give, forms or sign-ups, things to bring, and deadlines. Include an announcement of an upcoming quiz, test or exam even when the speaker only gives the date or says what it covers. Do not include the speaker\'s own plans, general advice or things the listeners are merely invited to think about. Never invent anything: every item must come from what the speaker said. The transcript was made by automatic speech recognition, so quietly fix obvious misheard words in names and terms.\n\nReturn one JSON object and nothing else, in exactly this shape: {"items":[{"kind":"assignment|quiz|test|exam|project|presentation|reading|other","title":"short name","details":"what is required and what it covers, in one or two plain sentences","due":"the due date or time as the speaker said it, or an empty string","dueISO":"that date as YYYY-MM-DD if it can be worked out from the date the recording was made, otherwise an empty string","graded":"how it is graded or weighted if the speaker said, otherwise an empty string","time":"hh:mm:ss where the speaker first raised it"}]}. Use kind \"assignment\" for homework and other graded work. If nothing is required of the listeners, return {"items":[]}.';
+const AS_SYS='You read one transcript from a voice recorder and list everything the teacher, presenter, speaker or organizer says the listeners must do or prepare for: homework, assignments, readings, projects, papers, labs, quizzes, tests, exams, presentations they have to give, forms or sign-ups, things to bring, and deadlines. Include an announcement of an upcoming quiz, test or exam even when the speaker only gives the date or says what it covers. Do not include the speaker\'s own plans, general advice or things the listeners are merely invited to think about. Never invent anything: every item must come from what the speaker said. The transcript was made by automatic speech recognition, so quietly fix obvious misheard words in names and terms.\n\nKeep with each task the instructions the speaker gave about handing it in and getting help: who to email or contact if a listener is confused or stuck, where or how to send work or examples, and any email address, link or contact detail that was given. These instructions can come a minute or two after the task is announced, and a general instruction to the whole class (such as emailing the speaker with questions) belongs with every task from this recording. Write an email address exactly as the transcript has it, and if the speaker only said they would give it out, say that instead of making one up.\n\nReturn one JSON object and nothing else, in exactly this shape: {"items":[{"kind":"assignment|quiz|test|exam|project|presentation|reading|other","title":"short name","details":"what is required and what it covers, in one or two plain sentences","due":"the due date or time as the speaker said it, or an empty string","dueISO":"that date as YYYY-MM-DD if it can be worked out from the date the recording was made, otherwise an empty string","graded":"how it is graded or weighted if the speaker said, otherwise an empty string","help":"how to hand it in and who to contact or email if stuck or confused, with any email address or link that was given, in one or two plain sentences, or an empty string","time":"hh:mm:ss where the speaker first raised it"}]}. Use kind \"assignment\" for homework and other graded work. If nothing is required of the listeners, return {"items":[]}.';
 const AS={data:null,busy:false,abort:null,msg:'',err:'',errKey:false,showDone:false,tok:0};
 async function asLoad(){
   if(AS.data)return AS.data;
@@ -2944,7 +2946,7 @@ function cleanItem(r,s){
   let kind=clip(r.kind,20).toLowerCase();if(!KINDS[kind])kind='other';
   let dueISO=clip(r.dueISO,10);if(!validISO(dueISO))dueISO='';
   let t=parseClock(r.time);if(t!==null&&s.durationMs>0&&t>s.durationMs+60000)t=null;
-  return {id:hid(s.id+'|'+title.toLowerCase().replace(/[^a-z0-9]+/g,' ').trim()),sid:s.id,kind,title,details:clip(r.details,400),due:clip(r.due,80),dueISO,graded:clip(r.graded,160),t};
+  return {id:hid(s.id+'|'+title.toLowerCase().replace(/[^a-z0-9]+/g,' ').trim()),sid:s.id,kind,title,details:clip(r.details,400),due:clip(r.due,80),dueISO,graded:clip(r.graded,160),help:clip(r.help,300),t};
 }
 async function extractFrom(x,signal,onPart){
   const parts=partsOf(linesOf(x.segs),80000),found=new Map();
@@ -2999,7 +3001,7 @@ function dueInfo(it){
 function asCard(it,by){
   const x=by.get(it.sid),du=dueInfo(it);
   const src=x?`<button class="cite as-src" type="button" data-sid="${esc(it.sid)}" data-t="${it.t==null?0:it.t}">${esc(x.s.title)}${it.t==null?'':' · '+shortClock(it.t)}</button>`:'';
-  return `<div class="card as${it.done?' done':''}"><div class="as-row"><button class="tick" type="button" role="checkbox" aria-checked="${it.done?'true':'false'}" aria-label="Done: ${esc(it.title)}" data-id="${esc(it.id)}" data-act="done"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></button><div class="as-body"><div class="as-top"><span class="kind">${KINDS[it.kind]||'Other'}</span><span class="due${du.late?' late':''}">${esc(du.text)}</span></div><div class="as-title">${esc(it.title)}</div>${it.details?`<div class="as-det">${esc(it.details)}</div>`:''}${it.graded?`<div class="meta">Grading: ${esc(it.graded)}</div>`:''}${it.dueISO&&it.due?`<div class="meta">The speaker said: “${esc(it.due)}”</div>`:''}${src}<div><button class="linkbtn" type="button" data-id="${esc(it.id)}" data-act="hide" style="color:var(--muted);font-weight:500;font-size:.85rem">Remove</button></div></div></div></div>`;
+  return `<div class="card as${it.done?' done':''}"><div class="as-row"><button class="tick" type="button" role="checkbox" aria-checked="${it.done?'true':'false'}" aria-label="Done: ${esc(it.title)}" data-id="${esc(it.id)}" data-act="done"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></button><div class="as-body"><div class="as-top"><span class="kind">${KINDS[it.kind]||'Other'}</span><span class="due${du.late?' late':''}">${esc(du.text)}</span></div><div class="as-title">${esc(it.title)}</div>${it.details?`<div class="as-det">${esc(it.details)}</div>`:''}${it.help?`<div class="as-help"><strong>Help and turning it in:</strong> ${esc(it.help)}</div>`:''}${it.graded?`<div class="meta">Grading: ${esc(it.graded)}</div>`:''}${it.dueISO&&it.due?`<div class="meta">The speaker said: “${esc(it.due)}”</div>`:''}${src}<div><button class="linkbtn" type="button" data-id="${esc(it.id)}" data-act="hide" style="color:var(--muted);font-weight:500;font-size:.85rem">Remove</button></div></div></div></div>`;
 }
 async function renderAssign(){
   const tok=++AS.tok;
