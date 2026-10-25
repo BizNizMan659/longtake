@@ -14,7 +14,7 @@
   --bg:#e3e5ea; --surface:#eceef2; --raised:#dadde4; --bubble:#d0d4dc; --drawer:#eceef2;
   --ink:#1a1c22; --muted:#4d5362; --line:#cdd1da;
   --accent:#2848b8; --accent-ink:#ffffff; --accent-soft:#d3dcf4;
-  --rec:#c42d18; --warn:#7d4a00;
+  --rec:#c42d18; --rec-ink:#ffffff; --warn:#7d4a00;
   --font-ui:system-ui,-apple-system,"SF Pro Text","Segoe UI",Roboto,"Helvetica Neue",sans-serif;
   --font-serif:ui-serif,"Iowan Old Style","Palatino Linotype",Georgia,serif;
   --font-num:ui-monospace,"SF Mono","Cascadia Mono",Menlo,Consolas,monospace;
@@ -25,7 +25,7 @@
     --bg:#17181b; --surface:#222327; --raised:#2c2e34; --bubble:#2f3137; --drawer:#202125;
     --ink:#ecedf0; --muted:#a1a5ad; --line:#32343a;
     --accent:#a8c1ff; --accent-ink:#0f1b3a; --accent-soft:#2a3558;
-    --rec:#ff6b5e; --warn:#e8b45a;
+    --rec:#ff6b5e; --rec-ink:#2a0905; --warn:#e8b45a;
     color-scheme:dark;
   }
 }
@@ -394,16 +394,38 @@ mark.hit{background:var(--accent-soft);color:var(--accent);border-radius:4px;pad
 #d-folder svg,#d-proj svg,.sw-in svg{width:18px;height:18px;flex:none;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 #d-folder span,#d-proj span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #lib-tip{margin:2px 2px 8px}
-/* swipe a recording left: a little pull shows "Add to project", a harder pull fires it */
-.row.lrow.sw{--rev:92px;touch-action:pan-y;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;transform:translateX(calc(var(--sx,0px)*-1));transition:transform .26s cubic-bezier(.2,.8,.2,1),background .15s}
+/* swipe a recording: right pulls out "Add to project" (a harder pull fires it); left uncovers a red Delete button */
+.row.lrow.sw{--rev:92px;touch-action:pan-y;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;transform:translateX(var(--sx,0px));transition:transform .26s cubic-bezier(.2,.8,.2,1),background .15s}
 .row.lrow.sw.sw-drag{transition:none}
-.sw-act{position:absolute;top:0;bottom:0;left:100%;width:100%;display:flex;align-items:center;background:var(--accent-soft);color:var(--accent);transition:background .12s,color .12s}
+.sw-act{position:absolute;top:0;bottom:0;width:100%;display:flex;align-items:center;transition:background .12s,color .12s}
+.sw-add{right:100%;justify-content:flex-end;background:var(--accent-soft);color:var(--accent)}
+.sw-del{left:100%;background:var(--rec);color:var(--rec-ink)}
 .sw-in{flex:none;width:var(--rev);display:flex;flex-direction:column;align-items:center;gap:4px;font-size:.72rem;font-weight:650;line-height:1.1;text-align:center}
 .sw-in svg{width:24px;height:24px;transition:transform .14s}
-.sw-in::after{content:'Add to project'}
-.row.sw.armed .sw-act{background:var(--accent);color:var(--accent-ink)}
-.row.sw.armed .sw-in::after{content:'Release to add'}
-.row.sw.armed .sw-in svg{transform:scale(1.2)}
+.sw-add .sw-in::after{content:'Add to project'}
+.sw-del .sw-in::after{content:'Delete'}
+.row.sw.armed .sw-add{background:var(--accent);color:var(--accent-ink)}
+.row.sw.armed .sw-add .sw-in::after{content:'Release to add'}
+.row.sw.armed .sw-add .sw-in svg{transform:scale(1.2)}
+/* choosing several recordings: a tick circle in front of each, a bar under the header, and a Delete bar at the bottom */
+.selbox{display:none;position:relative;width:24px;height:24px;border-radius:50%;box-shadow:inset 0 0 0 2px var(--muted);justify-self:center;align-self:center}
+.selbox::after{content:'';position:absolute;left:8px;top:3.5px;width:7px;height:12px;border:solid var(--accent-ink);border-width:0 2.5px 2.5px 0;transform:rotate(40deg) scale(0);transition:transform .12s}
+.selecting .row.lrow.sw{grid-template-columns:30px 44px minmax(0,1fr) auto;column-gap:10px}
+.selecting .selbox{display:block}
+.row.lrow.sel{background:var(--accent-soft)}
+.row.lrow.sel .selbox{background:var(--accent);box-shadow:none}
+.row.lrow.sel .selbox::after{transform:rotate(40deg) scale(1)}
+#lib-selrow{display:flex;align-items:center;justify-content:flex-end;gap:12px;margin:-8px 0 -6px}
+#lib-selrow[hidden]{display:none}
+#lib-selrow .linkbtn{min-height:40px;padding:6px 4px}
+#lib-selrow #lib-sel-n{font-weight:650}
+.selecting #lib-selrow{position:sticky;top:var(--bar-h);z-index:5;justify-content:space-between;background:var(--bg);border-bottom:1px solid var(--line);margin:-8px 0 0;padding:2px 0}
+.selecting #lib-browse,.selecting #lib-results{padding-bottom:84px}
+#lib-delbar{position:fixed;left:0;right:0;bottom:0;z-index:7;display:flex;justify-content:center;padding:10px 16px calc(12px + env(safe-area-inset-bottom,0px));background:var(--bg);border-top:1px solid var(--line)}
+#lib-delbar[hidden]{display:none}
+#lib-delbar .btn,#sheet-del{background:var(--rec);color:var(--rec-ink);font-weight:650}
+#lib-delbar .btn{width:100%;max-width:560px;min-height:48px}
+#lib-delbar .btn:disabled{opacity:.4}
 @media (prefers-reduced-motion:reduce){.row.lrow.sw,.sw-act,.sw-in svg{transition:none}}
 .thumb.fthumb.sys{background:var(--line);color:var(--muted)}
 .thumb.fthumb svg{width:26px;height:22px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
@@ -469,9 +491,11 @@ mark.hit{background:var(--accent-soft);color:var(--accent);border-radius:4px;pad
       </div>
       <div class="lib-sortbar" id="lib-sort" hidden><span class="meta" id="lib-sort-t"></span><button class="btn" id="lib-sort-go" type="button">Sort into folders</button></div>
       <div id="lib-folders" hidden></div>
-      <p class="meta" id="lib-tip" hidden>Tip: swipe a recording left to add it to a project. <button class="linkbtn" id="lib-tip-x" type="button">Got it</button></p>
+      <p class="meta" id="lib-tip" hidden>Tip: swipe a recording right to add it to a project, or left to delete it. <button class="linkbtn" id="lib-tip-x" type="button">Got it</button></p>
+      <div id="lib-selrow" hidden><button class="linkbtn" id="lib-sel-go" type="button">Select</button><button class="linkbtn" id="lib-sel-cancel" type="button" hidden>Cancel</button><span id="lib-sel-n" role="status" hidden></span><button class="linkbtn" id="lib-sel-all" type="button" hidden>Select all</button></div>
       <div class="list" id="lib-list"></div>
     </div>
+    <div id="lib-delbar" hidden><button class="btn" id="lib-del-go" type="button" disabled>Delete</button></div>
   </section>
 
   <!-- MARKED -->
@@ -710,7 +734,7 @@ mark.hit{background:var(--accent-soft);color:var(--accent);border-radius:4px;pad
   <form id="sheet-new" autocomplete="off"><input type="text" id="sheet-name" maxlength="60" placeholder="New project name" aria-label="New project name"><button class="btn primary" id="sheet-go" type="submit">Create and save</button></form>
   <div class="err" id="sheet-err" hidden role="alert"></div>
   <div class="sh-list" id="sheet-list"></div>
-  <div class="btns"><button class="btn" id="sheet-close" type="button">Cancel</button></div>
+  <div class="btns"><button class="btn" id="sheet-del" type="button" hidden>Delete</button><button class="btn" id="sheet-close" type="button">Cancel</button></div>
 </div>
 <div id="toast" role="status" hidden></div>
 
@@ -732,7 +756,7 @@ let toastT;
 function toast(m){const t=$('#toast');t.textContent=m;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>{t.hidden=true},4500)}
 
 /* ---------- settings ---------- */
-const BUILD='24 Oct 2026, the resting orb turns one way without jumping';
+const BUILD='24 Oct 2026, swipe right to add, left to delete, and Select';
 const DEF={apiKey:'',model:'claude-sonnet-5-5',lang:'',kbps:64,terms:'',aaiKey:'',speakers:false,sound:'natural',liveTx:true,meter:true,orb:true};
 const settings=Object.assign({},DEF);
 let savedSettings={};try{savedSettings=JSON.parse(localStorage.getItem('longtake.settings')||'{}')||{}}catch(e){}
@@ -1121,7 +1145,7 @@ const ORB=(()=>{
   }
   const visible=()=>!document.hidden&&CUR==='home'&&!!S.btn&&S.btn.clientWidth>0;
   function mk(hx,hy,nx,ny,nz,kind,i){
-    return {hx,hy,x:S.cx+hx,y:S.cy+hy,vx:0,vy:0,nx,ny,nz,kind,i,
+    return {hx,hy,x:S.cx+hx,y:S.cy+hy,vx:0,vy:0,nx,ny,nz,kind,i,lam:Math.atan2(nx,nz),phi:Math.asin(Math.max(-1,Math.min(1,-ny))),
       f:kind?0.74+0.24*Math.random():0.18+0.82*Math.sqrt(Math.random()), /* how far from the middle it floats while recording */
       a0:Math.random()*6.2832,w:(Math.random()<0.12?-1:1)*(0.2+0.6*Math.random()),ph:Math.random()*6.2832,
       base:0.34+0.52*Math.random(),dg:Math.random()<0.16,dv:Math.random(),wait:-1,tx:0,ty:0};
@@ -1233,10 +1257,11 @@ const ORB=(()=>{
     rg.addColorStop(0,'rgba('+pal.glow+','+ga.toFixed(3)+')');rg.addColorStop(1,'rgba('+pal.glow+',0)');
     g.fillStyle=rg;g.fillRect(0,0,W,H);
     g.font='700 '+S.fs+'px '+FONT;g.textAlign='center';g.textBaseline='middle';
-    /* Two lights circle the orb about its upright axis, one on each side, and both travel to the left across the face. One is always in front while the other is behind, so the bright patch keeps moving the same way for ever: it slides left, slips round the edge, and the next one comes round on the right. A still orb (reduced motion) keeps its old fixed light. */
-    let lx,ly,lz,lx2=0,lz2=0,two=false;
-    if(S.calm){lx=Math.cos(S.light)*0.62;ly=-0.42;lz=Math.sin(S.light)*0.4+0.62;const lm=Math.hypot(lx,ly,lz);lx/=lm;ly/=lm;lz/=lm}
-    else{const al=-S.light;lx=Math.sin(al)*0.937;ly=-0.35;lz=Math.cos(al)*0.937;lx2=-lx;lz2=-lz;two=true}
+    /* One fixed light gives one shine (the @) that never moves. The orb itself turns: a pattern on its surface slides to the left across the face, goes round the back and comes round again on the right, so the spin always looks the same way. A still orb (reduced motion) keeps its old fixed light and has no pattern. */
+    let lx,ly,lz;const turn=!S.calm;
+    if(S.calm){lx=Math.cos(S.light)*0.62;ly=-0.42;lz=Math.sin(S.light)*0.4+0.62}
+    else{lx=-0.2;ly=-0.45;lz=0.87}
+    {const lm=Math.hypot(lx,ly,lz);lx/=lm;ly/=lm;lz/=lm}
     const af=key==='dark'?0.42:0.6,breath=1+0.04*Math.sin(S.t*1.6),blink=S.armed?0.55+0.45*Math.abs(Math.sin(S.t*8)):1,dim=S.paused?0.55:1;
     let last=-1;
     const eq=mix>0.3&&S.bmax>0.02,Wh=W/2-S.cw-4,Hh=H/2-S.fs*0.45-4.5,u0=0.97-0.25*mix; /* the fade starts further in while the cloud is out and about */
@@ -1244,9 +1269,10 @@ const ORB=(()=>{
       let bI,chI;
       if(p.kind){bI=0.42+0.22*Math.sin(S.t*1.5+p.i*0.7);chI=p.i%6===0?'+':'.'}
       else{
-        let l=Math.max(0,p.nx*lx+p.ny*ly+p.nz*lz);
-        if(two)l=Math.min(1,l+Math.max(0,p.nx*lx2+p.ny*ly+p.nz*lz2));
+        const l=Math.max(0,p.nx*lx+p.ny*ly+p.nz*lz);
         bI=(0.17+0.83*Math.pow(l,1.15))*breath+Math.pow(1-p.nz,3)*0.2+0.05*Math.sin(S.t*2+p.ph*3);
+        if(turn){const L=p.lam+S.light,f=p.phi; /* where this dot sits on the turning surface */
+          bI+=0.27*(0.5*Math.sin(2*L+1.1*Math.sin(2.2*f+0.7))+0.32*Math.sin(3*L-1.7*f+2.1)+0.22*Math.sin(5*L+3*f+0.4))*Math.pow(1-l,1.6)} /* the pattern fades out inside the shine, so the shine itself never wobbles */
       }
       if(act)bI=bI*(0.78+0.6*S.e)+0.16; /* calm mode: the still orb glows brighter with your voice */
       let b=bI;
@@ -1448,6 +1474,7 @@ let CUR='home',HOMECTX=true; /* HOMECTX: on Home, or on a recording opened from 
 const drawer=$('#drawer'),scrim=$('#scrim'),menuBtn=$('#menu-btn');
 function show(view){
   const wasHome=HOMECTX;
+  if(LV.sel){LV.sel=null;selSync()}
   if(view!=='detail')leaveDetail();
   Object.keys(TITLES).forEach(v=>{const el=$('#view-'+v);el.hidden=v!==view;if(v===view)el.style.display='flex'});
   CUR=view;
@@ -1536,13 +1563,16 @@ function badgeFor(s){
   return ['Live transcript',''];
 }
 const clockOf=t=>new Date(t).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'});
-const swAct='<span class="sw-act" aria-hidden="true"><span class="sw-in"><svg viewBox="0 0 24 24"><path d="M4 7h10M4 12h7M4 17h7M17 12v7M13.5 15.5h7"/></svg></span></span>'; /* the "Add to project" action a swipe uncovers; its words come from CSS */
+const swAdd='<span class="sw-act sw-add" aria-hidden="true"><span class="sw-in"><svg viewBox="0 0 24 24"><path d="M4 7h10M4 12h7M4 17h7M17 12v7M13.5 15.5h7"/></svg></span></span>'; /* "Add to project", uncovered by a swipe to the right; its words come from CSS */
+const swDel='<span class="sw-act sw-del" aria-hidden="true"><span class="sw-in"><svg viewBox="0 0 24 24"><path d="M4.5 7h15M9.5 7V5h5v2M6.5 7l.8 12a1.5 1.5 0 0 0 1.5 1.4h6.4a1.5 1.5 0 0 0 1.5-1.4L17.5 7M10 11v5.5M14 11v5.5"/></svg></span></span>'; /* "Delete", uncovered by a swipe to the left */
+const swAct=swAdd+swDel;
+const selbox='<span class="selbox" aria-hidden="true"></span>'; /* the tick circle, shown only while choosing recordings */
 const rowHtml=(s,sec,showFolder)=>{ /* one tidy row: the day comes from the heading above, so only the time is repeated; a tag shows only when something needs attention */
   const [b,c]=badgeFor(s);
   const when=sec&&/^d\d+$/.test(sec.key)?clockOf(s.startedAt):new Date(s.startedAt).toLocaleDateString([],{month:'short',day:'numeric'})+', '+clockOf(s.startedAt);
   const parts=[when,fmtLen(s.durationMs||0)];if(s.words)parts.push(s.words.toLocaleString()+' words');
   const fl=showFolder&&s.folder?`<span class="fl">${esc(s.folder)}</span>`:'';
-  return `<button class="row lrow sw" data-id="${esc(s.id)}">${thumbHtml(s.id)}<span class="txt"><span class="ttl">${esc(s.title)}</span><span class="sub">${fl}${parts.map(x=>'<span>'+esc(x)+'</span>').join('')}</span></span>${b==='Live transcript'?'':`<span class="badge ${c}">${b}</span>`}${swAct}</button>`};
+  return `<button class="row lrow sw" data-id="${esc(s.id)}">${selbox}${thumbHtml(s.id)}<span class="txt"><span class="ttl">${esc(s.title)}</span><span class="sub">${fl}${parts.map(x=>'<span>'+esc(x)+'</span>').join('')}</span></span>${b==='Live transcript'?'':`<span class="badge ${c}">${b}</span>`}${swAct}</button>`};
 function sectionFor(t,now){ /* today, yesterday and weekday names for the last week, then Last Week, then one group per month */
   const d0=x=>{const d=new Date(x);d.setHours(0,0,0,0);return d.getTime()};
   const days=Math.round((d0(now)-d0(t))/864e5);
@@ -1553,7 +1583,7 @@ function sectionFor(t,now){ /* today, yesterday and weekday names for the last w
   const d=new Date(t);return {key:'m'+d.getFullYear()+'-'+d.getMonth(),label:d.toLocaleDateString([],{month:'long',year:'numeric'})};
 }
 /* ---------- Library: keyword search, subject folders and years ---------- */
-const LV={q:'',folder:null,year:0,restore:null,useRestore:false,idx:null,idxP:null,sorting:false,seq:0,rseq:0,qt:0};
+const LV={q:'',folder:null,year:0,restore:null,useRestore:false,idx:null,idxP:null,sorting:false,seq:0,rseq:0,qt:0,sel:null}; /* sel: null, or the set of recordings ticked while choosing */
 const F_ALL='\u0001all',F_NONE='\u0001none'; /* the two built-in views; a real folder name can never contain these */
 const foldCh=c=>{const d=c.normalize('NFD')[0].toLowerCase();return d.length===1?d:c};
 function fold(v){ /* lower case, accents removed, same length as the original so highlights land in the right place */
@@ -1621,12 +1651,13 @@ function resHtml(r,terms){
   const x=r.e.s,n=r.lines.length,sub=[];
   if(x.folder)sub.push(x.folder);
   sub.push(new Date(x.startedAt).toLocaleDateString([],{month:'short',day:'numeric',year:'numeric'}));if(x.durationMs)sub.push(fmtLen(x.durationMs));
-  let h=`<div class="res"><button class="row lrow sw" type="button" data-id="${esc(x.id)}">${thumbHtml(x.id)}<span class="txt"><span class="ttl">${hlHtml(x.title||'',terms)}</span><span class="sub">${sub.map(v=>'<span>'+esc(v)+'</span>').join('')}</span></span><span class="badge">${n?plural(n,'match','matches'):'Title or folder'}</span>${swAct}</button>`;
+  let h=`<div class="res"><button class="row lrow sw" type="button" data-id="${esc(x.id)}">${selbox}${thumbHtml(x.id)}<span class="txt"><span class="ttl">${hlHtml(x.title||'',terms)}</span><span class="sub">${sub.map(v=>'<span>'+esc(v)+'</span>').join('')}</span></span><span class="badge">${n?plural(n,'match','matches'):'Title or folder'}</span>${swAct}</button>`;
   for(const l of r.snips)h+=`<button class="snip" type="button" data-id="${esc(x.id)}" data-t="${Math.round(l.g.t)}"><span class="tl">${fmtDur(l.g.t)}</span><span class="tt">${hlHtml(l.g.text,terms,170)}</span></button>`;
   if(n>r.snips.length)h+=`<button class="snip more" type="button" data-id="${esc(x.id)}" data-all="1">See all ${n} matches in this recording</button>`;
   return h+'</div>';
 }
 function libRestore(){ /* coming Back from a recording lands where you were */
+  selPlace();selSync();
   if(!LV.useRestore)return;const y=LV.restore;LV.useRestore=false;LV.restore=null;
   if(y!=null)requestAnimationFrame(()=>window.scrollTo(0,y));
 }
@@ -1654,6 +1685,7 @@ $('#lib-q').addEventListener('keydown',e=>{
 $('#lib-q-x').onclick=()=>{clearTimeout(LV.qt);LV.q='';$('#lib-q').value='';libQueryChanged();$('#lib-q').focus({preventScroll:true})};
 $('#lib-results').addEventListener('click',e=>{
   const b=e.target.closest('[data-id]');if(!b)return;
+  if(LV.sel){selToggle(b.dataset.id);return}
   LV.restore=window.scrollY;const terms=termsOf(LV.q),sid=b.dataset.id;
   if(b.dataset.t!==undefined)openAt(sid,Math.max(0,+b.dataset.t-LEAD),'library',{hl:terms,seg:+b.dataset.t});
   else if(b.dataset.all)openAt(sid,null,'library',{hl:terms,filter:LV.q.trim()});
@@ -1759,7 +1791,7 @@ async function renderLibrary(fresh){
   $('#lib-search').hidden=!all.length;
   if(!all.length){
     $('#lib-results').hidden=true;$('#lib-browse').hidden=false;years.hidden=true;head.hidden=true;fl.hidden=true;sortbar.hidden=true;
-    list.hidden=false;list.innerHTML='<p class="empty">No recordings yet. Your first one will appear here.</p>';return;
+    list.hidden=false;list.innerHTML='<p class="empty">No recordings yet. Your first one will appear here.</p>';selPlace();selSync();return;
   }
   if(q){$('#lib-results').hidden=false;$('#lib-browse').hidden=true;libRun();return}
   $('#lib-results').hidden=true;$('#lib-browse').hidden=false;
@@ -1801,42 +1833,47 @@ async function renderLibrary(fresh){
   }
   libRestore();
 }
-$('#lib-list').addEventListener('click',e=>{const r=e.target.closest('.row');if(r){LV.restore=window.scrollY;openDetail(r.dataset.id)}});
+$('#lib-list').addEventListener('click',e=>{const r=e.target.closest('.row');if(r){if(LV.sel){selToggle(r.dataset.id);return}LV.restore=window.scrollY;openDetail(r.dataset.id)}});
 
-/* ---------- swipe a recording left: pull a little and "Add to project" shows; pull harder and it fires ---------- */
-const SW={row:null,pid:-1,x0:0,y0:0,base:0,p:0,mode:'',open:null,openY:0,armed:false,W:0,rev:92,commit:190,lastX:0,lastT:0,v:0,noClick:0,closedOther:false,tipDone:(()=>{try{return localStorage.getItem('longtake.swipeTip')==='1'}catch(e){return false}})()};
-const swPull=(p,W)=>Math.min(p<=SW.rev?p:SW.rev+(p-SW.rev)*0.8,W*0.88); /* the row follows the finger, then pulls back a little so the extra distance feels harder */
+/* ---------- swipe a recording: right pulls out "Add to project" (pull a little and it waits, pull harder and it fires); left uncovers a red Delete button that asks before it deletes ---------- */
+const SW={row:null,pid:-1,x0:0,y0:0,base:0,p:0,mode:'',open:null,openY:0,armed:false,W:0,rev:92,commit:190,lastX:0,lastT:0,v:0,noClick:0,closedOther:false,tipDone:(()=>{try{return localStorage.getItem('longtake.swipeTip2')==='1'}catch(e){return false}})()};
+/* p is how far the row has moved: to the right (+) for Add to project, to the left (-) for Delete */
+const swPull=(p,W)=>{
+  if(p>=0)return Math.min(p<=SW.rev?p:SW.rev+(p-SW.rev)*0.8,W*0.88); /* the row follows the finger, then pulls back a little so the extra distance feels harder */
+  const a=-p;return -Math.min(a<=SW.rev?a:SW.rev+(a-SW.rev)*0.25,SW.rev+36); /* Delete never fires by itself, so the row gives only a little past the button */
+};
 function swClose(row){
   if(!row)return;
-  row.classList.remove('armed','sw-open','sw-drag');row.style.setProperty('--sx','0px');
+  row.classList.remove('armed','sw-open','open-add','open-del','sw-drag');row.style.setProperty('--sx','0px');
   if(SW.open===row)SW.open=null;
 }
-function swOpen(row){
+function swOpen(row,side){ /* side: 'add' (pulled to the right) or 'del' (pulled to the left) */
   if(SW.open&&SW.open!==row)swClose(SW.open);
-  row.classList.remove('armed','sw-drag');row.classList.add('sw-open');row.style.setProperty('--sx',SW.rev+'px');
+  row.classList.remove('armed','sw-drag','open-add','open-del');row.classList.add('sw-open','open-'+side);row.style.setProperty('--sx',(side==='add'?SW.rev:-SW.rev)+'px');
   SW.open=row;SW.openY=window.scrollY;
 }
 function swTipDone(){
   if(SW.tipDone)return;
-  SW.tipDone=true;try{localStorage.setItem('longtake.swipeTip','1')}catch(e){}
+  SW.tipDone=true;try{localStorage.setItem('longtake.swipeTip2','1')}catch(e){}
   const t=$('#lib-tip');if(t)t.hidden=true;
 }
 const swCommit=id=>saveRecording(id);
 function swDown(e){
   if(!e.isPrimary||(e.pointerType==='mouse'&&e.button!==0))return;
   SW.noClick=0; /* a new touch means the click that followed the last drag has long since come */
+  if(LV.sel){SW.row=null;return} /* while choosing recordings a touch only ticks or unticks */
   if(SW.open&&!SW.open.isConnected)SW.open=null;
   let row=e.target.closest('.row.sw');
   if(!row&&SW.open){ /* a touch on the uncovered action lands on the panel, not on the row itself */
-    const r=SW.open.getBoundingClientRect();
-    if(e.clientY>=r.top&&e.clientY<=r.bottom&&e.clientX>=r.right-2&&e.clientX<=r.right+SW.rev+8)row=SW.open;
+    const r=SW.open.getBoundingClientRect(),del=SW.open.classList.contains('open-del');
+    if(e.clientY>=r.top&&e.clientY<=r.bottom&&(del?(e.clientX>=r.right-2&&e.clientX<=r.right+SW.rev+8):(e.clientX<=r.left+2&&e.clientX>=r.left-SW.rev-8)))row=SW.open;
   }
   SW.closedOther=false;
   if(SW.open&&SW.open!==row){swClose(SW.open);SW.closedOther=true}
   if(!row){SW.row=null;return}
   SW.row=row;SW.pid=e.pointerId;SW.x0=e.clientX;SW.y0=e.clientY;SW.mode='';
   SW.W=row.offsetWidth;SW.commit=Math.max(SW.rev+60,Math.min(SW.W*0.5,230));
-  SW.base=row.classList.contains('sw-open')?SW.rev:0;SW.p=SW.base;SW.armed=row.classList.contains('armed');
+  SW.base=row.classList.contains('open-add')?SW.rev:row.classList.contains('open-del')?-SW.rev:0;SW.p=SW.base;SW.armed=row.classList.contains('armed');
   SW.lastX=e.clientX;SW.lastT=e.timeStamp;SW.v=0;
 }
 function swMove(e){
@@ -1844,14 +1881,14 @@ function swMove(e){
   const dx=e.clientX-SW.x0,dy=e.clientY-SW.y0;
   if(!SW.mode){
     if(Math.abs(dx)<8&&Math.abs(dy)<8)return;
-    if(Math.abs(dx)>Math.abs(dy)*1.3&&(dx<0||SW.base>0)){ /* sideways: this is a swipe */
+    if(Math.abs(dx)>Math.abs(dy)*1.3){ /* sideways: this is a swipe */
       SW.mode='x';try{row.setPointerCapture(e.pointerId)}catch(_){}
       row.classList.add('sw-drag');
-    }else{SW.mode='y';return} /* up and down is the page scrolling; a pull to the right on a closed row does nothing */
+    }else{SW.mode='y';return} /* up and down is the page scrolling */
   }
   if(SW.mode!=='x')return;
-  SW.p=Math.max(0,SW.base-dx);
-  const dt=e.timeStamp-SW.lastT;if(dt>0){SW.v=0.6*SW.v+0.4*((SW.lastX-e.clientX)/dt);SW.lastX=e.clientX;SW.lastT=e.timeStamp}
+  SW.p=SW.base+dx;
+  const dt=e.timeStamp-SW.lastT;if(dt>0){SW.v=0.6*SW.v+0.4*((e.clientX-SW.lastX)/dt);SW.lastX=e.clientX;SW.lastT=e.timeStamp} /* + is rightwards */
   row.style.setProperty('--sx',swPull(SW.p,SW.W).toFixed(1)+'px');
   const was=SW.armed;SW.armed=SW.p>=SW.commit;
   if(SW.armed!==was){row.classList.toggle('armed',SW.armed);if(SW.armed&&navigator.vibrate)try{navigator.vibrate(12)}catch(_){}}
@@ -1863,17 +1900,18 @@ function swUp(e){
     if(SW.mode===''){
       if(SW.open===row){ /* a tap on a row that is open: the action fires, anything else closes it */
         SW.noClick=performance.now()+400;
-        const id=row.dataset.id,onAct=e.clientX>row.getBoundingClientRect().right-1;
-        swClose(row);if(onAct)swCommit(id);
+        const id=row.dataset.id,rc=row.getBoundingClientRect(),del=row.classList.contains('open-del');
+        const onAct=del?e.clientX>rc.right-1:e.clientX<rc.left+1;
+        swClose(row);if(onAct){if(del)swDelete([id]);else swCommit(id)}
       }else if(SW.closedOther)SW.noClick=performance.now()+400; /* the tap that closed another row does nothing else */
     }else SW.noClick=performance.now()+400; /* it moved without being a swipe (scrolling, or a drag with a mouse): not a tap either */
     return;
   }
   SW.noClick=performance.now()+400; /* the click that follows a drag is not a tap */
   row.classList.remove('sw-drag');swTipDone();
-  const flick=SW.v>0.7&&SW.p>24;
   if(SW.p>=SW.commit){const id=row.dataset.id;swClose(row);swCommit(id)}
-  else if(SW.p>=SW.rev*0.5||flick)swOpen(row);
+  else if(SW.p>=SW.rev*0.5||(SW.v>0.7&&SW.p>24))swOpen(row,'add');
+  else if(SW.p<=-SW.rev*0.5||(SW.v<-0.7&&SW.p<-24))swOpen(row,'del');
   else swClose(row);
 }
 function swCancel(e){
@@ -1885,9 +1923,73 @@ function swClick(e){
   const row=e.target.closest&&e.target.closest('.row.sw');
   if(row&&row.classList.contains('sw-open')){e.preventDefault();e.stopPropagation();swClose(row)}
 }
-function swKey(e){ /* the same action without a finger: the left arrow on a focused recording */
+function swKey(e){ /* the same actions without a finger, on a focused recording: right arrow adds it to a project, left arrow or Delete asks to delete it */
   const row=e.target.closest&&e.target.closest('.row.sw');
-  if(row&&e.key==='ArrowLeft'){e.preventDefault();swCommit(row.dataset.id)}
+  if(!row||LV.sel)return;
+  if(e.key==='ArrowRight'){e.preventDefault();swCommit(row.dataset.id)}
+  else if(e.key==='ArrowLeft'||e.key==='Delete'){e.preventDefault();swDelete([row.dataset.id])}
+}
+/* ---------- choosing several recordings, to delete them together ---------- */
+function selRows(){const box=LV.q.trim()?$('#lib-results'):$('#lib-list');return box.hidden?[]:[...box.querySelectorAll('.row.sw')]}
+function selPlace(){ /* the Select bar sits just above whichever list is showing */
+  const host=LV.q.trim()?$('#lib-results'):$('#lib-list'),bar=$('#lib-selrow');
+  if(bar.nextElementSibling!==host)host.before(bar);
+}
+function selSync(){ /* ticks, count and buttons follow LV.sel; a tick on a recording that is no longer in the list is dropped */
+  const rows=selRows(),vis=new Set(rows.map(r=>r.dataset.id));
+  if(LV.sel&&!rows.length)LV.sel=null;
+  if(LV.sel)for(const id of [...LV.sel])if(!vis.has(id))LV.sel.delete(id);
+  const on=!!LV.sel,n=on?LV.sel.size:0;
+  $('#view-library').classList.toggle('selecting',on);
+  for(const r of rows){
+    if(on){const t=LV.sel.has(r.dataset.id);r.classList.toggle('sel',t);r.setAttribute('aria-pressed',String(t))}
+    else{r.classList.remove('sel');r.removeAttribute('aria-pressed')}
+  }
+  $('#lib-selrow').hidden=!rows.length;
+  $('#lib-sel-go').hidden=on;$('#lib-sel-cancel').hidden=!on;$('#lib-sel-n').hidden=!on;$('#lib-sel-all').hidden=!on;
+  $('#lib-sel-n').textContent=n?n+' selected':'Select recordings';
+  $('#lib-sel-all').textContent=on&&n>0&&n===rows.length?'Select none':'Select all';
+  $('#lib-delbar').hidden=!on;
+  const go=$('#lib-del-go');go.disabled=!n;go.textContent=n?(n===1?'Delete 1 recording':'Delete '+n+' recordings'):'Delete';
+}
+function selToggle(id){
+  if(!LV.sel||!id)return;
+  if(LV.sel.has(id))LV.sel.delete(id);else LV.sel.add(id);
+  selSync();
+}
+function selStart(){
+  if(LV.sel||!selRows().length)return;
+  if(SW.open)swClose(SW.open);
+  LV.sel=new Set();selSync();
+}
+function selEnd(){if(!LV.sel)return;LV.sel=null;selSync()}
+$('#lib-sel-go').onclick=selStart;
+$('#lib-sel-cancel').onclick=selEnd;
+$('#lib-sel-all').onclick=()=>{
+  if(!LV.sel)return;
+  const rows=selRows();
+  if(LV.sel.size===rows.length)LV.sel.clear();else for(const r of rows)LV.sel.add(r.dataset.id);
+  selSync();
+};
+$('#lib-del-go').onclick=()=>{if(LV.sel&&LV.sel.size)swDelete([...LV.sel])};
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&LV.sel&&CUR==='library'&&!$('#sheet').classList.contains('open'))selEnd()});
+function swDelete(ids){ /* asks first; the recording being made right now is never offered */
+  ids=ids.filter(Boolean);if(!ids.length||SH.busy)return;
+  const live=R.active&&R.sid?ids.filter(x=>x===R.sid):[];
+  if(live.length){
+    ids=ids.filter(x=>x!==R.sid);
+    if(!ids.length){toast('Stop the recording before deleting it.');return}
+  }
+  openSheet({mode:'delete',ids,keptLive:live.length>0});
+}
+async function deleteRecordings(ids){ /* the same four-store delete the recording page uses, for one or many */
+  let n=0,kept=0;
+  for(const sid of ids){
+    if(R.active&&R.sid===sid){kept++;continue}
+    try{await idb.delChunks(sid);await idb.del('tx',sid);await idb.del('notes',sid);await idb.del('sessions',sid);n++}catch(e){}
+  }
+  LV.idx=null;
+  return {n,kept};
 }
 for(const box of [$('#lib-list'),$('#lib-results')]){
   box.addEventListener('pointerdown',swDown);box.addEventListener('pointermove',swMove);
@@ -2910,7 +3012,7 @@ $('#as-list').addEventListener('click',async e=>{
 
 /* ---------- Projects ---------- */
 const PJ={data:null,cur:null,open:-1,back:'projects',reveal:null};
-const SH={mode:'save',payload:null,from:null,itemId:null,opener:null,busy:false,sid:null,fname:'',merge:''};
+const SH={mode:'save',payload:null,from:null,itemId:null,opener:null,busy:false,sid:null,fname:'',merge:'',ids:[],keptLive:false};
 const sheet=$('#sheet'),shScrim=$('#sheet-scrim');
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
 const PJ_MAXNAME=60;
@@ -2983,11 +3085,12 @@ async function saveRecording(sid){ /* a whole recording goes into a project: fro
   openSheet({mode:'save',payload:{kind:'whole',sid,q:s.title||'Recording',rtitle:s.title||'Recording',srcs}});
 }
 async function openSheet(o){
-  Object.assign(SH,{mode:o.mode,payload:o.payload||null,from:o.from||null,itemId:o.itemId||null,sid:o.sid||null,fname:o.fname||'',merge:'',opener:document.activeElement,busy:false});
+  Object.assign(SH,{mode:o.mode,payload:o.payload||null,from:o.from||null,itemId:o.itemId||null,sid:o.sid||null,fname:o.fname||'',merge:'',ids:o.ids||[],keptLive:!!o.keptLive,opener:document.activeElement,busy:false});
   await renderSheet();
+  $('#sheet-new').hidden=SH.mode==='delete';$('#sheet-del').hidden=SH.mode!=='delete';
   $('#sheet-name').value=o.prefill||'';$('#sheet-err').hidden=true;
   sheet.classList.add('open');shScrim.classList.add('open');document.body.classList.add('lock');
-  setTimeout(()=>{const f=(SH.mode==='rename'?null:sheet.querySelector('.sh-row'))||$('#sheet-name');if(f){f.focus({preventScroll:true});if(SH.mode==='rename'&&f.select)f.select()}},60);
+  setTimeout(()=>{const f=SH.mode==='delete'?$('#sheet-close'):(SH.mode==='rename'?null:sheet.querySelector('.sh-row'))||$('#sheet-name');if(f){f.focus({preventScroll:true});if(SH.mode==='rename'&&f.select)f.select()}},60);
 }
 function closeSheet(){
   if(!sheet.classList.contains('open'))return;
@@ -3026,7 +3129,16 @@ async function folderSubmit(){
   toast(other?`Merged into \u201c${to}\u201d.`:`Renamed to \u201c${to}\u201d.`);
   if(CUR==='library')renderLibrary();
 }
+async function renderDeleteSheet(){
+  const n=SH.ids.length;let sub='';
+  if(n===1){try{const x=await idb.get('sessions',SH.ids[0]);if(x)sub=`\u201c${clip(x.title||'Recording',60)}\u201d`}catch(e){}}
+  $('#sheet-title').textContent=n===1?'Delete this recording?':`Delete ${n} recordings?`;
+  $('#sheet-sub').textContent=sub;
+  $('#sheet-list').innerHTML=`<p class="meta" style="margin:10px 0 12px">${n===1?'Its audio, transcript and notes are removed from this device.':'Their audio, transcripts and notes are removed from this device.'} This cannot be undone.${SH.keptLive?' The recording you are making right now is kept.':''}</p>`;
+  $('#sheet-del').textContent=n===1?'Delete':`Delete ${n}`;
+}
 async function renderSheet(){
+  if(SH.mode==='delete')return renderDeleteSheet();
   if(SH.mode==='folder'||SH.mode==='rename')return renderFolderSheet();
   const nm0=$('#sheet-name');nm0.placeholder='New project name';nm0.setAttribute('aria-label','New project name');nm0.maxLength=PJ_MAXNAME;
   const d=await pjLoad(),move=SH.mode==='move',pl=SH.payload,whole=!move&&!!pl&&pl.kind==='whole';
@@ -3065,6 +3177,18 @@ $('#sheet-new').addEventListener('submit',async e=>{
 });
 $('#sheet-name').addEventListener('input',()=>{$('#sheet-err').hidden=true;SH.merge=''});
 $('#sheet-close').onclick=closeSheet;shScrim.onclick=closeSheet;
+$('#sheet-del').onclick=async()=>{
+  if(SH.busy||SH.mode!=='delete')return;
+  SH.busy=true;
+  try{
+    const ids=SH.ids.slice();closeSheet();
+    const {n,kept}=await deleteRecordings(ids);
+    LV.sel=null;selSync();
+    await refreshTitles();
+    if(CUR==='library')await renderLibrary();
+    toast(n?(n===1&&!kept?'Deleted.':`Deleted ${n} recordings.`):'Could not delete that.');
+  }finally{SH.busy=false}
+};
 document.addEventListener('keydown',e=>{
   if(!sheet.classList.contains('open'))return;
   if(e.key==='Escape'){closeSheet();return}
@@ -3081,7 +3205,7 @@ async function renderProjects(){
   let d;try{d=await pjLoad()}catch(e){$('#pj-list').innerHTML='<p class="empty">Could not read your projects.</p>';return}
   if(CUR!=='projects')return;
   const ps=d.projects.slice().sort((a,b)=>b.updated-a.updated);
-  $('#pj-list').innerHTML=ps.length?ps.map(p=>`<button class="pj-row" type="button" data-pid="${esc(p.id)}"><span class="pj-n"><strong>${esc(p.name)}</strong><span class="meta">${pjCount(p.items)} · ${fmtDate(p.updated)}</span></span><span class="chev" aria-hidden="true"></span></button>`).join(''):'<div class="card"><p class="empty" style="margin:0">No projects yet. Name one above, or open any answer, tap the three dots and save it to a new project. You can also swipe a recording left in your Library.</p></div>';
+  $('#pj-list').innerHTML=ps.length?ps.map(p=>`<button class="pj-row" type="button" data-pid="${esc(p.id)}"><span class="pj-n"><strong>${esc(p.name)}</strong><span class="meta">${pjCount(p.items)} · ${fmtDate(p.updated)}</span></span><span class="chev" aria-hidden="true"></span></button>`).join(''):'<div class="card"><p class="empty" style="margin:0">No projects yet. Name one above, or open any answer, tap the three dots and save it to a new project. You can also swipe a recording right in your Library.</p></div>';
 }
 $('#pj-new').addEventListener('submit',async e=>{
   e.preventDefault();
@@ -3128,7 +3252,7 @@ async function renderProject(){
   const n=p.items.length;
   $('#pj-meta').textContent=(n?pjCount(p.items)+' · ':'')+'created '+fmtDate(p.created);
   $('#pj-quiz').disabled=!n;
-  $('#pj-items').innerHTML=n?p.items.map(pjItemHtml).join(''):'<p class="meta" style="margin:2px 0">Nothing saved here yet. Open a recording, tap the three dots on an answer and choose this project. Or swipe a recording left in your Library to add all of it.</p>';
+  $('#pj-items').innerHTML=n?p.items.map(pjItemHtml).join(''):'<p class="meta" style="margin:2px 0">Nothing saved here yet. Open a recording, tap the three dots on an answer and choose this project. Or swipe a recording right in your Library to add all of it.</p>';
   if(PJ.reveal){
     const el=$(`#pj-items .qa[data-id="${PJ.reveal}"]`);PJ.reveal=null;
     if(el)setTimeout(()=>el.scrollIntoView({block:'start'}),40);
