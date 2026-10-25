@@ -283,7 +283,18 @@ button.cite:hover{text-decoration:underline}
 .kind{font-size:.72rem;font-weight:700;letter-spacing:.03em;text-transform:uppercase;padding:2px 9px;border-radius:999px;background:var(--accent-soft);color:var(--accent)}
 .due{font-size:.84rem;color:var(--muted);font-weight:600}
 .due.late{color:var(--warn)}
-.as-title{font-weight:700;font-size:1.04rem;overflow-wrap:anywhere}
+.as-title{font-weight:700;font-size:1.04rem;overflow-wrap:anywhere;display:block}
+.as-head{display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:10px;row-gap:5px;align-items:center;width:100%;text-align:left;background:none;border:0;padding:2px 0;margin:0;color:inherit;font:inherit;border-radius:8px;cursor:pointer;min-height:44px}
+.as-head .as-top{grid-column:1;grid-row:1}
+.as-head .as-title{grid-column:1;grid-row:2}
+.as-head .chev{grid-column:2;grid-row:1/3;margin:0 4px 0 0}
+.as.open .as-head .chev{transform:rotate(-135deg);margin:4px 4px 0 0}
+.as-more{display:flex;flex-direction:column;gap:5px;min-width:0;padding-top:4px}
+.as-more[hidden]{display:none}
+.as-study{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:6px;color:var(--muted);font-size:.85rem}
+.as-study svg{width:18px;height:18px;flex:none;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.as-quiz{border:1px solid var(--accent);background:transparent;color:var(--accent);border-radius:999px;padding:5px 13px;min-height:34px;font-size:.85rem;font-weight:650}
+.as-quiz:hover,.as-quiz:active{background:var(--accent-soft)}
 .as-det{font-size:.95rem;overflow-wrap:anywhere}
 .as-help{font-size:.92rem;overflow-wrap:anywhere}
 .as.done .as-help{color:var(--muted)}
@@ -758,7 +769,7 @@ let toastT;
 function toast(m){const t=$('#toast');t.textContent=m;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>{t.hidden=true},4500)}
 
 /* ---------- settings ---------- */
-const BUILD='25 Oct 2026, assignments keep how to hand in and who to email';
+const BUILD='25 Oct 2026, assignments fold open and shut, with Study and a quick quiz';
 const DEF={apiKey:'',model:'claude-sonnet-5-5',lang:'',kbps:64,terms:'',aaiKey:'',speakers:false,sound:'natural',liveTx:true,meter:true,orb:true};
 const settings=Object.assign({},DEF);
 let savedSettings={};try{savedSettings=JSON.parse(localStorage.getItem('longtake.settings')||'{}')||{}}catch(e){}
@@ -2932,7 +2943,7 @@ $('#d-mark').onclick=async()=>{
 /* ---------- Assignments ---------- */
 const KINDS={assignment:'Assignment',quiz:'Quiz',test:'Test',exam:'Exam',project:'Project',presentation:'Presentation',reading:'Reading',other:'Other'};
 const AS_SYS='You read one transcript from a voice recorder and list everything the teacher, presenter, speaker or organizer says the listeners must do or prepare for: homework, assignments, readings, projects, papers, labs, quizzes, tests, exams, presentations they have to give, forms or sign-ups, things to bring, and deadlines. Include an announcement of an upcoming quiz, test or exam even when the speaker only gives the date or says what it covers. Do not include the speaker\'s own plans, general advice or things the listeners are merely invited to think about. Never invent anything: every item must come from what the speaker said. The transcript was made by automatic speech recognition, so quietly fix obvious misheard words in names and terms.\n\nKeep with each task the instructions the speaker gave about handing it in and getting help: who to email or contact if a listener is confused or stuck, where or how to send work or examples, and any email address, link or contact detail that was given. These instructions can come a minute or two after the task is announced, and a general instruction to the whole class (such as emailing the speaker with questions) belongs with every task from this recording. Write an email address exactly as the transcript has it, and if the speaker only said they would give it out, say that instead of making one up.\n\nReturn one JSON object and nothing else, in exactly this shape: {"items":[{"kind":"assignment|quiz|test|exam|project|presentation|reading|other","title":"short name","details":"what is required and what it covers, in one or two plain sentences","due":"the due date or time as the speaker said it, or an empty string","dueISO":"that date as YYYY-MM-DD if it can be worked out from the date the recording was made, otherwise an empty string","graded":"how it is graded or weighted if the speaker said, otherwise an empty string","help":"how to hand it in and who to contact or email if stuck or confused, with any email address or link that was given, in one or two plain sentences, or an empty string","time":"hh:mm:ss where the speaker first raised it"}]}. Use kind \"assignment\" for homework and other graded work. If nothing is required of the listeners, return {"items":[]}.';
-const AS={data:null,busy:false,abort:null,msg:'',err:'',errKey:false,showDone:false,tok:0};
+const AS={data:null,busy:false,abort:null,msg:'',err:'',errKey:false,showDone:false,tok:0,open:new Set()};
 async function asLoad(){
   if(AS.data)return AS.data;
   const r=await getRec('__assign');
@@ -2999,9 +3010,10 @@ function dueInfo(it){
   return {late:false,text:'No date mentioned'};
 }
 function asCard(it,by){
-  const x=by.get(it.sid),du=dueInfo(it);
+  const x=by.get(it.sid),du=dueInfo(it),open=AS.open.has(it.id),bid='as-b-'+it.id.replace(/[^a-z0-9]/gi,'');
   const src=x?`<button class="cite as-src" type="button" data-sid="${esc(it.sid)}" data-t="${it.t==null?0:it.t}">${esc(x.s.title)}${it.t==null?'':' · '+shortClock(it.t)}</button>`:'';
-  return `<div class="card as${it.done?' done':''}"><div class="as-row"><button class="tick" type="button" role="checkbox" aria-checked="${it.done?'true':'false'}" aria-label="Done: ${esc(it.title)}" data-id="${esc(it.id)}" data-act="done"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></button><div class="as-body"><div class="as-top"><span class="kind">${KINDS[it.kind]||'Other'}</span><span class="due${du.late?' late':''}">${esc(du.text)}</span></div><div class="as-title">${esc(it.title)}</div>${it.details?`<div class="as-det">${esc(it.details)}</div>`:''}${it.help?`<div class="as-help"><strong>Help and turning it in:</strong> ${esc(it.help)}</div>`:''}${it.graded?`<div class="meta">Grading: ${esc(it.graded)}</div>`:''}${it.dueISO&&it.due?`<div class="meta">The speaker said: “${esc(it.due)}”</div>`:''}${src}<div><button class="linkbtn" type="button" data-id="${esc(it.id)}" data-act="hide" style="color:var(--muted);font-weight:500;font-size:.85rem">Remove</button></div></div></div></div>`;
+  const study=x&&x.segs.length&&!x.live?`<div class="as-study"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9.5L12 5l9 4.5-9 4.5z"/><path d="M7 12v4.2c1.4 1.3 3.2 2 5 2s3.6-.7 5-2V12"/></svg><span>Study for this</span><button class="as-quiz" type="button" data-id="${esc(it.id)}" data-act="quiz" aria-label="Study for ${esc(it.title)}: take a quiz">Take a quiz</button></div>`:'';
+  return `<div class="card as${it.done?' done':''}${open?' open':''}"><div class="as-row"><button class="tick" type="button" role="checkbox" aria-checked="${it.done?'true':'false'}" aria-label="Done: ${esc(it.title)}" data-id="${esc(it.id)}" data-act="done"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></button><div class="as-body"><button class="as-head" type="button" data-id="${esc(it.id)}" data-act="open" aria-expanded="${open?'true':'false'}" aria-controls="${bid}"><span class="as-top"><span class="kind">${KINDS[it.kind]||'Other'}</span><span class="due${du.late?' late':''}">${esc(du.text)}</span></span><span class="as-title">${esc(it.title)}</span><span class="chev" aria-hidden="true"></span></button><div class="as-more" id="${bid}"${open?'':' hidden'}>${it.details?`<div class="as-det">${esc(it.details)}</div>`:''}${it.help?`<div class="as-help"><strong>Help and turning it in:</strong> ${esc(it.help)}</div>`:''}${it.graded?`<div class="meta">Grading: ${esc(it.graded)}</div>`:''}${it.dueISO&&it.due?`<div class="meta">The speaker said: “${esc(it.due)}”</div>`:''}${src}${study}<div><button class="linkbtn" type="button" data-id="${esc(it.id)}" data-act="hide" style="color:var(--muted);font-weight:500;font-size:.85rem">Remove</button></div></div></div></div></div>`;
 }
 async function renderAssign(){
   const tok=++AS.tok;
@@ -3042,13 +3054,29 @@ async function renderAssign(){
   $('#as-list').innerHTML=html;
   const dn=$('#as-done');if(dn)dn.ontoggle=()=>{AS.showDone=dn.open};
 }
+async function asStudy(it){ /* open the Quiz page already set up for this task: its recording, 5 questions, and the task as the focus */
+  if(QZ.busy){show('quiz');toast('A quiz is already being written.');return}
+  let q,list;try{q=await qzLoad();list=await textSessions()}catch(e){toast('Could not read your recordings.');return}
+  if(!list.some(v=>v.s.id===it.sid&&v.segs.length&&!v.live)){toast('That recording has no transcript to quiz on yet.');return}
+  const focus=clip(['quiz','test','exam'].includes(it.kind)&&it.details?it.title+': '+it.details:it.title,200);
+  q.src='rec';q.sel=[it.sid];q.focus=focus;q.count=5;
+  QZ.mode='setup';QZ.err='';QZ.errKey=false;QZ.pre={sid:it.sid,title:it.title,focus};
+  await qzSave();show('quiz');
+}
 $('#as-scan').onclick=e=>asScan(e.currentTarget.dataset.force==='1');
 $('#as-stop').onclick=()=>{if(AS.abort)AS.abort.abort()};
 $('#as-list').addEventListener('click',async e=>{
   const c=e.target.closest('button.cite');
   if(c){openAt(c.dataset.sid,Math.max(0,+c.dataset.t-LEAD),'assign');return}
   const b=e.target.closest('[data-act]');if(!b)return;
+  if(b.dataset.act==='open'){ /* fold the card open or shut where it stands, without redrawing the list */
+    const card=b.closest('.as'),more=card&&card.querySelector('.as-more');if(!more)return;
+    const on=more.hidden;more.hidden=!on;card.classList.toggle('open',on);b.setAttribute('aria-expanded',on?'true':'false');
+    if(on)AS.open.add(b.dataset.id);else AS.open.delete(b.dataset.id);
+    return;
+  }
   const d=await asLoad(),it=b.dataset.id?d.items.find(x=>x.id===b.dataset.id):null;
+  if(b.dataset.act==='quiz'&&it){asStudy(it);return}
   if(b.dataset.act==='done'&&it){it.done=!it.done;await asSave();renderAssign()}
   else if(b.dataset.act==='hide'&&it){twoTap(b,'Tap again to remove',async()=>{it.hidden=true;await asSave();renderAssign()})}
   else if(b.dataset.act==='restore'){d.items.forEach(x=>{x.hidden=false});await asSave();renderAssign()}
@@ -3347,7 +3375,7 @@ $('#pj-quiz').addEventListener('click',async()=>{
 
 /* ---------- Quiz ---------- */
 const QZ_SYS='You write quiz questions that help a student study from recordings of lectures, meetings and talks. Use only what the speaker actually says in the transcripts; never rely on outside knowledge for a question or for its correct answer. The transcripts come from automatic speech recognition and can contain misheard words, so quietly fix obvious errors. Write clear multiple-choice questions, each with exactly four options and exactly one correct answer. The wrong options must be plausible but clearly wrong according to the transcript. Never use options such as \"all of the above\" or \"none of the above\". Test understanding of the real ideas, definitions, steps, examples, numbers, names and decisions, not trivia. Vary the kinds of question and spread them across the material in the order it was taught. For each question, write a short explanation in the voice of a good teacher: one or two sentences saying why the answer is right and what the speaker said.\n\nReturn one JSON object and nothing else, in exactly this shape: {"questions":[{"q":"the question","options":["first option","second option","third option","fourth option"],"answer":0,"why":"the explanation","rec":"the id of the recording the question comes from","time":"hh:mm:ss where the speaker said it"}]}. \"answer\" is the zero-based position of the correct option. Do not put letters such as A) in front of the options.';
-const QZ={data:null,mode:null,busy:false,abort:null,err:'',errKey:false,tok:0,count:0,part:null,what:''};
+const QZ={data:null,mode:null,busy:false,abort:null,err:'',errKey:false,tok:0,count:0,part:null,what:'',pre:null};
 async function qzLoad(){
   if(QZ.data)return QZ.data;
   const r=await getRec('__quiz')||{};
@@ -3463,7 +3491,7 @@ const qzProgText=()=>{
 };
 async function qzStart(){
   if(QZ.busy)return;
-  QZ.busy=true;QZ.err='';QZ.errKey=false;QZ.part=null; /* claimed right away, so a double tap cannot start two quizzes */
+  QZ.busy=true;QZ.err='';QZ.errKey=false;QZ.part=null;QZ.pre=null; /* claimed right away, so a double tap cannot start two quizzes */
   const d=await qzLoad(),proj=d.src==='proj';
   let list;try{list=await textSessions();await pjLoad()}catch(e){QZ.busy=false;QZ.err='Could not read your '+(proj?'projects.':'recordings.');renderQuiz();return}
   const use=proj?[]:list.filter(x=>d.sel.includes(x.s.id)&&x.segs.length&&!x.live);
@@ -3560,7 +3588,8 @@ function setupHtml(d,list){
   const pall=PJ.data?PJ.data.projects:[],pfull=pall.filter(p=>p.items.some(it=>it.kind!=='whole'||wholeOk(it,list))),psel=new Set(d.psel=d.psel.filter(id=>pfull.some(p=>p.id===id)));
   const sel=new Set(d.sel);
   let h='';
-  const c=d.cur;
+  const c=d.cur,pre=QZ.pre;
+  if(pre&&!proj&&d.sel.length===1&&d.sel[0]===pre.sid&&d.focus===pre.focus)h+=`<div class="card" id="qz-pre"><p style="margin:0">Set up from your assignment <strong>${esc(pre.title)}</strong>: this recording, ${d.count} questions. Change anything below, then tap Start quiz.</p><div style="margin-top:6px"><button class="linkbtn" type="button" data-go="assign">Back to Assignments</button></div></div>`;
   if(c&&c.idx<c.qs.length)h+=`<div class="card"><div class="card-head" style="margin:0"><div><strong>Quiz in progress</strong><div class="meta">Question ${c.idx+1} of ${c.qs.length} · ${esc(labelOf(c.titles))}</div></div><button class="btn" type="button" data-q="resume">Back to quiz</button></div><p class="meta" style="margin:8px 0 0">Starting a new quiz replaces this one.</p></div>`;
   h+=`<div class="card"><h2 style="margin-bottom:10px">Quiz me on</h2><div class="chips" role="group" aria-label="Where the questions come from" style="margin:0"><button class="chip${proj?'':' on'}" type="button" data-src="rec" aria-pressed="${!proj}">Recordings</button><button class="chip${proj?' on':''}" type="button" data-src="proj" aria-pressed="${proj}">Projects</button></div></div>`;
   if(proj){
