@@ -463,7 +463,7 @@ mark.hit{background:var(--accent-soft);color:var(--accent);border-radius:4px;pad
     </details>
     <div class="card ask">
       <div class="card-head"><h2>Ask your library</h2><button class="linkbtn" id="lib-new" type="button" hidden>New chat</button></div>
-      <p class="meta" id="lib-hint">Ask about anything you've recorded, such as what a lecture covered or what is due. Answers come from all of your recordings. When you leave this page, the chat is saved in Chats.</p>
+      <p class="meta" id="lib-hint">Ask about anything you've recorded, such as what a lecture covered or what is due. Say “my newest recording” to focus on the latest one. Answers come from all of your recordings. When you leave this page, the chat is saved in Chats.</p>
       <div id="lib-chat" aria-live="polite"></div>
       <div class="err" id="lib-err" hidden></div>
     </div>
@@ -756,7 +756,7 @@ let toastT;
 function toast(m){const t=$('#toast');t.textContent=m;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>{t.hidden=true},4500)}
 
 /* ---------- settings ---------- */
-const BUILD='24 Oct 2026, swipe right to add, left to delete, and Select';
+const BUILD='25 Oct 2026, assistant never stalls on Thinking, and knows your newest recording';
 const DEF={apiKey:'',model:'claude-sonnet-5-5',lang:'',kbps:64,terms:'',aaiKey:'',speakers:false,sound:'natural',liveTx:true,meter:true,orb:true};
 const settings=Object.assign({},DEF);
 let savedSettings={};try{savedSettings=JSON.parse(localStorage.getItem('longtake.settings')||'{}')||{}}catch(e){}
@@ -2014,6 +2014,7 @@ $('#lib-rm').onclick=()=>twoTap($('#lib-rm'),'Tap again to remove',async()=>{
 /* ---------- detail ---------- */
 let BACK='library';
 const BACKLBL={home:'Home',library:'Library',chats:'Chats',chat:'Chat',marked:'Marked',assign:'Assignments',quiz:'Quiz',projects:'Projects',project:'Project'};
+const cleanChat=m=>{const out=[];for(const x of (Array.isArray(m)?m:[])){if(x&&x.role==='assistant'&&!String(x.content||'').trim()){if(out.length&&out[out.length-1].role==='user')out.pop();continue}out.push(x)}return out}; /* a question whose answer never came is not kept */
 const D={hl:null,sid:null,session:null,segs:[],url:null,blob:null,chat:[],digest:null,digestLen:0,abort:null,busy:false,delArm:false,delT:0,edit:false,open:-1};
 const audio=$('#d-audio');
 async function openDetail(sid,back){
@@ -2022,7 +2023,7 @@ async function openDetail(sid,back){
   const s=await idb.get('sessions',sid);
   if(!s){show('library');return}
   const [txr,notes,ch]=await Promise.all([idb.get('tx',sid),idb.get('notes',sid),idb.chunks(sid)]);
-  Object.assign(D,{sid,session:s,segs:(txr&&txr.segments)||[],chat:(notes&&notes.messages)||[],digest:(notes&&notes.digest)||null,digestLen:(notes&&notes.digestLen)||0,busy:false});
+  Object.assign(D,{sid,session:s,segs:(txr&&txr.segments)||[],chat:cleanChat(notes&&notes.messages),digest:(notes&&notes.digest)||null,digestLen:(notes&&notes.digestLen)||0,busy:false});
   D.hl=null;$('#d-title').value=s.title;
   $('#d-meta').textContent=metaText();updateFolderBtn();updateProjBtn();
   if(D.url)URL.revokeObjectURL(D.url);
@@ -2139,15 +2140,16 @@ Format with Markdown: bullets with "-" (indent sub-bullets by two spaces) and **
 const CONDENSE='You condense one part of a long speech-recognition transcript into detailed notes that must still teach the material. Keep the specific content in the speaker\'s order: ideas, definitions, steps, examples, stories, advice, names, numbers, decisions and tasks. Never describe a topic when you can state what was said. Quietly fix obvious recognition errors. Keep the [hh:mm:ss] timestamp on every point. Output the notes only.';
 const LIMIT=300000;
 
-async function callClaude({system,messages,max,signal,onText}){
-  if(!settings.apiKey)throw new Error('NOKEY');
+async function claudeOnce({system,messages,signal,onText},max,thinking){ /* one request; says how it ended, so an answer with no words can be told apart from a normal one */
+  const body={model:settings.model||DEF.model,max_tokens:max,system,messages,stream:true};
+  if(thinking)body.thinking=thinking;
   const r=await fetch('https://api.anthropic.com/v1/messages',{
     method:'POST',signal,
     headers:{'content-type':'application/json','x-api-key':settings.apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-    body:JSON.stringify({model:settings.model||DEF.model,max_tokens:max||2000,system,messages,stream:true})
+    body:JSON.stringify(body)
   });
   if(!r.ok){let m='';try{m=(await r.json()).error.message}catch(e){}const err=new Error(m||('Request failed ('+r.status+')'));err.status=r.status;throw err}
-  const reader=r.body.getReader(),dec=new TextDecoder();let buf='',full='';
+  const reader=r.body.getReader(),dec=new TextDecoder();let buf='',full='',stop='',think=false;
   for(;;){
     const {done,value}=await reader.read();if(done)break;
     buf+=dec.decode(value,{stream:true});
@@ -2157,10 +2159,28 @@ async function callClaude({system,messages,max,signal,onText}){
       const line=ev.split('\n').find(l=>l.startsWith('data:'));if(!line)continue;
       let j;try{j=JSON.parse(line.slice(5))}catch(e){continue}
       if(j.type==='content_block_delta'&&j.delta&&j.delta.type==='text_delta'){full+=j.delta.text;if(onText)onText(full)}
+      else if(j.type==='content_block_delta'&&j.delta&&j.delta.type==='thinking_delta')think=true;
+      else if(j.type==='content_block_start'&&j.content_block&&(j.content_block.type==='thinking'||j.content_block.type==='redacted_thinking'))think=true;
+      else if(j.type==='message_delta'&&j.delta&&j.delta.stop_reason)stop=j.delta.stop_reason;
       else if(j.type==='error'){throw new Error((j.error&&j.error.message)||'The stream failed.')}
     }
   }
-  return full;
+  return {text:full,stop,think};
+}
+async function callClaude(o){
+  if(!settings.apiKey)throw new Error('NOKEY');
+  const base=o.max||2000;
+  let r=await claudeOnce(o,base,null);
+  if(!o.need||r.text.trim())return r.text;
+  /* it ended without a single word: usually it spent its whole allowance thinking. Try once more with a much bigger allowance and the thinking turned off */
+  if(r.stop==='max_tokens'||r.think){
+    if(o.onRetry)o.onRetry();
+    const big=Math.min(Math.max(base*3,9000),16000);
+    try{r=await claudeOnce(o,big,{type:'disabled'})}
+    catch(e){if(e.status===400)r=await claudeOnce(o,big,null);else throw e} /* a model that does not accept the setting gets the plain request */
+    if(r.text.trim())return r.text;
+  }
+  throw Object.assign(new Error('The assistant did not send back an answer'+(r.stop?' (it stopped with: '+r.stop+')':'')+'. Tap Ask to try again, or ask for one part of it at a time.'),{empty:true});
 }
 function friendlyErr(e){
   if(e.message==='NOKEY')return 'Add your Anthropic API key in Settings to use the assistant.';
@@ -2180,7 +2200,7 @@ async function contextText(onProgress,signal){
   const out=[];
   for(let i=0;i<parts.length;i++){
     onProgress(i+1,parts.length);
-    out.push(await callClaude({system:sysPrompt(CONDENSE),messages:[{role:'user',content:parts[i]}],max:6000,signal}));
+    out.push(await callClaude({system:sysPrompt(CONDENSE),messages:[{role:'user',content:parts[i]}],max:6000,signal,need:true}));
   }
   D.digest=out.join('\n\n');D.digestLen=full.length;
   return {text:D.digest,condensed:true};
@@ -2218,7 +2238,7 @@ function qaItem(pr,p,last){
   const open=D.open===p,streaming=D.busy&&last,done=!D.busy&&pr.a.content,ready=pr.a.content&&!streaming;
   const chip=pr.u.label&&$$('#quick .chip').some(c=>c.dataset.label===pr.u.label);
   const acts=done?`<div class="qa-act"><button class="btn sm" type="button" data-act="copy">Copy</button>${chip?'<button class="btn sm" type="button" data-act="again">Ask again</button>':''}<button class="btn sm" type="button" data-act="close">Close</button><button class="btn sm danger" type="button" data-act="remove">Remove</button></div>`:'';
-  return `<div class="qa${open?' open':''}" data-p="${p}"><div class="qa-hd"><button class="qa-h" type="button" aria-expanded="${open}" aria-controls="qa-b${p}"><span class="qa-t">${esc(bubble(pr.u))}</span><span class="sum-r">${streaming?'<span class="meta">Writing…</span>':''}<span class="chev" aria-hidden="true"></span></span></button>${ready?`<button class="qa-more" type="button" aria-label="Save this answer to a project" aria-haspopup="dialog">${DOTS}</button>`:''}</div><div class="qa-b" id="qa-b${p}"${open?'':' hidden'}>${!pr.u.label&&bubble(pr.u).length>80?`<p class="meta qa-q">${esc(bubble(pr.u))}</p>`:''}<div class="msg bot qa-md">${pr.a.content?md(pr.a.content):'<span class="meta">Thinking…</span>'}</div>${acts}</div></div>`;
+  return `<div class="qa${open?' open':''}" data-p="${p}"><div class="qa-hd"><button class="qa-h" type="button" aria-expanded="${open}" aria-controls="qa-b${p}"><span class="qa-t">${esc(bubble(pr.u))}</span><span class="sum-r">${streaming?'<span class="meta">Writing…</span>':''}<span class="chev" aria-hidden="true"></span></span></button>${ready?`<button class="qa-more" type="button" aria-label="Save this answer to a project" aria-haspopup="dialog">${DOTS}</button>`:''}</div><div class="qa-b" id="qa-b${p}"${open?'':' hidden'}>${!pr.u.label&&bubble(pr.u).length>80?`<p class="meta qa-q">${esc(bubble(pr.u))}</p>`:''}<div class="msg bot qa-md">${pr.a.content?md(pr.a.content):waitHtml()}</div>${acts}</div></div>`;
 }
 function renderChat(){ /* every question is a row that opens to its answer, so the page stays short */
   const box=$('#chat'),ps=pairsOf();
@@ -2240,8 +2260,10 @@ function revealQA(p){
   const el=$(`#chat .qa[data-p="${p}"]`);if(!el)return;
   const r=el.getBoundingClientRect();if(r.top<barH()+46||r.top>innerHeight-160)el.scrollIntoView({block:'start'});
 }
+const WAIT={s:0};
+const waitHtml=()=>'<span class="meta">Thinking…'+(WAIT.s>=4?' '+WAIT.s+' s':'')+(WAIT.s>=45?' This is taking long. Tap Stop to cancel and try again.':'')+'</span>';
 let paintT=0; /* while an answer is being written, only its own text is redrawn, a few times a second, and the page is never moved */
-function paintChat(){paintT=0;const ps=pairsOf(),p=ps.length-1;if(p<0)return;const el=$(`#chat .qa[data-p="${p}"] .qa-md`);if(!el)return;const a=ps[p].a;el.innerHTML=a.content?md(a.content):'<span class="meta">Thinking…</span>'}
+function paintChat(){paintT=0;const ps=pairsOf(),p=ps.length-1;if(p<0)return;const el=$(`#chat .qa[data-p="${p}"] .qa-md`);if(!el)return;const a=ps[p].a;el.innerHTML=a.content?md(a.content):waitHtml()}
 const schedChat=()=>{if(!paintT)paintT=setTimeout(paintChat,100)};
 $('#chat').addEventListener('click',async e=>{
   const mb=e.target.closest('.qa-more');
@@ -2275,6 +2297,7 @@ async function ask(q,opt){
   D.chat.push(opt&&opt.chip?{role:'user',content:q,label:opt.label}:{role:'user',content:q});const reply={role:'assistant',content:''};D.chat.push(reply);
   D.open=pairsOf().length-1;renderChat();revealQA(D.open);
   D.abort=new AbortController();const signal=D.abort.signal;
+  WAIT.s=0;const w0=Date.now(),wt=setInterval(()=>{if(!reply.content){WAIT.s=Math.round((Date.now()-w0)/1000);schedChat()}},1000);
   try{
     const ctx=await contextText((i,n)=>{reply.content=`Reading a long recording: part ${i} of ${n}…`;schedChat()},signal);
     reply.content='';
@@ -2282,12 +2305,12 @@ async function ask(q,opt){
     const tr=`<transcript${ctx.condensed?' condensed="true"':''}>\n${ctx.text}\n</transcript>\n\n`;
     /* a button is its own request: it gets the transcript and nothing from earlier answers, so it gives one clean result */
     const msgs=opt&&opt.chip?[{role:'user',content:tr+q}]:D.chat.slice(0,-1).map((m,i)=>({role:m.role,content:i===0?tr+m.content:m.content}));
-    await callClaude({system:sysPrompt(SYS),messages:msgs,max:(opt&&opt.max)||3000,signal,onText:t=>{reply.content=t;schedChat()}});
+    await callClaude({system:sysPrompt(SYS),messages:msgs,max:(opt&&opt.max)||6000,signal,need:true,onRetry:()=>{reply.content='That took more thinking than it had room for. Trying again with more room…';schedChat()},onText:t=>{reply.content=t;schedChat()}});
   }catch(e){
     const back=()=>{if(was){D.chat.splice(wasAt,0,...was);D.open=pairsOf().findIndex(x=>x.u===was[0])}}; /* the old answer returns, and is the row left open */
     if(e.name==='AbortError'){if(!reply.content){D.chat.splice(-2,2);back()}}
     else{D.chat.splice(-2,2);back();showErr(friendlyErr(e));if(!(opt&&opt.chip)){$('#chat-input').value=q;growChat()}}
-  }finally{clearTimeout(paintT);paintT=0;D.abort=null;setBusy(false);renderChat();persistNotes()}
+  }finally{clearInterval(wt);clearTimeout(paintT);paintT=0;D.abort=null;setBusy(false);renderChat();persistNotes()}
 }
 function growChat(){const t=$('#chat-input');t.style.height='auto';t.style.height=Math.min(t.scrollHeight,128)+'px'}
 $('#chat-input').addEventListener('input',growChat);
@@ -2583,12 +2606,14 @@ const LIBSYS=`You are now answering from the student's whole library of recordin
 
 Answer only from the excerpts and the list. Do not invent what was said. If the excerpts do not contain the answer, say what you did find, say that the answer may be in a part of a recording that was not selected, and suggest a more specific question, such as a term, a date or the name of a recording. For a question about what was covered or what is due, use everything relevant in the excerpts across recordings, and put the newest first when dates matter.
 
+When the student says "this", "it", "that one" or "my newest / latest / last recording" and nothing in the chat points to a different recording, they mean the newest recording, the first line of the list. Say which recording you are using.
+
 Name the recording in words when you use it (its title or its date) and cite each moment as [id hh:mm:ss], using the recording id exactly as it appears in the excerpt heading, for example [k3j9a2 00:12:30]. Put an id only inside those brackets, never in your sentences. Do not use the plain [hh:mm:ss] form here.`;
 const PLANSYS=`You help a search tool find the right parts of a student's recorded lectures, meetings and talks. You get the question, today's date and a list of recordings. Reply with one JSON object and nothing else, in this form: {"recordings":[],"keywords":[],"full":false}
 
 keywords: up to 14 single words likely to be spoken in the relevant passages. Include synonyms and related forms (for exam also test, quiz, midterm, final; for due also deadline, submit, turn in). Spell names and terms the way a transcript would.
-recordings: ids of recordings, only when the question points to specific recordings by date, title or order (today, yesterday, last Tuesday, my latest lecture, the biology one). Otherwise an empty list. Work out dates from the list and today's date. A date that says when something is due or happens (such as "the quiz on Friday") is not a recording date.
-full: true only when the question needs most of what was said in those recordings, such as "what did I cover today" or "summarize my last lecture". Otherwise false.`;
+recordings: ids of recordings, only when the question points to specific recordings by date, title or order (today, yesterday, last Tuesday, my latest lecture, the biology one). The first recording in the list is the newest. "This", "it" or "that one", with nothing else pointing to a recording, and "my newest / latest / last recording", mean that newest one. Otherwise an empty list. Work out dates from the list and today's date. A date that says when something is due or happens (such as "the quiz on Friday") is not a recording date.
+full: true only when the question needs most of what was said in those recordings, such as "what did I cover today", "summarize my last lecture", "everything I could learn from this", "key points", "main ideas" or "study notes". Otherwise false.`;
 const STOP=new Set('a an the and or but if then so of to in on at by for from with about as is are was were be been being am do does did done have has had having i me my mine we our you your he she it its they them their this that these those what which who whom whose when where why how can could should would will shall may might must not no yes any some all each every more most other another such than too very just also into over under again once there here out up down off own same few both between during before after above below until while because now ok okay um uh like really actually please tell show give find explain remind recorded recording recordings lecture class said say says talked talk mention mentioned'.split(' '));
 const CJK=/[぀-ヿ㐀-鿿가-힯]/;
 function stem(w){
@@ -2656,6 +2681,10 @@ async function planSearch(q,lib,signal){
     full:j.full===true
   };
 }
+const NEWEST_RE=/\b(?:my|the)\s+(?:newest|latest|most\s+recent|last)\s+(?:recording|lecture|class|session|talk|meeting|one)\b|\b(?:newest|latest|most\s+recent)\s+(?:recording|lecture|class|session|talk|meeting)\b|\bthis\s+(?:recording|lecture|class|session|talk|meeting)\b|\bjust\s+(?:record(?:ed)?|made|finished)\b/i;
+const BARE_THIS_RE=/\b(?:from|about|of|in|on|for|with|explain|summari[sz]e|recap|teach me)\s+(?:this|it|that)\s*(?:[?!.,]|$|\b(?:in|as|into|and|please)\b)/i;
+const BROAD_RE=/\b(?:everything|all of (?:it|that|this)|key\s+(?:points?|ideas?|takeaways?)|main\s+(?:points?|ideas?)|takeaways?|summar(?:y|ize|ise)|overview|recap|study\s+(?:notes|guide)|teach me|go (?:through|over)|what\s+(?:can|could|did|do|should)\s+i\s+(?:learn|cover|know|study))\b/i;
+const newestRef=(q,first)=>NEWEST_RE.test(q)||(first&&BARE_THIS_RE.test(q)); /* "this" on its own only counts as the first question of a chat; a follow-up could mean the recording just discussed */
 function selectPassages(q,lib,plan){
   const all=lib.filter(x=>x.blocks.length);
   const total=all.reduce((n,x)=>n+x.chars,0);
@@ -2665,7 +2694,14 @@ function selectPassages(q,lib,plan){
   if(total<=ALL_LIMIT){all.forEach(addAll);return {chosen,note:'Complete transcripts of all of the recordings.'}}
   const named=plan&&plan.recordings.length?all.filter(x=>plan.recordings.includes(x.s.id)):[];
   const pool=named.length?named:all;
-  if(plan&&plan.full&&named.length&&named.reduce((n,x)=>n+x.chars,0)<=FULL_LIMIT){named.forEach(addAll);return {chosen,note:'Complete transcripts of the recordings the question is about.'}}
+  if(named.length&&named.reduce((n,x)=>n+x.chars,0)<=FULL_LIMIT){named.forEach(addAll);return {chosen,note:'Complete transcripts of the recordings the question is about.'}} /* a question about named recordings that fit gets all of what was said, not keyword guesses */
+  if(plan&&plan.full&&named.length){ /* too long to send whole: as much as fits, spread from the first minute to the last */
+    const flat=[];for(const x of named)x.blocks.forEach((_,i)=>flat.push([x,i]));
+    const want=Math.max(SAMPLE_BLOCKS,Math.floor(FULL_LIMIT/BLOCK_CHARS)),step=Math.max(1,flat.length/want);
+    for(let k=0;k<flat.length;k+=step){const f=flat[Math.floor(k)];add(f[0],f[1])}
+    const lastf=flat[flat.length-1];add(lastf[0],lastf[1]);
+    return {chosen,note:'A spread-out sample that runs from the start to the end of the recordings the question is about. It is not the complete text, so some details may be missing.'};
+  }
   const kw=[...new Set([...(plan?plan.keywords.flatMap(terms):[]),...terms(q)])];
   const N=pool.reduce((n,x)=>n+x.blocks.length,0)||1,df=new Map();
   for(const x of pool)for(const b of x.blocks)for(const t of kw)if(b.stems.has(t))df.set(t,(df.get(t)||0)+1);
@@ -2732,7 +2768,7 @@ function libErr(m,link){
 }
 const persistLib=()=>idb.put('notes',{sid:'__library',messages:LIB.chat.slice(-40),cid:LIB.cid||null}).catch(()=>{});
 async function loadLib(){
-  try{const n=await idb.get('notes','__library');if(n&&Array.isArray(n.messages)&&n.messages.length&&!LIB.chat.length){LIB.chat=n.messages;LIB.cid=typeof n.cid==='string'?n.cid:null;await archiveLib('start')}}catch(e){} /* a chat left on Home from last time goes to Chats */
+  try{const n=await idb.get('notes','__library');if(n&&Array.isArray(n.messages)&&n.messages.length&&!LIB.chat.length){LIB.chat=cleanChat(n.messages);if(!LIB.chat.length)return;LIB.cid=typeof n.cid==='string'?n.cid:null;await archiveLib('start')}}catch(e){} /* a chat left on Home from last time goes to Chats */
 }
 async function askLib(q){
   if(LIB.busy||!q.trim())return;
@@ -2744,14 +2780,20 @@ async function askLib(q){
   try{
     const lib=await libData();
     if(!lib.some(x=>x.blocks.length))throw Object.assign(new Error('There is nothing to search yet. Record something, and its transcript will be searchable here.'),{plain:true});
-    const total=lib.reduce((n,x)=>n+x.chars,0);
-    const plan=total>ALL_LIMIT?await planSearch(q,lib,signal):null;
+    const total=lib.reduce((n,x)=>n+x.chars,0),newest=lib[0],refNew=newestRef(q,LIB.chat.length<=2);
+    if(refNew&&!newest.blocks.length)throw Object.assign(new Error(`Your newest recording, \u201c${safeTitle(newest.s.title)}\u201d, has no transcript yet, so there is nothing to learn from. Open it and use Improve with AssemblyAI in Tools to create one.`),{plain:true});
+    let plan=total>ALL_LIMIT?await planSearch(q,lib,signal):null;
+    if(!plan&&total>ALL_LIMIT)plan={recordings:[],keywords:[],full:false}; /* the planner gave nothing usable */
+    if(plan){
+      if(refNew&&!plan.recordings.length)plan.recordings=[newest.s.id]; /* the planner did not say which one, and the question did */
+      if(plan.recordings.length&&BROAD_RE.test(q))plan.full=true;
+    }
     const sel=selectPassages(q,lib,plan);
-    const user=`<recordings>\nid | title | recorded | length | words\n${lib.slice(0,150).map(idxLine).join('\n')}\n</recordings>\n\n<excerpts note="${sel.note}">\n${formatPassages(sel.chosen)}</excerpts>\n\n${q}`;
+    const user=`<recordings>\nid | title | recorded | length | words\n${lib.slice(0,150).map(idxLine).join('\n')}\n</recordings>\n\n<excerpts note="${sel.note}">\n${formatPassages(sel.chosen)}</excerpts>\n\n${q}${refNew?`\n\n<context>The question is about the newest recording: ${newest.s.id}, \u201c${safeTitle(newest.s.title)}\u201d.</context>`:''}`;
     const hist=LIB.chat.slice(0,-2).slice(-8);while(hist.length&&hist[0].role!=='user')hist.shift();
     const tl=libTerms(lib);
     const system=LIBSYS_FULL(tl);
-    await callClaude({system,messages:[...hist.map(m=>({role:m.role,content:m.content})),{role:'user',content:user}],max:3000,signal,onText:t=>{reply.content=t;schedLib()}});
+    await callClaude({system,messages:[...hist.map(m=>({role:m.role,content:m.content})),{role:'user',content:user}],max:4500,signal,need:true,onRetry:()=>{reply.content='That took more thinking than it had room for. Trying again with more room…';schedLib()},onText:t=>{reply.content=t;schedLib()}});
   }catch(e){
     if(e.name==='AbortError'){if(!reply.content)LIB.chat.splice(-2,2)}
     else{LIB.chat.splice(-2,2);libErr(e.plain?e.message:friendlyErr(e),e.message==='NOKEY');$('#lib-input').value=q;growInput()}
