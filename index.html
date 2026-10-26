@@ -779,7 +779,7 @@ let toastT;
 function toast(m){const t=$('#toast');t.textContent=m;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>{t.hidden=true},4500)}
 
 /* ---------- settings ---------- */
-const BUILD='26 Oct 2026, checks new recordings for assignments by itself';
+const BUILD='26 Oct 2026, double-checks every quiz and test mention in a lecture';
 const DEF={apiKey:'',model:'claude-sonnet-5-5',lang:'',kbps:64,terms:'',aaiKey:'',speakers:false,sound:'natural',liveTx:true,meter:true,orb:true};
 const settings=Object.assign({},DEF);
 let savedSettings={};try{savedSettings=JSON.parse(localStorage.getItem('longtake.settings')||'{}')||{}}catch(e){}
@@ -2952,7 +2952,7 @@ $('#d-mark').onclick=async()=>{
 
 /* ---------- Assignments ---------- */
 const KINDS={assignment:'Assignment',quiz:'Quiz',test:'Test',exam:'Exam',project:'Project',presentation:'Presentation',reading:'Reading',other:'Other'};
-const AS_SYS='You read one transcript from a voice recorder and list everything the teacher, presenter, speaker or organizer says the listeners must do or prepare for: homework, assignments, readings, projects, papers, labs, quizzes, tests, exams, presentations they have to give, forms or sign-ups, things to bring, and deadlines. Include an announcement of an upcoming quiz, test or exam even when the speaker only gives the date or says what it covers. Do not include the speaker\'s own plans, general advice or things the listeners are merely invited to think about. Never invent anything: every item must come from what the speaker said. The transcript was made by automatic speech recognition, so quietly fix obvious misheard words in names and terms.\n\nKeep with each task the instructions the speaker gave about handing it in and getting help: who to email or contact if a listener is confused or stuck, where or how to send work or examples, and any email address, link or contact detail that was given. These instructions can come a minute or two after the task is announced, and a general instruction to the whole class (such as emailing the speaker with questions) belongs with every task from this recording. Write an email address exactly as the transcript has it, and if the speaker only said they would give it out, say that instead of making one up.\n\nReturn one JSON object and nothing else, in exactly this shape: {"items":[{"kind":"assignment|quiz|test|exam|project|presentation|reading|other","title":"short name","details":"what is required and what it covers, in one or two plain sentences","due":"the due date or time as the speaker said it, or an empty string","dueISO":"that date as YYYY-MM-DD if it can be worked out from the date the recording was made, otherwise an empty string","graded":"how it is graded or weighted if the speaker said, otherwise an empty string","help":"how to hand it in and who to contact or email if stuck or confused, with any email address or link that was given, in one or two plain sentences, or an empty string","time":"hh:mm:ss where the speaker first raised it"}]}. Use kind \"assignment\" for homework and other graded work. If nothing is required of the listeners, return {"items":[]}.';
+const AS_SYS='You read one transcript from a voice recorder and list everything the teacher, presenter, speaker or organizer says the listeners must do or prepare for: homework, assignments, readings, projects, papers, labs, quizzes, tests, exams, presentations they have to give, forms or sign-ups, things to bring, and deadlines. Include an announcement of an upcoming quiz, test or exam even when the speaker only gives the date or says what it covers. Include every quiz, test, exam, midterm and final the speaker mentions for the listeners, in class or at home, graded or not, with a date or without one. Each separate quiz, test or exam is its own item with a title that tells it apart from the others (the chapter, the topic or the date), and two of them are never joined into one item. If the speaker comes back to the same task later, list it once. Do not include the speaker\'s own plans, general advice or things the listeners are merely invited to think about. Never invent anything: every item must come from what the speaker said. The transcript was made by automatic speech recognition, so quietly fix obvious misheard words in names and terms.\n\nKeep with each task the instructions the speaker gave about handing it in and getting help: who to email or contact if a listener is confused or stuck, where or how to send work or examples, and any email address, link or contact detail that was given. These instructions can come a minute or two after the task is announced, and a general instruction to the whole class (such as emailing the speaker with questions) belongs with every task from this recording. Write an email address exactly as the transcript has it, and if the speaker only said they would give it out, say that instead of making one up.\n\nReturn one JSON object and nothing else, in exactly this shape: {"items":[{"kind":"assignment|quiz|test|exam|project|presentation|reading|other","title":"short name","details":"what is required and what it covers, in one or two plain sentences","due":"the due date or time as the speaker said it, or an empty string","dueISO":"that date as YYYY-MM-DD if it can be worked out from the date the recording was made, otherwise an empty string","graded":"how it is graded or weighted if the speaker said, otherwise an empty string","help":"how to hand it in and who to contact or email if stuck or confused, with any email address or link that was given, in one or two plain sentences, or an empty string","time":"hh:mm:ss where the speaker first raised it"}]}. Use kind \"assignment\" for homework and other graded work. If nothing is required of the listeners, return {"items":[]}.';
 const AS={data:null,busy:false,abort:null,msg:'',err:'',errKey:false,showDone:false,tok:0,open:new Set()};
 async function asLoad(){
   if(AS.data)return AS.data;
@@ -2969,16 +2969,65 @@ function cleanItem(r,s){
   let t=parseClock(r.time);if(t!==null&&s.durationMs>0&&t>s.durationMs+60000)t=null;
   return {id:hid(s.id+'|'+title.toLowerCase().replace(/[^a-z0-9]+/g,' ').trim()),sid:s.id,kind,title,details:clip(r.details,400),due:clip(r.due,80),dueISO,graded:clip(r.graded,160),help:clip(r.help,300),t};
 }
+const AS_V=2,AS_PART=45000; /* AS_V: a recording checked before the second look existed is checked once more by the automatic check */
+const AS_HIT=/\b(quiz(?:z?es)?|quizz|tests?|exams?|midterms?|mid-terms?|finals?|assessments?|homework|assignments?|deadlines?|due(?!\s+to)|take-home|hand(?:ed)?\s+in|turn(?:ed)?\s+in|submit(?:ted)?)\b/i;
+const AS_SECOND='\n\nThis is a second look. You are not given the whole transcript, only short passages from it around places where a quiz, test, exam, assignment or deadline is mentioned, and the items that were already found. List only what the listeners must do or prepare for and is NOT already in the found list. A quiz, test or exam with a different chapter, topic or date than a listed one is new. Do not repeat anything already found, and leave out anything that already happened. If everything in the passages is already listed, return {"items":[]}.';
+const AS_STOP=new Set(['a','an','the','on','of','for','in','to','and','about','from']);
+const asNorm=v=>String(v||'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
+const asToks=v=>asNorm(v).split(' ').filter(w=>w&&!AS_STOP.has(w));
+function asSimilar(a,b){ /* "Krebs cycle quiz" and "Quiz on the Krebs cycle" are one item; "Quiz 3" and "Quiz 4" are not */
+  const x=asToks(a.title),y=asToks(b.title);if(!x.length||!y.length)return false;
+  if(x.filter(w=>/\d/.test(w)).sort().join()!==y.filter(w=>/\d/.test(w)).sort().join())return false;
+  const sx=new Set(x),sy=new Set(y);let both=0;for(const w of sx)if(sy.has(w))both++;
+  return both/(sx.size+sy.size-both)>=0.75;
+}
+function asApart(a,b){ /* same name but clearly a different thing: another date, or raised much later with other details */
+  if(a.dueISO&&b.dueISO)return a.dueISO!==b.dueISO;
+  if(a.due&&b.due)return asNorm(a.due)!==asNorm(b.due);
+  return a.t!=null&&b.t!=null&&Math.abs(a.t-b.t)>600000&&asNorm(a.details)!==asNorm(b.details);
+}
+function asAdd(list,it){ /* the same task said twice is kept once; two different quizzes or tests with a similar name are both kept */
+  const c=list.filter(v=>v.id===it.id||(v.kind===it.kind&&asSimilar(v,it)));
+  if(!c.length){list.push(it);return}
+  const o=c.find(v=>!asApart(v,it));
+  if(!o){
+    let n=hid(it.id+'|'+(it.dueISO||asNorm(it.due)||(it.t==null?'':'t'+Math.round(it.t/60000))));
+    while(list.some(v=>v.id===n))n=hid(n+'x');
+    it.id=n;list.push(it);return;
+  }
+  if(it.details.length>o.details.length)o.details=it.details;
+  for(const k of ['due','dueISO','graded','help'])if(!o[k]&&it[k])o[k]=it[k];
+  if(o.t==null||(it.t!=null&&it.t<o.t))o.t=it.t;
+}
+function asWindows(segs){ /* the passages around every mention of a quiz, test, exam or deadline, for the second look */
+  const s=[...segs].sort((p,q)=>p.t-q.t),r=[];
+  for(const g of s){
+    if(!AS_HIT.test(g.text))continue;
+    const a=g.t-60000,b=g.t+90000,l=r[r.length-1];
+    if(l&&a<=l.b)l.b=Math.max(l.b,b);else r.push({a,b});
+  }
+  return r.map(w=>'--- passage ---\n'+linesOf(s.filter(g=>g.t>=w.a&&g.t<=w.b)).join('\n'));
+}
 async function extractFrom(x,signal,onPart){
-  const parts=partsOf(linesOf(x.segs),80000),found=new Map();
+  const parts=partsOf(linesOf(x.segs),AS_PART),found=[];
+  const base=`This recording was made on ${dLong(x.s.startedAt)}. Title: "${safeTitle(x.s.title)}".`;
   for(let i=0;i<parts.length;i++){
     if(onPart)onPart(i+1,parts.length);
-    const head=`This recording was made on ${dLong(x.s.startedAt)}. Title: "${safeTitle(x.s.title)}".`+(parts.length>1?` This is part ${i+1} of ${parts.length} of the transcript.`:'');
+    const head=base+(parts.length>1?` This is part ${i+1} of ${parts.length} of the transcript.`:'');
     const txt=await callClaude({system:withTerms(AS_SYS,[x.s]),messages:[{role:'user',content:`${head}\n\n<transcript>\n${parts[i]}\n</transcript>`}],max:4000,signal});
     const j=parseJson(txt);if(!j||!Array.isArray(j.items))throw badJson();
-    for(const r of j.items){const it=cleanItem(r,x.s);if(it&&!found.has(it.id))found.set(it.id,it)}
+    for(const r of j.items){const it=cleanItem(r,x.s);if(it)asAdd(found,it)}
   }
-  return [...found.values()];
+  /* second look: go back to every place a quiz, test, exam or deadline is mentioned and make sure each one made the list */
+  const wins=partsOf(asWindows(x.segs),30000).slice(0,3);
+  for(let i=0;i<wins.length;i++){
+    if(onPart)onPart(i+1,wins.length,'double-checking quiz and test mentions');
+    const known=found.slice(0,40).map(v=>`- ${v.kind}: ${v.title}${v.details?' - '+v.details:''}${v.due?' (due '+v.due+')':''}`).join('\n')||'(nothing yet)';
+    const txt=await callClaude({system:withTerms(AS_SYS+AS_SECOND,[x.s]),messages:[{role:'user',content:`${base}\n\nAlready found:\n${known}\n\n<passages>\n${wins[i]}\n</passages>`}],max:3000,signal});
+    const j=parseJson(txt);if(!j||!Array.isArray(j.items))throw badJson();
+    for(const r of j.items){const it=cleanItem(r,x.s);if(it)asAdd(found,it)}
+  }
+  return found;
 }
 async function asScan(force,only){ /* only: a set of recording ids, used by the automatic check */
   if(AS.busy)return;
@@ -2988,16 +3037,17 @@ async function asScan(force,only){ /* only: a set of recording ids, used by the 
   const todo=list.filter(x=>x.segs.length&&!x.live&&(only?only.has(x.s.id):(force||!d.scanned[x.s.id]||d.scanned[x.s.id].sig!==x.sig)));
   if(!todo.length){AS.busy=false;renderAssign();return}
   AS.abort=new AbortController();AS.msg='Starting…';renderAssign();
-  let done=0,added=0,redone=0;
+  let done=0,added=0,improvedN=0;
   try{
     for(let i=0;i<todo.length;i++){
       const x=todo[i],label=`Checking “${x.s.title}” (${i+1} of ${todo.length})`;
       AS.msg=label;asProgress();
-      const items=await extractFrom(x,AS.abort.signal,(p,n)=>{AS.msg=label+(n>1?`, part ${p} of ${n}`:'');asProgress()});
-      const old=new Map(d.items.filter(it=>it.sid===x.s.id).map(it=>[it.id,it])),first=!d.scanned[x.s.id];
-      if(first)added+=items.length;else redone++;
+      const items=await extractFrom(x,AS.abort.signal,(p,n,w)=>{AS.msg=label+(w?', '+w:n>1?`, part ${p} of ${n}`:'');asProgress()});
+      const old=new Map(d.items.filter(it=>it.sid===x.s.id).map(it=>[it.id,it])),prev=d.scanned[x.s.id];
+      added+=prev?items.filter(it=>!old.has(it.id)&&![...old.values()].some(o=>o.kind===it.kind&&asSimilar(o,it))).length:items.length;
+      if(prev&&x.s.improvedAt&&x.s.improvedAt>prev.at)improvedN++;
       d.items=d.items.filter(it=>it.sid!==x.s.id).concat(items.map(it=>{const o=old.get(it.id);return o?Object.assign(it,{done:!!o.done,hidden:!!o.hidden}):it}));
-      d.scanned[x.s.id]={sig:x.sig,at:Date.now(),n:items.length};
+      d.scanned[x.s.id]={sig:x.sig,at:Date.now(),n:items.length,v:AS_V};
       await asSave();done++;
       if(CUR==='assign')renderAssign();
     }
@@ -3006,7 +3056,7 @@ async function asScan(force,only){ /* only: a set of recording ids, used by the 
   }
   AS.busy=false;AS.abort=null;AS.msg='';
   if(CUR==='assign')renderAssign();
-  else if(only){if(added)toast('Yukon found '+plural(added,'new assignment or test','new assignments or tests')+'. Open Assignments in the menu to see '+(added===1?'it.':'them.'));else if(redone)toast('Assignments updated from your improved transcript.')}
+  else if(only){if(added)toast('Yukon found '+plural(added,'new assignment or test','new assignments or tests')+'. Open Assignments in the menu to see '+(added===1?'it.':'them.'));else if(improvedN)toast('Assignments updated from your improved transcript.')}
   else if(done)toast('Assignments updated.');
 }
 function asProgress(){ if(CUR==='assign'&&AS.busy)$('#as-prog-t').textContent=AS.msg }
@@ -3093,7 +3143,7 @@ async function autoCheck(){
       if(s.status==='recording'||(R.active&&R.sid===s.id))return false;
       const sc=d.scanned[s.id],imp=s.improvedAt||0;
       if(Math.max(s.startedAt||0,imp)<now-AUTO_AGE)return false;
-      if(sc&&!(imp&&imp>sc.at))return false;
+      if(sc&&sc.v>=AS_V&&!(imp&&imp>sc.at))return false;
       if(AUTO.skip.get(s.id)===imp)return false;
       if(s.aai&&!s.aai.done&&now-(s.aai.at||0)<30*60000)return false; /* an improvement is on its way: wait for it */
       return true;
@@ -3103,7 +3153,7 @@ async function autoCheck(){
     for(const x of list){
       if(!cand.some(s=>s.id===x.s.id)||x.live)continue;
       if(!x.segs.length){AUTO.skip.set(x.s.id,x.s.improvedAt||0);continue} /* nothing was said, or no transcript yet */
-      const sc=d.scanned[x.s.id];if(sc&&sc.sig===x.sig)continue;
+      const sc=d.scanned[x.s.id];if(sc&&sc.v>=AS_V&&sc.sig===x.sig)continue;
       const seen=AUTO.seen.get(x.s.id);
       if(!seen||seen.sig!==x.sig){AUTO.seen.set(x.s.id,{sig:x.sig,at:now});continue} /* the transcript has to stay the same for a minute first */
       if(now-seen.at<AUTO_SETTLE)continue;
