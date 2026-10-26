@@ -592,6 +592,7 @@ mark.hit{background:var(--accent-soft);color:var(--accent);border-radius:4px;pad
     <div class="card">
       <audio id="d-audio" controls preload="metadata"></audio>
       <p class="err" id="d-audio-err" role="status" hidden></p>
+      <p class="err" id="d-cut" role="status" style="overflow-wrap:anywhere" hidden></p>
       <div class="btns"><button class="btn" id="d-mark" type="button">Mark this moment</button></div>
     </div>
     <div class="dtabs" role="tablist" aria-label="This recording">
@@ -701,6 +702,8 @@ mark.hit{background:var(--accent-soft);color:var(--accent);border-radius:4px;pad
       <label class="check" style="margin:0"><input type="checkbox" id="s-speakers"> Label speakers when improving (meetings and interviews)</label>
       <label class="check" style="margin:14px 0 2px"><input type="checkbox" id="s-autoas"> Look for assignments automatically</label>
       <small style="display:block;color:var(--muted)">A couple of minutes after a recording is finished, Yukon reads its transcript once for assignments, tests and deadlines. It checks again if you improve the transcript later. This sends the transcript to Claude with your key, one request per recording, and only for recordings from the last 7 days. Older ones wait for the button on the Assignments page.</small>
+      <label class="check" style="margin:14px 0 2px"><input type="checkbox" id="s-autoimp"> Complete short transcripts from the audio</label>
+      <small style="display:block;color:var(--muted)">The phone stops the live transcript when the screen locks, but the recording goes on. When a recording's transcript ends long before its audio does, Yukon sends that audio to AssemblyAI by itself (the same as Improve, with your AssemblyAI key) and puts the full transcript in place. The short one is kept as the earlier version. Only for recordings from the last 7 days.</small>
     </div>
     <div class="card" id="s-safe" hidden><p class="meta" style="margin:0"><span id="s-safe-t">Basic recording is on for this phone, because the microphone stopped capturing sound with the live transcript or the moving particles running.</span> <button class="linkbtn" id="s-safe-reset" type="button">Try the full recorder again</button></p></div>
     <details class="adv" id="s-adv">
@@ -779,7 +782,7 @@ let toastT;
 function toast(m){const t=$('#toast');t.textContent=m;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>{t.hidden=true},4500)}
 
 /* ---------- settings ---------- */
-const BUILD='26 Oct 2026, double-checks every quiz and test mention in a lecture';
+const BUILD='26 Oct 2026, fills in a short transcript from the audio by itself';
 const DEF={apiKey:'',model:'claude-sonnet-5-5',lang:'',kbps:64,terms:'',aaiKey:'',speakers:false,sound:'natural',liveTx:true,meter:true,orb:true};
 const settings=Object.assign({},DEF);
 let savedSettings={};try{savedSettings=JSON.parse(localStorage.getItem('longtake.settings')||'{}')||{}}catch(e){}
@@ -1054,6 +1057,7 @@ async function stopRecording(note){
     if(!SAFE.noLive){sn.textContent+=' Tap Reload Yukon to get it back for the next one.';showReload(true)}
   }
   if(R.dead)showReload(true);
+  if(typeof note==='string'&&note){sn.textContent+=' '+note+' Tap Record to carry on in a new recording.'}
   toast(typeof note==='string'?note:'Saved to your library.');
   autoFolder(sid).then(n=>{if(n&&CUR==='library')renderLibrary()}).catch(()=>{})
     .then(()=>verifyAudio(sid)).then(r=>{
@@ -1143,11 +1147,31 @@ function tick(){
 }
 
 /* wake lock */
+const WAKE_WARN='The phone would not keep the screen on, so it may lock and stop this recording. Keep it awake yourself: Settings, Display & Brightness, Auto-Lock, Never.';
 async function keepAwake(){
-  try{if('wakeLock' in navigator){R.wake=await navigator.wakeLock.request('screen');R.wake.addEventListener('release',()=>{R.wake=null;updateChips()})}}catch(e){}
+  try{
+    if('wakeLock' in navigator){
+      R.wake=await navigator.wakeLock.request('screen');
+      if(R.active){dlog('the phone is keeping the screen on');if(R.warn===WAKE_WARN)setWarn('')}
+      R.wake.addEventListener('release',()=>{R.wake=null;if(R.active)dlog('the phone let the screen sleep again (page '+document.visibilityState+')');updateChips()});
+    }else if(R.active)dlog('this browser cannot keep the screen on');
+  }catch(e){if(R.active)dlog('the phone refused to keep the screen on: '+((e&&e.name)||'error'))}
+  if(R.active&&!R.wake&&!R.warn)setWarn(WAKE_WARN);
   updateChips();
 }
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&R.active&&!R.wake)keepAwake()});
+/* Screen lock. The phone cannot run the live transcript with the screen off, and when it cuts the transcript off it can take the microphone with it.
+   So the transcript is set aside when the page is hidden and started again when the page is back. The recorder itself is not touched. */
+document.addEventListener('visibilitychange',()=>{
+  if(!R.active)return;
+  dlog('page '+(document.hidden?'hidden (screen locked or another app opened)':'visible again'));
+  if(document.hidden){
+    if(!R.paused&&R.recog){R.recogHidden=R.sid;dlog('live transcript set aside while the page is hidden');stopRecog()}
+  }else if(R.recogHidden){
+    const mine=R.recogHidden===R.sid;R.recogHidden=false; /* only for the recording it was set aside in */
+    if(mine&&!R.recog&&!R.paused&&!R.stopping&&!R.restarting){dlog('live transcript started again');startRecog()}
+  }
+});
 window.addEventListener('beforeunload',e=>{if(R.active){e.preventDefault();e.returnValue=''}});
 
 /* record button: an ASCII orb that bursts into a cloud of particles while you record */
@@ -1575,9 +1599,11 @@ function thumbHtml(id){ /* a small waveform picture, different for each recordin
   return `<span class="thumb" style="--h:${hue}" aria-hidden="true"><svg viewBox="0 0 56 44">${bars}</svg></span>`;
 }
 const stamp=t=>{const d=new Date(t);return d.toLocaleDateString([],{weekday:'short',month:'short',day:'numeric',year:'numeric'})+' at '+d.toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})};
+const cutShort=s=>!!s&&(s.status==='recovered'||/the phone ended the microphone|recorder error:/.test(s.diag||'')); /* the phone, not the person, ended it */
 function badgeFor(s){
   if(s.status==='recording')return ['Recording','rec'];
   if(s.status==='recovered')return ['Recovered','warn'];
+  if(cutShort(s))return ['Cut short','warn'];
   if(s.status==='done'&&s.bytes===0)return ['No audio','warn'];
   if(s.check==='error')return ['Audio problem','warn'];
   if(s.check==='silent')return ['Silent audio','warn'];
@@ -2086,6 +2112,7 @@ function audioNote(failed){ /* a plain sentence instead of a bare "Error" on the
     :x.check==='silent'?'The audio saved for this recording is silent, although the phone understood the words. The transcript is still here. To record sound next time, turn off Live transcript while recording in Settings.'
     :(failed||x.check==='error')?'This phone could not play the audio here. It is saved: open Tools, then Download audio, to listen in another app.':'';
   e.textContent=m;e.hidden=!m;
+  const c=$('#d-cut');if(c){const cut=cutShort(x);c.hidden=!cut;c.textContent=cut?'This recording stopped early, at about '+fmtDur(x.durationMs||0)+', when the phone or the page was interrupted (a locked screen, a call, another app or a shut-down). Anything said after that was not recorded.':''}
   const d=$('#d-diag');if(d){d.textContent=x.diag||'No details were kept for this recording.';$('#d-diag-card').hidden=false}
 }
 audio.addEventListener('error',()=>{if(D.url)audioNote(true)});
@@ -2473,7 +2500,7 @@ $('#s-check').onclick=soundCheck;
 
 
 /* ---------- names and terms ---------- */
-function termsList(){return [settings.terms,D.session&&D.session.terms].map(t=>(t||'').trim()).filter(Boolean).join('\n')}
+function termsList(sess){const x=sess===undefined?D.session:sess;return [settings.terms,x&&x.terms].map(t=>(t||'').trim()).filter(Boolean).join('\n')}
 function sysPrompt(base){
   const t=termsList();
   return t?base+'\n\nThe user supplied these names, terms and spellings. The transcript may have them wrong. Use these spellings in your answers, and treat close misspellings in the transcript as these terms:\n'+t:base;
@@ -2492,9 +2519,9 @@ const waitMs=(ms,signal)=>new Promise((res,rej)=>{
   const t=setTimeout(res,ms);
   signal.addEventListener('abort',()=>{clearTimeout(t);const e=new Error('ABORT');e.name='AbortError';rej(e)},{once:true});
 });
-function termsPhrases(){ /* AssemblyAI keyterms: short phrases, at most 6 words each */
+function termsPhrases(sess){ /* AssemblyAI keyterms: short phrases, at most 6 words each */
   const out=[],seen=new Set();
-  for(const raw of termsList().split(/[\n,;]+/)){
+  for(const raw of termsList(sess).split(/[\n,;]+/)){
     const p=raw.trim().split(/\s+/).slice(0,6).join(' '),k=p.toLowerCase();
     if(p&&!seen.has(k)){seen.add(k);out.push(p)}
   }
@@ -2551,6 +2578,7 @@ async function improve(){
   err('');
   if(liveGuard())return;
   if(!settings.aaiKey){err('Add your AssemblyAI key in Settings first.');return}
+  if(AUTOI.busy&&AUTOI.sid===D.sid){err('Yukon is already filling in this transcript from the audio. It will appear here when it is done.');return}
   const sess=D.session,sid=D.sid,pending=!!(sess.aai&&!sess.aai.done);
   if(!pending){
     if(!D.blob||!D.blob.size){err('This recording has no saved audio to send.');return}
@@ -2611,6 +2639,100 @@ $('#d-restore').onclick=async()=>{
   const other=D.segs;D.segs=D.prev;D.prev=other;
   await saveEdits();renderTx();updateImproveUI();toast('Switched to the other version.');
 };
+/* ---------- complete a short transcript from the audio, by itself ----------
+   The phone cannot run the live transcript with the screen off, so a recording made in a pocket can have all its audio and only its first minutes as words.
+   When that happens Yukon sends the audio to AssemblyAI (the same thing as Improve) and puts the full transcript in place, keeping the short one as the earlier version.
+   It only reads saved audio and writes the transcript; it never touches the recorder. */
+const AUTOI={busy:false,sid:'',ctl:null,failedAt:0,seen:new Map()};
+const AI_MIN=5*60000,AI_AGE=7*86400000,AI_TRIES=2,AI_BACKOFF=15*60000,AI_WAIT=3*3600000;
+const autoImpOn=()=>settings.autoImprove!==false&&!!settings.aaiKey;
+function txShort(s,segs){ /* the words stop long before the audio does, or there are hardly any words for the time */
+  const dur=s.durationMs||0;if(dur<AI_MIN)return false;
+  const sp=(segs||[]).filter(g=>!g.mark&&g.text&&g.text.trim());
+  if(!sp.length)return true;
+  const last=sp.reduce((m,g)=>Math.max(m,g.t||0),0);
+  return last<dur-Math.max(120000,dur*0.25)||countWords(sp)/(dur/60000)<15;
+}
+const audioUsable=s=>s.bytes>0&&s.check!=='silent'&&s.check!=='none'&&s.check!=='error';
+function impWaiting(s,segs){ /* true while this recording is due to be completed from its audio, so the assignment check waits for the full transcript */
+  return autoImpOn()&&!s.improvedAt&&audioUsable(s)&&(s.aaiTries||0)<AI_TRIES&&Date.now()-(s.startedAt||0)-(s.durationMs||0)<AI_WAIT&&txShort(s,segs);
+}
+async function autoComplete(s,pending){
+  AUTOI.busy=true;AUTOI.sid=s.id;AUTOI.ctl=new AbortController();
+  const ctl=AUTOI.ctl,signal=ctl.signal,sid=s.id,title=clip(s.title||'Recording',40);
+  try{
+    let id=pending?s.aai.id:null;
+    if(!id){
+      const ch=await idb.chunks(sid),blob=new Blob(ch.map(c=>c.blob),{type:String(s.mime||'audio/webm').split(';')[0]});
+      if(!blob.size)throw Object.assign(new Error('There is no saved audio.'),{fatal:true});
+      const c1=await idb.get('sessions',sid);if(!c1)return;
+      c1.aaiTries=(c1.aaiTries||0)+1;await idb.put('sessions',c1); /* counted before the upload, so a page that dies halfway cannot loop for ever */
+      toast('Filling in the transcript for “'+title+'” from the audio. This takes a few minutes.');
+      const url=await aaiUpload(blob,()=>{},ctl);
+      const body={audio_url:url,speech_models:['universal-3-5-pro','universal-2'],language_detection:true};
+      if(settings.speakers)body.speaker_labels=true;
+      const kt=termsPhrases(s);if(kt.length)body.keyterms_prompt=kt;
+      const j=await aaiFetch('/transcript',{method:'POST',body,signal});
+      id=j.id;const c2=await idb.get('sessions',sid);if(!c2)return;
+      c2.aai={id,at:Date.now(),done:false};await idb.put('sessions',c2);
+    }
+    let last=null;
+    for(;;){
+      last=await aaiFetch('/transcript/'+id,{signal});
+      if(last.status==='completed')break;
+      if(last.status==='error')throw Object.assign(new Error(last.error||'AssemblyAI could not transcribe this audio.'),{fatal:true});
+      await waitMs(4000,signal);
+    }
+    const sj=await aaiFetch('/transcript/'+id+'/sentences',{signal});
+    let prevSp=null;const fresh=[];
+    for(const x of (sj.sentences||[])){
+      let text=(x.text||'').trim();if(!text)continue;
+      if(x.speaker&&x.speaker!==prevSp)text='Speaker '+x.speaker+': '+text;
+      prevSp=x.speaker||null;fresh.push({t:x.start,text});
+    }
+    if(!fresh.length&&last.text)fresh.push({t:0,text:last.text.trim()});
+    if(!fresh.length)throw Object.assign(new Error('AssemblyAI found no speech in this recording.'),{fatal:true});
+    const tx=(await idb.get('tx',sid))||{sid,segments:[]},old=tx.segments||[];
+    const segs=fresh.concat(old.filter(g=>g.mark)).sort((a,b)=>a.t-b.t);
+    await idb.put('tx',{sid,segments:segs,prev:old});
+    const cur=await idb.get('sessions',sid);
+    if(cur){cur.aai={id,at:(cur.aai&&cur.aai.at)||Date.now(),done:true};cur.improvedAt=Date.now();cur.words=countWords(segs);await idb.put('sessions',cur)}
+    const nt=await idb.get('notes',sid);if(nt&&nt.digest){nt.digest=null;nt.digestLen=0;await idb.put('notes',nt)} /* long recordings get condensed again from the new text */
+    toast('The full transcript for “'+title+'” is ready.');
+    if(CUR==='library')renderLibrary();
+    if(CUR==='detail'&&D.sid===sid)openDetail(sid,BACK);
+    autoFolder(sid).then(n=>{if(n&&CUR==='library')renderLibrary()}).catch(()=>{});
+  }catch(e){
+    if(e.name!=='AbortError'){
+      AUTOI.failedAt=Date.now();
+      try{
+        const cur=await idb.get('sessions',sid);
+        if(cur&&(e.fatal||e.status===404)){cur.aai=null;if(e.fatal)cur.aaiTries=AI_TRIES;await idb.put('sessions',cur)}
+      }catch(x){}
+      if(e.status===401||e.status===403)toast('AssemblyAI rejected the key. Check it in Settings.');
+    }
+  }finally{AUTOI.busy=false;AUTOI.sid='';AUTOI.ctl=null}
+}
+async function autoImproveCheck(){
+  if(AUTOI.busy||!autoImpOn()||document.hidden||navigator.onLine===false||Date.now()-AUTOI.failedAt<AI_BACKOFF||R.active||R.stopping||J.running)return;
+  try{
+    const now=Date.now(),[ss,txs]=await Promise.all([idb.all('sessions'),idb.all('tx')]),m=new Map(txs.map(x=>[x.sid,x.segments||[]]));
+    for(const s of ss.sort((a,b)=>b.startedAt-a.startedAt)){
+      if(s.status!=='done'&&s.status!=='recovered')continue;
+      if((s.startedAt||0)<now-AI_AGE||s.improvedAt||!audioUsable(s))continue;
+      if(CUR==='detail'&&D.sid===s.id)continue;
+      const pending=!!(s.aai&&!s.aai.done&&now-(s.aai.at||0)<24*3600000);
+      if(!pending&&((s.aaiTries||0)>=AI_TRIES||!txShort(s,m.get(s.id))))continue;
+      const key=s.id+':'+(s.durationMs||0),seen=AUTOI.seen.get(s.id);
+      if(!seen||seen.key!==key){AUTOI.seen.set(s.id,{key,at:now});continue} /* it has to look the same on two checks in a row first */
+      if(now-seen.at<20000)continue;
+      await autoComplete(s,pending);return;
+    }
+  }catch(e){AUTOI.failedAt=Date.now()}
+}
+setInterval(()=>{autoImproveCheck()},30000);
+setTimeout(()=>autoImproveCheck(),12000);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)setTimeout(()=>autoImproveCheck(),5000)});
 $('#s-aai').addEventListener('change',e=>{settings.aaiKey=e.target.value.trim();saveSettings();toast('AssemblyAI key saved on this device.')});
 $('#s-aai-test').onclick=async()=>{
   const k=$('#s-aai').value.trim();
@@ -3008,6 +3130,19 @@ function asWindows(segs){ /* the passages around every mention of a quiz, test, 
   }
   return r.map(w=>'--- passage ---\n'+linesOf(s.filter(g=>g.t>=w.a&&g.t<=w.b)).join('\n'));
 }
+const AS_NOISE=new Set([...AS_STOP,'is','are','was','were','will','you','your','our','they','this','that','have','has','must','need','needs','with','from','next','week','class','due','also','there','their','what','when','which']);
+function asLocate(it,segs){ /* no usable time from the assistant: find the spoken line that shares the most words with the item */
+  const words=v=>asNorm(v).split(' ').filter(w=>w.length>=3&&!AS_NOISE.has(w));
+  const want=[...new Set([...words(it.title),...words(it.details),...words(it.due)])].slice(0,10);
+  if(want.length<2)return null;
+  const s=segs.filter(g=>!g.mark&&g.text).sort((a,b)=>a.t-b.t);let best=null,bs=0,bo=0;
+  const hits=h=>{let n=0;for(const w of want)if(h.has(w))n++;return n};
+  for(let i=0;i<s.length;i++){
+    const n=hits(new Set(words(s[i].text+' '+(s[i+1]?s[i+1].text:'')))),own=hits(new Set(words(s[i].text))); /* a line and the one after it, since speech is cut into lines anywhere; the line that itself holds the words wins a tie */
+    if(n>bs||(n===bs&&own>bo)){bs=n;bo=own;best=s[i].t}
+  }
+  return bs>=2&&bs>=Math.ceil(want.length*0.34)?best:null;
+}
 async function extractFrom(x,signal,onPart){
   const parts=partsOf(linesOf(x.segs),AS_PART),found=[];
   const base=`This recording was made on ${dLong(x.s.startedAt)}. Title: "${safeTitle(x.s.title)}".`;
@@ -3016,7 +3151,7 @@ async function extractFrom(x,signal,onPart){
     const head=base+(parts.length>1?` This is part ${i+1} of ${parts.length} of the transcript.`:'');
     const txt=await callClaude({system:withTerms(AS_SYS,[x.s]),messages:[{role:'user',content:`${head}\n\n<transcript>\n${parts[i]}\n</transcript>`}],max:4000,signal});
     const j=parseJson(txt);if(!j||!Array.isArray(j.items))throw badJson();
-    for(const r of j.items){const it=cleanItem(r,x.s);if(it)asAdd(found,it)}
+    for(const r of j.items){const it=cleanItem(r,x.s);if(it){if(it.t==null)it.t=asLocate(it,x.segs);asAdd(found,it)}}
   }
   /* second look: go back to every place a quiz, test, exam or deadline is mentioned and make sure each one made the list */
   const wins=partsOf(asWindows(x.segs),30000).slice(0,3);
@@ -3025,7 +3160,7 @@ async function extractFrom(x,signal,onPart){
     const known=found.slice(0,40).map(v=>`- ${v.kind}: ${v.title}${v.details?' - '+v.details:''}${v.due?' (due '+v.due+')':''}`).join('\n')||'(nothing yet)';
     const txt=await callClaude({system:withTerms(AS_SYS+AS_SECOND,[x.s]),messages:[{role:'user',content:`${base}\n\nAlready found:\n${known}\n\n<passages>\n${wins[i]}\n</passages>`}],max:3000,signal});
     const j=parseJson(txt);if(!j||!Array.isArray(j.items))throw badJson();
-    for(const r of j.items){const it=cleanItem(r,x.s);if(it)asAdd(found,it)}
+    for(const r of j.items){const it=cleanItem(r,x.s);if(it){if(it.t==null)it.t=asLocate(it,x.segs);asAdd(found,it)}}
   }
   return found;
 }
@@ -3108,6 +3243,10 @@ async function renderAssign(){
   const er=$('#as-err');er.hidden=!AS.err;
   er.innerHTML=AS.err?esc(AS.err)+(AS.errKey?' <button class="linkbtn" type="button" data-go="settings">Open Settings</button>':''):'';
   let html='';
+  const cut=ready.filter(x=>cutShort(x.s)&&x.s.startedAt>Date.now()-14*86400000);
+  const shortTx=ready.filter(x=>!x.s.improvedAt&&txShort(x.s,x.segs)&&x.s.startedAt>Date.now()-14*86400000);
+  if(shortTx.length)html+=`<div class="card"><p class="err" style="margin:0;overflow-wrap:anywhere" role="status">${shortTx.slice(0,3).map(x=>{const lt=x.segs.reduce((m,g)=>Math.max(m,g.t||0),0);return '“'+esc(clip(x.s.title,60))+'” has words only up to '+fmtDur(lt)+' but the audio runs '+fmtDur(x.s.durationMs||0)}).join('; ')}${shortTx.length>3?' and '+(shortTx.length-3)+' more':''}. ${shortTx.some(x=>impWaiting(x.s,x.segs)||(AUTOI.busy&&AUTOI.sid===x.s.id))?'Yukon is filling in the rest from the audio, then it will look again for assignments.':'Open it and tap Improve with AssemblyAI to fill in the rest, then check again.'}</p></div>`;
+  if(cut.length)html+=`<div class="card"><p class="err" style="margin:0;overflow-wrap:anywhere" role="status">${cut.slice(0,3).map(x=>'“'+esc(clip(x.s.title,60))+'” stopped early at about '+fmtDur(x.s.durationMs||0)).join('; ')}${cut.length>3?' and '+(cut.length-3)+' more':''}. Anything said after that was not recorded, so check with your teacher about any quiz, test or deadline you may have missed.</p></div>`;
   if(!shown.length&&everScanned&&!AS.busy){
     html+=`<div class="card"><p class="empty" style="margin:0">Nothing found. None of your checked recordings mention required work, tests or deadlines.${removed?' You removed '+plural(removed,'item','items')+'.':''}</p></div>`;
   }
@@ -3146,13 +3285,15 @@ async function autoCheck(){
       if(sc&&sc.v>=AS_V&&!(imp&&imp>sc.at))return false;
       if(AUTO.skip.get(s.id)===imp)return false;
       if(s.aai&&!s.aai.done&&now-(s.aai.at||0)<30*60000)return false; /* an improvement is on its way: wait for it */
+      if(AUTOI.busy&&AUTOI.sid===s.id)return false;
       return true;
     });
     if(!cand.length)return;
     const list=await textSessions(),ids=new Set();
     for(const x of list){
       if(!cand.some(s=>s.id===x.s.id)||x.live)continue;
-      if(!x.segs.length){AUTO.skip.set(x.s.id,x.s.improvedAt||0);continue} /* nothing was said, or no transcript yet */
+      if(!x.segs.length&&!impWaiting(x.s,x.segs)){AUTO.skip.set(x.s.id,x.s.improvedAt||0);continue} /* nothing was said, or no transcript yet */
+      if(impWaiting(x.s,x.segs))continue; /* the full transcript is on its way from the audio; read that one instead */
       const sc=d.scanned[x.s.id];if(sc&&sc.v>=AS_V&&sc.sig===x.sig)continue;
       const seen=AUTO.seen.get(x.s.id);
       if(!seen||seen.sig!==x.sig){AUTO.seen.set(x.s.id,{sig:x.sig,at:now});continue} /* the transcript has to stay the same for a minute first */
@@ -3169,6 +3310,8 @@ setInterval(()=>{autoCheck()},30000);
 setTimeout(()=>autoCheck(),9000);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)setTimeout(()=>autoCheck(),4000)});
 $('#s-autoas').checked=settings.autoAssign!==false;
+$('#s-autoimp').checked=settings.autoImprove!==false;
+$('#s-autoimp').addEventListener('change',e=>{settings.autoImprove=e.target.checked;saveSettings();if(CUR==='assign')renderAssign()});
 $('#s-autoas').addEventListener('change',e=>{settings.autoAssign=e.target.checked;saveSettings();if(CUR==='assign')renderAssign()});
 $('#as-scan').onclick=e=>asScan(e.currentTarget.dataset.force==='1');
 $('#as-stop').onclick=()=>{if(AS.abort)AS.abort.abort()};
@@ -4009,7 +4152,7 @@ document.addEventListener('visibilitychange',()=>{
 /* ---------- new version check: the page asks the website which build it is serving ---------- */
 const UPD={last:0,ready:'',dismissed:'',busy:false};
 const BUILD_RE=new RegExp('const BUILD'+"='([^']{1,120})'");
-function updBusy(){return R.active||R.stopping||QZ.busy||AS.busy||['#chat-send','#lib-send'].some(q=>{const e=$(q);return e&&e.textContent.trim()!=='Ask'})}
+function updBusy(){return R.active||R.stopping||QZ.busy||AS.busy||AUTOI.busy||['#chat-send','#lib-send'].some(q=>{const e=$(q);return e&&e.textContent.trim()!=='Ask'})}
 function renderUpd(){
   const show=!!UPD.ready&&UPD.ready!==UPD.dismissed;
   $('#upd').hidden=!show;if(!show)return;
