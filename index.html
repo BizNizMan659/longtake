@@ -76,12 +76,13 @@ button{cursor:pointer}
 .controls{display:flex;justify-content:center;align-items:center;gap:12px;width:100%;margin-top:2px}
 .side{min-width:84px;height:46px;padding:0 16px;border-radius:23px;border:0;background:var(--bubble)}
 .side:disabled{opacity:.6;cursor:default}
-.main{position:relative;display:block;width:100%;max-width:440px;height:clamp(176px,54vw,228px);border:0;border-radius:28px;background:transparent;padding:0;color:var(--rec);cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
-.main canvas{position:absolute;inset:0;width:100%;height:100%;display:block;pointer-events:none;transition:transform .15s}
-.main:active canvas{transform:scale(.985)}
-@media (prefers-reduced-motion:reduce){.main canvas{transition:none}}
+/* The orb is drawn in a wide box, but only the circle in its middle is the button, so a stray touch beside it does nothing. Its size follows the orb (set in ORB.build). */
+.orbbox{position:relative;width:100%;max-width:440px;height:clamp(176px,54vw,228px)}
+.orbbox canvas{position:absolute;inset:0;width:100%;height:100%;display:block;pointer-events:none;transition:transform .15s}
+.main{position:absolute;z-index:1;left:50%;top:50%;width:var(--hit,128px);height:var(--hit,128px);margin:calc(var(--hit,128px)/-2) 0 0 calc(var(--hit,128px)/-2);border:0;border-radius:50%;background:transparent;padding:0;color:var(--rec);cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.main:active+canvas{transform:scale(.985)}
+@media (prefers-reduced-motion:reduce){.orbbox canvas{transition:none}}
 .cap{font-size:.85rem;color:var(--muted);min-height:1.3em}
-.cap.arm{color:var(--ink);font-weight:600}
 .note{font-size:.82rem;color:var(--muted);max-width:46ch;margin:2px 0 0}
 .saved{margin:4px 0 0;max-width:46ch;text-align:center;font-weight:600;font-size:.92rem;color:var(--accent)}
 
@@ -467,7 +468,7 @@ mark.hit{background:var(--accent-soft);color:var(--accent);border-radius:4px;pad
       <div class="pills"><span class="pill" id="pill-awake">Screen awake: off</span><span class="pill" id="pill-size">&nbsp;</span></div>
       <div class="timer" id="timer" role="timer">00:00:00</div>
       <div class="state" id="state">Ready</div>
-      <button class="main" id="btn-main" aria-label="Start recording"><canvas id="orb" aria-hidden="true"></canvas></button>
+      <div class="orbbox" id="orbbox"><button class="main" id="btn-main" type="button" aria-label="Start recording"></button><canvas id="orb" aria-hidden="true"></canvas></div>
       <div class="cap" id="cap">Record</div>
       <div class="controls">
         <button class="side l" id="btn-pause" disabled>Pause</button>
@@ -782,7 +783,7 @@ let toastT;
 function toast(m){const t=$('#toast');t.textContent=m;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>{t.hidden=true},4500)}
 
 /* ---------- settings ---------- */
-const BUILD='26 Oct 2026, fills in a short transcript from the audio by itself';
+const BUILD='26 Oct 2026, one tap to record and one tap to stop';
 const DEF={apiKey:'',model:'claude-sonnet-5-5',lang:'',kbps:64,terms:'',aaiKey:'',speakers:false,sound:'natural',liveTx:true,meter:true,orb:true};
 const settings=Object.assign({},DEF);
 let savedSettings={};try{savedSettings=JSON.parse(localStorage.getItem('longtake.settings')||'{}')||{}}catch(e){}
@@ -1209,6 +1210,7 @@ const ORB=(()=>{
     const d=Math.min(2,window.devicePixelRatio||1);
     S.W=W;S.H=H;S.d=d;S.cv.width=Math.round(W*d);S.cv.height=Math.round(H*d);
     S.cx=W/2;S.cy=H/2;S.R=Math.min(W*0.28,H*0.335);S.ry=H/2-28;S.rx=Math.min(W/2-28,S.ry*1.5);S.amp=Math.max(10,Math.min(S.rx,S.ry)*0.26);
+    S.btn.style.setProperty('--hit',Math.round(Math.max(96,Math.min(148,2*S.R*0.9)))+'px'); /* the tap target is the orb's own circle, a little inside its edge */
     const fs=Math.max(9,Math.min(12,Math.round(H/21)));S.fs=fs;S.cw=fs*0.58;S.ch=fs*0.9;
     const ps=[],R=S.R;
     for(let y=-R+S.ch/2;y<R;y+=S.ch)for(let x=-R+S.cw/2;x<R;x+=S.cw){const nx=x/R,ny=y/R,q=nx*nx+ny*ny;if(q<=1)ps.push(mk(x,y,nx,ny,Math.sqrt(1-q),0,0))}
@@ -1375,7 +1377,7 @@ const ORB=(()=>{
     }
   }
   function init(){
-    S.cv=$('#orb');S.btn=$('#btn-main');if(!S.cv||!S.btn)return;
+    S.cv=$('#orb');S.btn=$('#orbbox');if(!S.cv||!S.btn)return; /* S.btn is the box the orb is drawn in, not the button */
     S.g=S.cv.getContext('2d');S.calm=mqM.matches||settings.orb===false;
     if(window.ResizeObserver)new ResizeObserver(()=>{if(S.btn.clientWidth&&build()){if(!S.run&&visible()){advance(0);draw()}wake()}}).observe(S.btn);
     try{mqM.addEventListener('change',refresh)}catch(e){}
@@ -1481,22 +1483,25 @@ async function showFree(){
 function updateRecUI(){
   const m=$('#btn-main'),st=$('#state'),cap=$('#cap');
   m.classList.toggle('on',R.active);m.classList.toggle('run',R.active&&!R.paused);
-  ORB.set({active:R.active,paused:R.paused,armed:R.stopArm});
+  ORB.set({active:R.active,paused:R.paused});
   try{renderUpd()}catch(e){} /* not defined yet during the very first call */
   m.setAttribute('aria-label',R.active?'Stop recording':'Start recording');
   $('#btn-pause').disabled=!R.active;$('#btn-mark').disabled=!R.active;
   $('#btn-pause').textContent=R.paused?'Resume':'Pause';
   st.className='state'+(R.active&&!R.paused?' live':'');
   st.textContent=!R.active?'Ready':R.paused?'Paused':'Recording';
-  cap.className='cap'+(R.stopArm?' arm':'');
-  cap.textContent=!R.active?'Record':R.stopArm?'Tap again to stop and save':'Stop';
+  cap.className='cap';
+  cap.textContent=!R.active?'Record':'Tap the middle to stop';
   if(!R.active)$('#timer').textContent=fmtDur(R.accMs&&R.stopping?R.accMs:0);
   updateChips();renderLive();updateAppbar();if(!R.active)showFree();
 }
+/* One tap starts, one tap stops. The second tap of a double tap is ignored, so it cannot end the recording it just began (1.2 s) or start another one right after a stop (0.6 s). */
+const STOP_GUARD=1200,START_GUARD=600;let lastTap=-1e9;
 $('#btn-main').onclick=()=>{
-  if(!R.active){startRecording();return}
-  if(R.stopArm){clearTimeout(R.stopArmT);R.stopArm=false;stopRecording();return}
-  R.stopArm=true;updateRecUI();R.stopArmT=setTimeout(()=>{R.stopArm=false;updateRecUI()},3500);
+  const now=performance.now();
+  if(R.active){if(now-lastTap<STOP_GUARD)return;lastTap=now;stopRecording();return}
+  if(R.starting||R.stopping||now-lastTap<START_GUARD)return;
+  lastTap=now;startRecording();
 };
 $('#btn-pause').onclick=togglePause;
 $('#btn-mark').onclick=markMoment;
