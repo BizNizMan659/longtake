@@ -460,6 +460,59 @@ mark.hit{background:var(--accent-soft);color:var(--accent);border-radius:4px;pad
 @media (prefers-reduced-motion:reduce){.row.lrow.sw,.sw-act,.sw-in svg{transition:none}}
 .thumb.fthumb.sys{background:var(--line);color:var(--muted)}
 .thumb.fthumb svg{width:26px;height:22px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+
+/* Wide screens (an iPad, or a browser window): the menu stays open on the left as a sidebar, in the style of the Claude app.
+   Phones, and any window narrower than 960px or shorter than 540px, keep the layout above unchanged. */
+#dr-search,.dr-bar,.dr-all{display:none}
+@media (min-width:960px) and (min-height:540px){
+  :root{--sbw:clamp(268px,24vw,320px);--sb-w:var(--sbw);--col-w:820px}
+  body.sb-off{--sb-w:0px}
+  body{padding-left:calc(var(--sb-w) + 24px);padding-right:max(24px,env(safe-area-inset-right,0px));transition:padding-left .24s cubic-bezier(.2,.8,.2,1)}
+  body.sb-off{padding-left:max(24px,env(safe-area-inset-left,0px))}
+  main{max-width:none;margin:0}
+  main>section,main>#upd{width:100%;max-width:var(--col-w);margin-inline:auto}
+  .appbar{position:sticky;padding:max(14px,env(safe-area-inset-top,0px)) 0 8px;gap:12px}
+  .appbar .iconbtn{width:44px;height:44px;border-radius:50%;background:var(--surface)}
+  .appbar .iconbtn:active{background:var(--raised)}
+  @media (hover:hover){.appbar .iconbtn:hover{background:var(--raised)}}
+  .appbar-title{position:absolute;left:50%;top:max(14px,env(safe-area-inset-top,0px));transform:translateX(-50%);height:44px;line-height:44px;flex:none;max-width:calc(100% - 340px);font-family:var(--font-serif);font-weight:500;font-size:1.3rem;text-align:center;pointer-events:none}
+  body[data-view=home]:not(.sb-off) .appbar-title{visibility:hidden}
+  .rec-chip{margin-left:auto}
+  #scrim{display:none}
+  #drawer{width:var(--sbw);transform:none;visibility:visible;box-shadow:none;background:var(--bg);border-right:1px solid var(--line);padding:max(16px,env(safe-area-inset-top,0px)) 10px calc(14px + env(safe-area-inset-bottom,0px)) 10px;z-index:8;transition:transform .24s cubic-bezier(.2,.8,.2,1),visibility 0s}
+  body.sb-off #drawer{transform:translateX(-102%);visibility:hidden;transition:transform .24s cubic-bezier(.2,.8,.2,1),visibility 0s .24s}
+  .dr-head{padding:2px 4px 16px 10px}
+  .wordmark{font-size:1.8rem}
+  #dr-close{display:none}
+  #dr-search{display:grid;width:44px;height:44px;border-radius:50%;background:var(--surface)}
+  #dr-search:hover{background:var(--raised)}
+  .dr-item{border-radius:14px;padding:11px 14px;gap:14px;font-size:1.04rem}
+  .dr-item.on,.dr-item.on svg{color:var(--ink)}
+  .dr-item.on{background:var(--surface);font-weight:650}
+  .dr-item[data-view=settings]{display:none}
+  .dr-sect{padding:20px 14px 6px}
+  .dr-rec{border-radius:12px;padding:9px 14px}
+  .dr-rec.on{background:var(--surface)}
+  .dr-all{display:flex;align-items:center;gap:4px;width:100%;background:none;border:0;border-radius:12px;padding:9px 14px;color:var(--muted);font-size:.95rem;text-align:left}
+  .dr-all:hover{background:var(--raised);color:var(--ink)}
+  .dr-all svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+  .dr-foot{display:none}
+  .dr-bar{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 4px 0}
+  .dr-circ{flex:none;width:46px;height:46px;border-radius:50%;border:0;background:var(--surface);color:var(--ink);display:grid;place-items:center;padding:0}
+  .dr-circ:hover{background:var(--raised)}
+  .dr-circ.on{box-shadow:inset 0 0 0 2px var(--ink)}
+  .dr-circ svg,.dr-new svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+  .dr-new{flex:1;min-width:0;display:flex;align-items:center;justify-content:center;gap:6px;height:48px;border:0;border-radius:24px;background:var(--ink);color:var(--bg);font-weight:600;font-size:.98rem;padding:0 12px;white-space:nowrap}
+  .dr-new:hover{opacity:.9}
+  .dr-new:focus-visible,.dr-circ:focus-visible{outline-color:var(--ink)}
+  #lib-delbar{left:var(--sb-w)}
+  #toast{left:calc(50% + var(--sb-w)/2)}
+  .orbbox{max-width:520px;height:clamp(236px,30vh,320px)}
+  .composer{max-width:760px;width:100%;margin-inline:auto;gap:10px;align-items:flex-end}
+  .composer textarea{min-height:56px;border-radius:28px;padding:15px 22px;background:var(--surface);border-color:var(--line)}
+  .composer .btn{min-height:56px;border-radius:28px;padding:0 24px}
+}
+@media (min-width:960px) and (min-height:540px) and (prefers-reduced-motion:reduce){body,#drawer{transition:none!important}}
 </style>
 </head>
 <body>
@@ -478,7 +531,7 @@ mark.hit{background:var(--accent-soft);color:var(--accent);border-radius:4px;pad
       <div class="timer" id="timer" role="timer">00:00:00</div>
       <div class="state" id="state">Ready</div>
       <div class="orbbox" id="orbbox"><button class="main" id="btn-main" type="button" aria-label="Start recording"></button><canvas id="orb" aria-hidden="true"></canvas></div>
-      <div class="cap" id="cap">Record</div>
+      <div class="cap" id="cap">Tap to record</div>
       <div class="controls">
         <button class="side l" id="btn-pause" disabled>Pause</button>
         <button class="side r" id="btn-mark" disabled>Mark</button>
@@ -749,7 +802,7 @@ mark.hit{background:var(--accent-soft);color:var(--accent);border-radius:4px;pad
 
 <div id="scrim"></div>
 <aside id="drawer" role="dialog" aria-modal="true" aria-label="Menu">
-  <div class="dr-head"><span class="wordmark">Yukon</span><button class="iconbtn" id="dr-close" type="button" aria-label="Close menu"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+  <div class="dr-head"><span class="wordmark">Yukon</span><button class="iconbtn" id="dr-search" type="button" aria-label="Search your recordings"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/></svg></button><button class="iconbtn" id="dr-close" type="button" aria-label="Close menu"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
   <nav aria-label="Sections">
     <button class="dr-item" data-view="home" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 11 12 4l8.5 7"/><path d="M5.5 9.8V20h13V9.8"/><path d="M10 20v-5.5h4V20"/></svg>Home</button>
     <button class="dr-item" data-view="library" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 7.5a2 2 0 0 1 2-2h4l2 2.2h7a2 2 0 0 1 2 2V17.5a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z"/></svg>Library</button>
@@ -762,7 +815,9 @@ mark.hit{background:var(--accent-soft);color:var(--accent);border-radius:4px;pad
   </nav>
   <div class="dr-sect">Recents</div>
   <div class="dr-recents" id="dr-recents"></div>
+  <button class="dr-all" id="dr-all" type="button">View all<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>
   <div class="dr-foot">Your recordings are stored on this device.</div>
+  <div class="dr-bar"><button class="dr-circ" id="dr-set" type="button" aria-label="Settings"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></svg></button><button class="dr-new" id="dr-new" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>New recording</button></div>
 </aside>
 <div id="sheet-scrim"></div>
 <div id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
@@ -794,7 +849,7 @@ let toastT;
 function toast(m){const t=$('#toast');t.textContent=m;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>{t.hidden=true},4500)}
 
 /* ---------- settings ---------- */
-const BUILD='26 Oct 2026, Marked moments open and close, with topics and Add to project';
+const BUILD='27 Oct 2026, iPad layout with a sidebar, like the Claude app';
 const DEF={apiKey:'',model:'claude-sonnet-5-5',lang:'',kbps:64,terms:'',aaiKey:'',speakers:false,sound:'natural',liveTx:true,meter:true,orb:true};
 const settings=Object.assign({},DEF);
 let savedSettings={};try{savedSettings=JSON.parse(localStorage.getItem('longtake.settings')||'{}')||{}}catch(e){}
@@ -1502,7 +1557,7 @@ function updateRecUI(){
   st.className='state'+(R.active&&!R.paused?' live':'');
   st.textContent=!R.active?'Ready':R.paused?'Paused':'Recording';
   cap.className='cap';
-  cap.textContent=!R.active?'Record':'Tap the middle to stop';
+  cap.textContent=!R.active?'Tap to record':'Tap the middle to stop';
   if(!R.active)$('#timer').textContent=fmtDur(R.accMs&&R.stopping?R.accMs:0);
   updateChips();renderLive();updateAppbar();if(!R.active)showFree();
 }
@@ -1535,6 +1590,10 @@ async function recover(){
 const TITLES={home:'Yukon',library:'Library',chats:'Chats',chat:'Chat',marked:'Marked',assign:'Assignments',quiz:'Quiz',projects:'Projects',project:'Project',detail:'Recording',settings:'Settings'};
 let CUR='home',HOMECTX=true; /* HOMECTX: on Home, or on a recording opened from a Home answer */
 const drawer=$('#drawer'),scrim=$('#scrim'),menuBtn=$('#menu-btn');
+/* On a wide screen (an iPad, a browser window) the menu is a sidebar that stays open; the round button at the top hides or shows it. */
+const WIDEQ=window.matchMedia('(min-width:960px) and (min-height:540px)');
+const isWide=()=>WIDEQ.matches;
+let SBOFF=false;try{SBOFF=localStorage.getItem('longtake.sidebar')==='off'}catch(e){}
 function show(view){
   const wasHome=HOMECTX;
   if(LV.sel){LV.sel=null;selSync()}
@@ -1546,7 +1605,9 @@ function show(view){
   const nav=view==='detail'?'library':view==='project'?'projects':view==='chat'?'chats':view;
   $$('.dr-item').forEach(b=>{const on=b.dataset.view===nav;b.classList.toggle('on',on);if(on)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current')});
   $('#appbar-title').textContent=TITLES[view];
+  document.body.dataset.view=view;$('#dr-set').classList.toggle('on',nav==='settings');
   closeDrawer();
+  if(isWide())renderDrawer();
   if(view==='library')renderLibrary(true);
   if(view==='chats')renderChats();
   if(view==='chat')renderChatView();
@@ -1567,10 +1628,15 @@ function updateAppbar(){
 }
 $('#rec-chip').onclick=()=>show('home');
 const drawerOpen=()=>drawer.classList.contains('open');
+let DRSIG='';
 async function renderDrawer(){
   const box=$('#dr-recents');
   let all=[];try{all=(await idb.all('sessions')).sort((a,b)=>b.startedAt-a.startedAt).slice(0,8)}catch(e){}
-  box.innerHTML=all.length?all.map(x=>`<button class="dr-rec" type="button" data-id="${esc(x.id)}"><span class="t">${esc(x.title)}</span><small>${fmtDate(x.startedAt)} · ${fmtDur(x.durationMs)}</small></button>`).join(''):'<p class="meta" style="padding:6px 12px">Your recordings will show up here.</p>';
+  let cur='';try{if(CUR==='detail'&&D&&D.sid)cur=D.sid}catch(e){} /* the recording that is open, so the sidebar can mark it */
+  const sig=cur+'|'+all.map(x=>[x.id,x.title,x.startedAt,x.durationMs].join('~')).join('|');
+  if(sig===DRSIG&&box.childElementCount)return; /* nothing changed: leave the list alone so it does not flicker or lose its place */
+  DRSIG=sig;
+  box.innerHTML=all.length?all.map(x=>`<button class="dr-rec${x.id===cur?' on':''}" type="button" data-id="${esc(x.id)}"><span class="t">${esc(x.title)}</span><small>${fmtDate(x.startedAt)} · ${fmtDur(x.durationMs)}</small></button>`).join(''):'<p class="meta" style="padding:6px 12px">Your recordings will show up here.</p>';
 }
 function openDrawer(){
   if(drawerOpen())return;
@@ -1586,20 +1652,41 @@ function closeDrawer(){
   menuBtn.setAttribute('aria-expanded','false');menuBtn.setAttribute('aria-label','Open menu');
   if(had)menuBtn.focus({preventScroll:true});
 }
-menuBtn.onclick=()=>drawerOpen()?closeDrawer():openDrawer();
+function syncMenuBtn(){
+  if(isWide()){const on=!SBOFF;menuBtn.setAttribute('aria-expanded',String(on));menuBtn.setAttribute('aria-label',on?'Hide sidebar':'Show sidebar')}
+  else{const o=drawerOpen();menuBtn.setAttribute('aria-expanded',String(o));menuBtn.setAttribute('aria-label',o?'Close menu':'Open menu')}
+}
+function applyWide(){
+  const w=isWide();
+  document.body.classList.toggle('sb-off',w&&SBOFF);
+  if(w){closeDrawer();drawer.setAttribute('role','complementary');drawer.removeAttribute('aria-modal');renderDrawer()}
+  else{drawer.setAttribute('role','dialog');drawer.setAttribute('aria-modal','true')}
+  syncMenuBtn();setBarH();
+}
+menuBtn.onclick=()=>{
+  if(isWide()){SBOFF=!SBOFF;try{localStorage.setItem('longtake.sidebar',SBOFF?'off':'on')}catch(e){}applyWide();return}
+  drawerOpen()?closeDrawer():openDrawer();
+};
+if(WIDEQ.addEventListener)WIDEQ.addEventListener('change',applyWide);else if(WIDEQ.addListener)WIDEQ.addListener(applyWide);
+setInterval(()=>{if(isWide()&&!SBOFF&&!document.hidden&&!R.active)renderDrawer()},4000); /* keeps the sidebar's recent recordings up to date; reads only, and not while recording */
 scrim.onclick=closeDrawer;
 $('#dr-close').onclick=closeDrawer;
 document.addEventListener('keydown',e=>{
   if(!drawerOpen())return;
   if(e.key==='Escape'){closeDrawer();return}
   if(e.key==='Tab'){
-    const f=[...drawer.querySelectorAll('button')];if(!f.length)return;
+    const f=[...drawer.querySelectorAll('button')].filter(b=>b.getClientRects().length);if(!f.length)return;
     const first=f[0],last=f[f.length-1];
     if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus()}
     else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus()}
   }
 });
-$$('.dr-item').forEach(b=>b.onclick=()=>{if(b.dataset.view==='library'){LV.folder=null;LV.q='';LV.year=0;LV.restore=null;LV.useRestore=false}show(b.dataset.view)});
+function goNav(v){if(v==='library'){LV.folder=null;LV.q='';LV.year=0;LV.restore=null;LV.useRestore=false}show(v)}
+$$('.dr-item').forEach(b=>b.onclick=()=>goNav(b.dataset.view));
+$('#dr-all').onclick=()=>goNav('library');
+$('#dr-set').onclick=()=>goNav('settings');
+$('#dr-new').onclick=()=>goNav('home');
+$('#dr-search').onclick=()=>{goNav('library');$('#lib-q').focus()};
 $('#dr-recents').addEventListener('click',e=>{const r=e.target.closest('[data-id]');if(r)openDetail(r.dataset.id,CUR==='detail'?BACK:CUR)});
 let swipeX=null;
 drawer.addEventListener('touchstart',e=>{swipeX=e.touches[0].clientX},{passive:true});
@@ -2089,6 +2176,7 @@ async function openDetail(sid,back){
   if(!s){show('library');return}
   const [txr,notes,ch]=await Promise.all([idb.get('tx',sid),idb.get('notes',sid),idb.chunks(sid)]);
   Object.assign(D,{sid,session:s,segs:(txr&&txr.segments)||[],chat:cleanChat(notes&&notes.messages),digest:(notes&&notes.digest)||null,digestLen:(notes&&notes.digestLen)||0,busy:false});
+  if(isWide())renderDrawer(); /* now that this recording is the open one, mark it in the sidebar */
   D.hl=null;$('#d-title').value=s.title;
   $('#d-meta').textContent=metaText();updateFolderBtn();updateProjBtn();
   if(D.url)URL.revokeObjectURL(D.url);
@@ -4087,6 +4175,7 @@ $('#qz-root').addEventListener('input',async e=>{
 /* ---------- page behaviour ---------- */
 function setBarH(){const a=document.querySelector('.appbar');if(a)document.documentElement.style.setProperty('--bar-h',a.offsetHeight+'px')}
 setBarH();window.addEventListener('resize',setBarH);window.addEventListener('load',setBarH);
+applyWide();
 /* ---------- recording page tabs: Transcript, AI Chat and Tools ---------- */
 const DT={cur:'tx'},TABS=['tx','chat','tools'];
 function setTab(name,keep){
