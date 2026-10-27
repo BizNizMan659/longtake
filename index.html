@@ -277,14 +277,23 @@ button.cite:hover{text-decoration:underline}
 .stack{display:flex;flex-direction:column;gap:12px}
 .grp-head{display:flex;flex-direction:column;gap:1px;margin-bottom:6px}
 .grp-head strong{font-size:1.04rem;overflow-wrap:anywhere}
-.mk{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:start;gap:8px;border-top:1px solid var(--line);padding:10px 0}
-.mk:first-of-type{border-top:0}
-.mk-go{display:grid;grid-template-columns:62px minmax(0,1fr);gap:8px;text-align:left;background:none;border:0;padding:0;color:inherit;border-radius:8px}
-.mk-go .ts{font-family:var(--font-num);font-size:.85rem;color:var(--accent);font-weight:600;padding-top:2px}
-.mk-go .snip{overflow-wrap:anywhere;font-size:.95rem}
-.mk-go .snip.none{color:var(--muted);font-style:italic}
-.mk-rm{background:none;border:0;color:var(--muted);font-size:.85rem;padding:4px 2px;white-space:nowrap}
-.mk-rm:hover,.mk-rm[data-arm]{color:var(--rec)}
+/* Marked: a folder per recording (open or closed), a row per marked moment (open or closed) */
+.mkg-h{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;min-height:44px;text-align:left;background:none;border:0;padding:0;color:inherit}
+.mkg-t{display:flex;flex-direction:column;gap:1px;min-width:0;flex:1}
+.mkg-t strong{font-size:1.04rem;overflow-wrap:anywhere}
+.mkg-sum{margin:6px 0 0;color:var(--muted);font-size:.92rem;overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.mkg-b{margin-top:8px}
+.mkg.open>.mkg-h .chev,.mk.open>.mk-hd .chev{transform:rotate(-135deg);margin-top:4px}
+.mk{border-top:1px solid var(--line)}
+.mk-hd{display:flex;align-items:center;gap:2px}
+.mk-h{display:flex;align-items:center;gap:10px;flex:1;min-width:0;width:100%;min-height:52px;text-align:left;background:none;border:0;padding:8px 0;color:inherit}
+.mk-h .ts{flex:none;min-width:46px;font-family:var(--font-num);font-size:.85rem;color:var(--accent);font-weight:600}
+.mk-topic{flex:1;min-width:0;font-weight:600;line-height:1.3;overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.mk.open .mk-topic{color:var(--accent);display:block;overflow:visible}
+.mk-b{padding:0 0 14px}
+.mk-snip{margin:0;overflow-wrap:anywhere;font-size:.95rem;line-height:1.5}
+.mk-snip.none{color:var(--muted);font-style:italic}
+.mk-act{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
 .as-row{display:grid;grid-template-columns:34px minmax(0,1fr);gap:10px;align-items:start}
 .as-body{display:flex;flex-direction:column;gap:5px;min-width:0}
 .as-top{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
@@ -705,6 +714,8 @@ mark.hit{background:var(--accent-soft);color:var(--accent);border-radius:4px;pad
       <small style="display:block;color:var(--muted)">A couple of minutes after a recording is finished, Yukon reads its transcript once for assignments, tests and deadlines. It checks again if you improve the transcript later. This sends the transcript to Claude with your key, one request per recording, and only for recordings from the last 7 days. Older ones wait for the button on the Assignments page.</small>
       <label class="check" style="margin:14px 0 2px"><input type="checkbox" id="s-autoimp"> Complete short transcripts from the audio</label>
       <small style="display:block;color:var(--muted)">The phone stops the live transcript when the screen locks, but the recording goes on. When a recording's transcript ends long before its audio does, Yukon sends that audio to AssemblyAI by itself (the same as Improve, with your AssemblyAI key) and puts the full transcript in place. The short one is kept as the earlier version. Only for recordings from the last 7 days.</small>
+      <label class="check" style="margin:14px 0 2px"><input type="checkbox" id="s-mktopics"> Name marked moments with the assistant</label>
+      <small style="display:block;color:var(--muted)">On the Marked page, each marked moment gets a short topic title, so you can tell them apart when they are closed. This sends the few sentences around each mark to Claude with your key, once for each mark. Without it, the title is the first question or sentence that was said.</small>
     </div>
     <div class="card" id="s-safe" hidden><p class="meta" style="margin:0"><span id="s-safe-t">Basic recording is on for this phone, because the microphone stopped capturing sound with the live transcript or the moving particles running.</span> <button class="linkbtn" id="s-safe-reset" type="button">Try the full recorder again</button></p></div>
     <details class="adv" id="s-adv">
@@ -783,7 +794,7 @@ let toastT;
 function toast(m){const t=$('#toast');t.textContent=m;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>{t.hidden=true},4500)}
 
 /* ---------- settings ---------- */
-const BUILD='26 Oct 2026, one tap to record and one tap to stop';
+const BUILD='26 Oct 2026, Marked moments open and close, with topics and Add to project';
 const DEF={apiKey:'',model:'claude-sonnet-5-5',lang:'',kbps:64,terms:'',aaiKey:'',speakers:false,sound:'natural',liveTx:true,meter:true,orb:true};
 const settings=Object.assign({},DEF);
 let savedSettings={};try{savedSettings=JSON.parse(localStorage.getItem('longtake.settings')||'{}')||{}}catch(e){}
@@ -3024,10 +3035,11 @@ const plural=(n,a,b)=>n+' '+(n===1?a:b);
 document.addEventListener('click',e=>{const g=e.target.closest('[data-go]');if(g)show(g.dataset.go)});
 
 /* ---------- Marked ---------- */
+const MK_MAX=600; /* how much of what was said around a mark is kept */
 function snippet(segs,t){ /* what was being said around a mark; speech is written down a moment after it is said */
   const near=segs.filter(g=>!g.mark&&g.text&&g.t>=t-25000&&g.t<=t+15000);
   const txt=near.map(g=>g.text.trim()).join(' ').trim();
-  return txt.length>280?txt.slice(0,277).trimEnd()+'…':txt;
+  return txt.length>MK_MAX?txt.slice(0,MK_MAX-1).trimEnd()+'…':txt;
 }
 async function markedData(){
   const [ss,txs]=await Promise.all([idb.all('sessions'),idb.all('tx')]);
@@ -3040,15 +3052,88 @@ async function markedData(){
   }
   return out;
 }
+/* What a marked moment is about. The assistant writes a short title when it can; until then, and without a key, the first question or sentence that was said stands in. */
+const MK={data:null,g:new Map(),r:new Set()}; /* what is open: a recording by id, a moment by id and time */
+const MKT={map:null,running:false,again:false,tried:new Set()};
+const mkKey=(sid,t)=>sid+'|'+t;
+const mkSig=s=>{let h=5381;for(let i=0;i<s.length;i++)h=((h<<5)+h+s.charCodeAt(i))|0;return (h>>>0).toString(36)};
+const MK_FILLER=/^(?:ok(?:ay)?|all right|alright|so|and|well|yeah|yes|right|now|um+|uh+|you know|let me say that again|let's see|anyway|like)[ ,.!?]*$/i;
+function topicGuess(snip){
+  if(!snip)return 'Marked moment';
+  const sents=(snip.match(/[^.?!]+[.?!]+|[^.?!]+$/g)||[]).map(x=>x.trim()).filter(x=>x.split(/\s+/).length>=3&&!MK_FILLER.test(x));
+  const s=(sents.find(x=>/\?$/.test(x))||sents[0]||snip).replace(/^(?:so|and|well|now|okay|ok|alright|all right)[, ]+/i,'').replace(/[.!]+$/,'');
+  if(s.length<=64)return s;
+  const cut=s.slice(0,63),sp=cut.lastIndexOf(' ');
+  return (sp>30?cut.slice(0,sp):cut).replace(/[ ,;:]+$/,'')+'…';
+}
+const mkClean=v=>clip(String(v==null?'':v).replace(/\s+/g,' ').replace(/^["“'‘\s]+|["”'’\s.]+$/g,''),64);
+async function mktLoad(){
+  if(MKT.map)return MKT.map;
+  const r=await getRec('__mktopics');MKT.map=(r&&r.map&&typeof r.map==='object')?r.map:{};return MKT.map;
+}
+function topicOf(sid,m){ /* the assistant's title if it was written for this very text, otherwise the plain guess */
+  const e=MKT.map&&MKT.map[mkKey(sid,m.t)];
+  return e&&e.sig===mkSig(m.snip)&&e.t?e.t:topicGuess(m.snip);
+}
+const mkSummary=g=>g.marks.map(m=>m.topic).join(' · ');
+const MK_SYS='You name moments that a student marked while recording a class or a meeting. Each moment is a short passage of automatic speech recognition from around the time they tapped Mark because something mattered. For each one, write a topic label of two to six words that says what was being discussed, in plain words, for example "What professional writing is", "Quiz on chapter 4" or "Essay due Friday". Use words from the passage and never invent anything. Quietly fix obvious misheard words. Return one JSON object and nothing else: {"topics":["label for moment 1","label for moment 2"]} with exactly one label for each moment, in the same order.';
+const mktOn=()=>settings.markTopics!==false&&!!settings.apiKey;
+async function mktRun(){ /* names the moments that have no title from the assistant yet, one recording at a time, and puts each title in place on screen */
+  if(!mktOn())return;
+  if(MKT.running){MKT.again=true;return}
+  MKT.running=true;
+  try{
+    do{
+      MKT.again=false;
+      await mktLoad();
+      const todo=(MK.data||[]).filter(g=>!MKT.tried.has(g.s.id)&&g.marks.some(m=>m.snip&&!(MKT.map[mkKey(g.s.id,m.t)]&&MKT.map[mkKey(g.s.id,m.t)].sig===mkSig(m.snip)))).slice(0,6);
+      for(const g of todo){
+        if(!mktOn()||CUR!=='marked')break;
+        MKT.tried.add(g.s.id); /* once for each recording until the app is reloaded, so a failure is not repeated at every visit */
+        const ms=g.marks.filter(m=>m.snip&&!(MKT.map[mkKey(g.s.id,m.t)]&&MKT.map[mkKey(g.s.id,m.t)].sig===mkSig(m.snip)));
+        let out=null;
+        try{
+          const txt=await callClaude({system:withTerms(MK_SYS,[g.s]),messages:[{role:'user',content:ms.map((m,i)=>`Moment ${i+1} [${fmtDur(m.t)}]\n${m.snip}`).join('\n\n')}],max:600,need:true});
+          const j=parseJson(txt);
+          if(j&&Array.isArray(j.topics)&&j.topics.length===ms.length)out=j.topics.map(mkClean);
+        }catch(e){}
+        if(!out||out.some(x=>!x))continue;
+        ms.forEach((m,i)=>{MKT.map[mkKey(g.s.id,m.t)]={t:out[i],sig:mkSig(m.snip)}});
+        const keep={};for(const x of MK.data||[])for(const m of x.marks){const k=mkKey(x.s.id,m.t);if(MKT.map[k])keep[k]=MKT.map[k]}
+        MKT.map=keep;await idb.put('notes',{sid:'__mktopics',map:keep}).catch(()=>{});
+        if(CUR==='marked')mkApplyTopics(g);
+      }
+    }while(MKT.again&&mktOn()&&CUR==='marked');
+  }finally{MKT.running=false}
+}
+function mkApplyTopics(g){ /* new titles, in place, so nothing on screen jumps */
+  const card=$$('#mk-list .mkg').find(c=>c.dataset.sid===g.s.id);if(!card)return;
+  for(const m of g.marks){
+    m.topic=topicOf(g.s.id,m);
+    const row=[...card.querySelectorAll('.mk')].find(r=>+r.dataset.t===m.t);
+    if(row)row.querySelector('.mk-topic').textContent=m.topic;
+  }
+  card.querySelector('.mkg-sum').textContent=mkSummary(g);
+}
+function mkRowHtml(s,m){
+  const open=MK.r.has(mkKey(s.id,m.t)),bid='mk-b-'+esc(s.id)+'-'+m.t,when=fmtDur(m.t);
+  return `<div class="mk${open?' open':''}" data-sid="${esc(s.id)}" data-t="${m.t}"><div class="mk-hd"><button class="mk-h" type="button" aria-expanded="${open}" aria-controls="${bid}"><span class="ts">${shortClock(m.t)}</span><span class="mk-topic">${esc(m.topic)}</span><span class="chev" aria-hidden="true"></span></button><button class="qa-more mk-more" type="button" aria-label="Add the moment at ${when} to a project" aria-haspopup="dialog">${DOTS}</button></div><div class="mk-b" id="${bid}"${open?'':' hidden'}><p class="mk-snip${m.snip?'':' none'}">${m.snip?esc(m.snip):'No transcript text near this moment.'}</p><div class="mk-act"><button class="btn sm mk-go" type="button" data-sid="${esc(s.id)}" data-t="${m.t}" aria-label="Open ${esc(s.title)} at ${when}">Open recording at ${shortClock(m.t)}</button><button class="btn sm danger mk-rm" type="button" data-sid="${esc(s.id)}" data-t="${m.t}" aria-label="Remove the mark at ${when} in ${esc(s.title)}">Remove</button></div></div></div>`;
+}
 let mkTok=0;
 async function renderMarked(){
   const tok=++mkTok,box=$('#mk-list');
-  let data;try{data=await markedData()}catch(e){box.innerHTML='<p class="empty">Could not read your recordings.</p>';$('#mk-intro').textContent='';return}
+  let data;try{data=await markedData();await mktLoad().catch(()=>{})}catch(e){box.innerHTML='<p class="empty">Could not read your recordings.</p>';$('#mk-intro').textContent='';return}
   if(tok!==mkTok||CUR!=='marked')return;
+  for(const g of data)for(const m of g.marks)m.topic=topicOf(g.s.id,m);
+  MK.data=data;
   const n=data.reduce((a,g)=>a+g.marks.length,0);
-  $('#mk-intro').textContent=n?`${plural(n,'marked moment','marked moments')} in ${plural(data.length,'recording','recordings')}. Tap one to open the recording a few seconds before it.`:'';
+  $('#mk-intro').textContent=n?`${plural(n,'marked moment','marked moments')} in ${plural(data.length,'recording','recordings')}. Open a recording to see its moments, and a moment to read what was said.`:'';
   if(!n){box.innerHTML='<div class="card"><p class="empty" style="margin:0">Nothing marked yet. While you record, tap Mark whenever something important is said and it will be saved here. You can also open any recording and tap Mark this moment while you listen.</p></div>';return}
-  box.innerHTML=data.map(g=>`<div class="card"><div class="grp-head"><strong>${esc(g.s.title)}</strong><span class="meta">${stamp(g.s.startedAt)} · ${plural(g.marks.length,'mark','marks')}</span></div>${g.marks.map(m=>`<div class="mk"><button class="mk-go" type="button" data-sid="${esc(g.s.id)}" data-t="${m.t}" aria-label="Open ${esc(g.s.title)} at ${fmtDur(m.t)}"><span class="ts">${shortClock(m.t)}</span><span class="snip${m.snip?'':' none'}">${m.snip?esc(m.snip):'No transcript text near this moment.'}</span></button><button class="mk-rm" type="button" data-sid="${esc(g.s.id)}" data-t="${m.t}" aria-label="Remove the mark at ${fmtDur(m.t)} in ${esc(g.s.title)}">Remove</button></div>`).join('')}</div>`).join('');
+  box.innerHTML=data.map((g,i)=>{
+    const open=MK.g.has(g.s.id)?MK.g.get(g.s.id):i===0; /* the newest recording starts open */
+    return `<div class="card mkg${open?' open':''}" data-sid="${esc(g.s.id)}"><button class="mkg-h" type="button" aria-expanded="${open}" aria-controls="mkg-b-${esc(g.s.id)}"><span class="mkg-t"><strong>${esc(g.s.title)}</strong><span class="meta">${stamp(g.s.startedAt)} · ${plural(g.marks.length,'mark','marks')}</span></span><span class="chev" aria-hidden="true"></span></button><p class="mkg-sum"${open?' hidden':''}>${esc(mkSummary(g))}</p><div class="mkg-b" id="mkg-b-${esc(g.s.id)}"${open?'':' hidden'}>${g.marks.map(m=>mkRowHtml(g.s,m)).join('')}</div></div>`;
+  }).join('');
+  mktRun().catch(()=>{});
 }
 async function removeMark(sid,t){
   const drop=arr=>{if(!Array.isArray(arr))return false;const i=arr.findIndex(g=>g.mark&&g.t===t);if(i<0)return false;arr.splice(i,1);return true};
@@ -3058,11 +3143,33 @@ async function removeMark(sid,t){
     if(tx){const a=drop(tx.segments),b=drop(tx.prev);if(a||b)await idb.put('tx',tx)}
   }
 }
+function mkStay(h,change){ /* opens or closes something and keeps the row you tapped where it was on screen */
+  const before=h.getBoundingClientRect().top;change();
+  const after=h.getBoundingClientRect().top;if(Math.abs(after-before)>1)window.scrollBy(0,after-before);
+}
+function mkFlip(row){
+  const key=mkKey(row.dataset.sid,+row.dataset.t),h=row.querySelector('.mk-h'),o=!MK.r.has(key);
+  mkStay(h,()=>{o?MK.r.add(key):MK.r.delete(key);row.classList.toggle('open',o);h.setAttribute('aria-expanded',o);row.querySelector('.mk-b').hidden=!o});
+}
+function mkFlipGroup(card){
+  const h=card.querySelector('.mkg-h'),o=!card.classList.contains('open');
+  mkStay(h,()=>{MK.g.set(card.dataset.sid,o);card.classList.toggle('open',o);h.setAttribute('aria-expanded',o);card.querySelector('.mkg-b').hidden=!o;card.querySelector('.mkg-sum').hidden=o});
+}
+function saveMark(sid,t){ /* the three dots: keep this marked moment in a project, with a link back to the spot in the recording */
+  const g=(MK.data||[]).find(x=>x.s.id===sid),m=g&&g.marks.find(x=>x.t===t);if(!m)return;
+  saveAnswer({kind:'rec',sid,q:m.topic,rtitle:g.s.title,text:`Marked at [${fmtDur(t)}]\n\n${m.snip||'No transcript text was near this moment.'}`});
+}
 $('#mk-list').addEventListener('click',e=>{
   const rm=e.target.closest('.mk-rm');
   if(rm){twoTap(rm,'Tap again',async()=>{try{await removeMark(rm.dataset.sid,+rm.dataset.t);toast('Mark removed.')}catch(err){toast('Could not remove that mark.')}renderMarked()});return}
   const go=e.target.closest('.mk-go');
-  if(go)openAt(go.dataset.sid,Math.max(0,+go.dataset.t-LEAD),'marked');
+  if(go){openAt(go.dataset.sid,Math.max(0,+go.dataset.t-LEAD),'marked');return}
+  const more=e.target.closest('.mk-more');
+  if(more){const row=more.closest('.mk');saveMark(row.dataset.sid,+row.dataset.t);return}
+  const rh=e.target.closest('.mk-h');
+  if(rh){mkFlip(rh.closest('.mk'));return}
+  const gh=e.target.closest('.mkg-h');
+  if(gh)mkFlipGroup(gh.closest('.mkg'));
 });
 function addMarkTo(arr,ms){ /* keeps the transcript in time order without touching anything else */
   let i=arr.findIndex(g=>g.t>ms);if(i<0)i=arr.length;arr.splice(i,0,{t:ms,mark:true,text:''});
@@ -3317,6 +3424,8 @@ document.addEventListener('visibilitychange',()=>{if(!document.hidden)setTimeout
 $('#s-autoas').checked=settings.autoAssign!==false;
 $('#s-autoimp').checked=settings.autoImprove!==false;
 $('#s-autoimp').addEventListener('change',e=>{settings.autoImprove=e.target.checked;saveSettings();if(CUR==='assign')renderAssign()});
+$('#s-mktopics').checked=settings.markTopics!==false;
+$('#s-mktopics').addEventListener('change',e=>{settings.markTopics=e.target.checked;saveSettings();if(CUR==='marked')renderMarked()});
 $('#s-autoas').addEventListener('change',e=>{settings.autoAssign=e.target.checked;saveSettings();if(CUR==='assign')renderAssign()});
 $('#as-scan').onclick=e=>asScan(e.currentTarget.dataset.force==='1');
 $('#as-stop').onclick=()=>{if(AS.abort)AS.abort.abort()};
