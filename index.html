@@ -366,7 +366,19 @@ details.donebox .stack{padding-bottom:4px}
 .pick input:focus-visible{outline:none}
 .pick.off{cursor:default;opacity:.55}
 .pick.off input{cursor:default;border-style:dashed}
-.qz-bar{position:sticky;bottom:calc(10px + env(safe-area-inset-bottom,0px));z-index:6;display:flex;flex-direction:column;gap:4px;padding:10px 10px 10px 20px;border-radius:30px;background:color-mix(in srgb,var(--raised) 92%,transparent);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);box-shadow:0 6px 24px rgba(0,0,0,.16),inset 0 0 0 1px var(--line)}
+.sq{display:flex;flex-direction:column;gap:2px;min-width:0}
+.sq-open{flex:1;width:100%;border:0;padding:0;text-align:left;color:var(--ink);font:inherit;cursor:pointer}
+@media (hover:hover){.sq-open:hover{background:var(--raised)}}
+.sq-del{align-self:flex-start;padding:4px 6px;font-size:.85rem;color:var(--muted);font-weight:600}
+.qz-list{display:grid;grid-template-columns:1fr;gap:10px}
+.pick.pk-row{flex-direction:row;align-items:center;gap:14px;padding:12px 58px 12px 14px;min-height:72px}
+.pk-row .thumb{flex:none}
+.pick.pk-row .pk{padding:0;gap:1px;flex:1}
+.pick.pk-row .pk strong{-webkit-line-clamp:1}
+.pk-desc{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;overflow-wrap:anywhere;font-size:.9rem;line-height:1.35;color:var(--ink);opacity:.86}
+.pk-desc.plain{color:var(--muted);opacity:1;font-style:italic}
+.pick.pk-row input{top:50%;margin-top:-14px;right:16px}
+.qz-bar{position:sticky;bottom:calc(10px + env(safe-area-inset-bottom,0px));z-index:6;display:flex;flex-direction:column;gap:4px;padding:10px 10px 10px 20px;border-radius:30px;background:color-mix(in srgb,var(--raised) 97%,transparent);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);box-shadow:0 6px 24px rgba(0,0,0,.16),inset 0 0 0 1px var(--line)}
 .qz-bar .err{margin:2px 8px 0 0}
 .qz-bar-row{display:flex;align-items:center;gap:12px}
 #qz-sum{flex:1;min-width:0;margin:0;font-size:.9rem}
@@ -391,12 +403,12 @@ details.donebox .stack{padding-bottom:4px}
 .miss{padding:12px 0;border-top:1px solid var(--line)}
 .miss:first-of-type{border-top:0}
 .miss p{margin:.25em 0}
-.hist{display:flex;flex-direction:column-reverse;min-width:0;overflow:hidden;border-radius:20px;background:var(--surface);font-size:.92rem}
-.hist .hs-t{display:block;min-width:0;padding:10px 14px 13px;line-height:1.3}
-.hist .hs-t .meta{line-height:1.35}
-.hist .num{position:relative;display:grid;align-content:center;justify-items:center;aspect-ratio:16/9;background:color-mix(in srgb,var(--accent) 9%,var(--raised));color:var(--muted);font-size:.78rem;line-height:1.2}
-.hist .num strong{font-size:1.45rem;line-height:1.1;color:var(--ink)}
-.hist .num::before{content:"";position:absolute;left:50%;top:50%;width:78px;height:78px;margin:-39px 0 0 -39px;border-radius:50%;background:conic-gradient(var(--accent) calc(var(--p)*1%),var(--bubble) 0);-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 7px),#000 calc(100% - 6px));mask:radial-gradient(farthest-side,transparent calc(100% - 7px),#000 calc(100% - 6px))}
+.hist,.sq-open{display:flex;flex-direction:column-reverse;min-width:0;overflow:hidden;border-radius:20px;background:var(--surface);font-size:.92rem}
+.hist .hs-t,.sq-open .hs-t{display:block;min-width:0;padding:10px 14px 13px;line-height:1.3}
+.hist .hs-t .meta,.sq-open .hs-t .meta{line-height:1.35}
+.hist .num,.sq-open .num{position:relative;display:grid;align-content:center;justify-items:center;aspect-ratio:16/9;background:color-mix(in srgb,var(--accent) 9%,var(--raised));color:var(--muted);font-size:.78rem;line-height:1.2}
+.hist .num strong,.sq-open .num strong{font-size:1.45rem;line-height:1.1;color:var(--ink)}
+.hist .num::before,.sq-open .num::before{content:"";position:absolute;left:50%;top:50%;width:78px;height:78px;margin:-39px 0 0 -39px;border-radius:50%;background:conic-gradient(var(--accent) calc(var(--p)*1%),var(--bubble) 0);-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 7px),#000 calc(100% - 6px));mask:radial-gradient(farthest-side,transparent calc(100% - 7px),#000 calc(100% - 6px))}
 
 /* Projects */
 .pj-row{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;text-align:left;background:var(--surface);border:0;border-radius:20px;padding:16px 18px;color:var(--ink)}
@@ -565,6 +577,8 @@ mark.hit{background:var(--accent-soft);color:var(--accent);border-radius:4px;pad
   .qz-count .chip{min-height:40px;padding:8px 16px;font-size:.95rem}
   .qz-sh h2{font-size:1.3rem}
   .qz-grid{grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:16px}
+  .qz-list{grid-template-columns:repeat(auto-fill,minmax(400px,1fr));gap:12px}
+  .pick.pk-row{padding:14px 64px 14px 16px}
   .pick .pk,.hist .hs-t{padding:12px 16px 15px}
   .qz-bar{align-self:center;width:min(100%,760px);bottom:20px}
 }
@@ -822,9 +836,11 @@ mark.hit{background:var(--accent-soft);color:var(--accent);border-radius:4px;pad
       <label class="check" style="margin:14px 0 2px"><input type="checkbox" id="s-autoas"> Look for assignments automatically</label>
       <small style="display:block;color:var(--muted)">A couple of minutes after a recording is finished, Yukon reads its transcript once for assignments, tests and deadlines. It checks again if you improve the transcript later. This sends the transcript to Claude with your key, one request per recording, and only for recordings from the last 7 days. Older ones wait for the button on the Assignments page.</small>
       <label class="check" style="margin:14px 0 2px"><input type="checkbox" id="s-autoimp"> Complete short transcripts from the audio</label>
-      <small style="display:block;color:var(--muted)">The phone stops the live transcript when the screen locks, but the recording goes on. When a recording's transcript ends long before its audio does, Yukon sends that audio to AssemblyAI by itself (the same as Improve, with your AssemblyAI key) and puts the full transcript in place. The short one is kept as the earlier version. Only for recordings from the last 7 days.</small>
+      <small style="display:block;color:var(--muted)">The phone can stop the live transcript when the screen locks, and in some browsers the recording too. When a recording's transcript ends long before its audio does, Yukon sends that audio to AssemblyAI by itself (the same as Improve, with your AssemblyAI key) and puts the full transcript in place. The short one is kept as the earlier version. Only for recordings from the last 7 days.</small>
       <label class="check" style="margin:14px 0 2px"><input type="checkbox" id="s-mktopics"> Name marked moments with the assistant</label>
       <small style="display:block;color:var(--muted)">On the Marked page, each marked moment gets a short topic title, so you can tell them apart when they are closed. This sends the few sentences around each mark to Claude with your key, once for each mark. Without it, the title is the first question or sentence that was said.</small>
+      <label class="check" style="margin:14px 0 2px"><input type="checkbox" id="s-about"> Describe recordings with the assistant</label>
+      <small style="display:block;color:var(--muted)">On Create quiz, each recording gets one short line saying what it is about, written once from its transcript with your Claude key and then kept. Without it, the line is the first words that were said.</small>
     </div>
     <div class="card" id="s-safe" hidden><p class="meta" style="margin:0"><span id="s-safe-t">Basic recording is on for this phone, because the microphone stopped capturing sound with the live transcript or the moving particles running.</span> <button class="linkbtn" id="s-safe-reset" type="button">Try the full recorder again</button></p></div>
     <details class="adv" id="s-adv">
@@ -905,7 +921,7 @@ let toastT;
 function toast(m){const t=$('#toast');t.textContent=m;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>{t.hidden=true},4500)}
 
 /* ---------- settings ---------- */
-const BUILD='27 Oct 2026, Create quiz looks like a home page, Projects first';
+const BUILD='27 Oct 2026, Quizzes can be saved and resumed, recordings are folder rows';
 const DEF={apiKey:'',model:'claude-sonnet-5-5',lang:'',kbps:64,terms:'',aaiKey:'',speakers:false,sound:'natural',liveTx:true,meter:true,orb:true};
 const settings=Object.assign({},DEF);
 let savedSettings={};try{savedSettings=JSON.parse(localStorage.getItem('longtake.settings')||'{}')||{}}catch(e){}
@@ -3568,6 +3584,8 @@ document.addEventListener('visibilitychange',()=>{if(!document.hidden)setTimeout
 $('#s-autoas').checked=settings.autoAssign!==false;
 $('#s-autoimp').checked=settings.autoImprove!==false;
 $('#s-autoimp').addEventListener('change',e=>{settings.autoImprove=e.target.checked;saveSettings();if(CUR==='assign')renderAssign()});
+$('#s-about').checked=settings.aboutAI!==false;
+$('#s-about').addEventListener('change',e=>{settings.aboutAI=e.target.checked;saveSettings();if(CUR==='quiz')renderQuiz()});
 $('#s-mktopics').checked=settings.markTopics!==false;
 $('#s-mktopics').addEventListener('change',e=>{settings.markTopics=e.target.checked;saveSettings();if(CUR==='marked')renderMarked()});
 $('#s-autoas').addEventListener('change',e=>{settings.autoAssign=e.target.checked;saveSettings();if(CUR==='assign')renderAssign()});
@@ -3883,18 +3901,65 @@ $('#pj-quiz').addEventListener('click',async()=>{
 
 /* ---------- Quiz ---------- */
 const QZ_SYS='You write quiz questions that help a student study from recordings of lectures, meetings and talks. Use only what the speaker actually says in the transcripts; never rely on outside knowledge for a question or for its correct answer. The transcripts come from automatic speech recognition and can contain misheard words, so quietly fix obvious errors. Write clear multiple-choice questions, each with exactly four options and exactly one correct answer. The wrong options must be plausible but clearly wrong according to the transcript. Never use options such as \"all of the above\" or \"none of the above\". Test understanding of the real ideas, definitions, steps, examples, numbers, names and decisions, not trivia. Vary the kinds of question and spread them across the material in the order it was taught. For each question, write a short explanation in the voice of a good teacher: one or two sentences saying why the answer is right and what the speaker said.\n\nReturn one JSON object and nothing else, in exactly this shape: {"questions":[{"q":"the question","options":["first option","second option","third option","fourth option"],"answer":0,"why":"the explanation","rec":"the id of the recording the question comes from","time":"hh:mm:ss where the speaker said it"}]}. \"answer\" is the zero-based position of the correct option. Do not put letters such as A) in front of the options.';
-const QZ={data:null,mode:null,busy:false,abort:null,err:'',errKey:false,tok:0,count:0,part:null,what:'',pre:null};
+const QZ={data:null,mode:null,busy:false,abort:null,err:'',errKey:false,tok:0,count:0,part:null,what:'',pre:null,about:null,aboutBusy:false,aboutFail:new Set()};
 async function qzLoad(){
   if(QZ.data)return QZ.data;
   const r=await getRec('__quiz')||{};
-  let cur=r.cur;
   const okQ=q=>q&&typeof q.q==='string'&&Array.isArray(q.opts)&&q.opts.length>=2&&Number.isInteger(q.ans)&&q.ans>=0&&q.ans<q.opts.length;
-  if(!cur||!Array.isArray(cur.qs)||!cur.qs.length||!cur.qs.every(okQ))cur=null;
-  else{cur.picks=cur.qs.map((_,i)=>Array.isArray(cur.picks)&&Number.isInteger(cur.picks[i])?cur.picks[i]:null);cur.idx=Math.max(0,Math.min(cur.qs.length,Number.isInteger(cur.idx)?cur.idx:0))}
-  QZ.data={sel:Array.isArray(r.sel)?r.sel.filter(x=>typeof x==='string'):[],count:[5,10,15,20,30,45].includes(r.count)?r.count:10,src:r.v>=2&&r.src==='rec'?'rec':'proj', /* Projects come first; a source saved before this default existed (no v) is not kept */psel:Array.isArray(r.psel)?r.psel.filter(x=>typeof x==='string'):[],focus:clip(r.focus,200),cur,history:Array.isArray(r.history)?r.history.slice(0,10):[],seen:Array.isArray(r.seen)?r.seen.filter(x=>typeof x==='string').slice(-40):[]};
+  const fixQ=c=>{
+    if(!c||!Array.isArray(c.qs)||!c.qs.length||!c.qs.every(okQ))return null;
+    c.picks=c.qs.map((_,i)=>Array.isArray(c.picks)&&Number.isInteger(c.picks[i])?c.picks[i]:null);c.idx=Math.max(0,Math.min(c.qs.length,Number.isInteger(c.idx)?c.idx:0));
+    return c;
+  };
+  const cur=fixQ(r.cur);
+  const paused=(Array.isArray(r.paused)?r.paused:[]).map(fixQ).filter(c=>c&&c.idx<c.qs.length).slice(0,60).map((c,i)=>{if(typeof c.id!=='string'||!c.id)c.id='q'+Date.now().toString(36)+i;return c});
+  QZ.data={sel:Array.isArray(r.sel)?r.sel.filter(x=>typeof x==='string'):[],count:[5,10,15,20,30,45].includes(r.count)?r.count:10,src:r.v>=2&&r.src==='rec'?'rec':'proj', /* Projects come first; a source saved before this default existed (no v) is not kept */psel:Array.isArray(r.psel)?r.psel.filter(x=>typeof x==='string'):[],focus:clip(r.focus,200),cur,paused,history:Array.isArray(r.history)?r.history.slice(0,10):[],seen:Array.isArray(r.seen)?r.seen.filter(x=>typeof x==='string').slice(-40):[]};
   return QZ.data;
 }
-const qzSave=()=>{const d=QZ.data;return idb.put('notes',{sid:'__quiz',v:2,sel:d.sel,count:d.count,src:d.src,psel:d.psel,focus:d.focus,cur:d.cur,history:d.history,seen:d.seen}).catch(()=>{})};
+const qzSave=()=>{const d=QZ.data;return idb.put('notes',{sid:'__quiz',v:2,sel:d.sel,count:d.count,src:d.src,psel:d.psel,focus:d.focus,cur:d.cur,paused:d.paused,history:d.history,seen:d.seen}).catch(()=>{})};
+/* A quiz you leave is kept, never replaced: it moves to the Saved quizzes list with its answers, and you can pick it up again. Only an unfinished quiz is saved (a finished one is already in Recent quizzes). */
+const QZ_MAXSAVED=30;
+const qzNewId=()=>'q'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+function qzPause(d){
+  const c=d.cur;
+  if(!c||c.idx>=c.qs.length)return false;
+  if(!c.id)c.id=qzNewId();
+  c.pausedAt=Date.now();
+  d.paused=[c,...d.paused.filter(x=>x.id!==c.id)];d.cur=null;
+  return true;
+}
+/* a one-line description of each recording, written once by the assistant and kept (note __about), so the Recordings list says what each one is about */
+const QZ_ABOUT_SYS='You describe one recording for a student so they can tell their recordings apart. In one plain sentence of at most 22 words, say what the recording is about: the subject and the main thing it covers. Use only what the speaker says in the transcript, which comes from automatic speech recognition and can contain misheard words. Do not begin with "This recording" or "The speaker". No quotation marks, no markdown, no title. Reply with the sentence only.';
+async function qzAboutLoad(){if(QZ.about)return QZ.about;const r=await getRec('__about');QZ.about=r&&r.map&&typeof r.map==='object'?r.map:{};return QZ.about}
+const qzAboutSave=()=>idb.put('notes',{sid:'__about',map:QZ.about}).catch(()=>{});
+function aboutClean(t){t=String(t==null?'':t).replace(/[*_`#>]+/g,'').replace(/^["“”'\s]+|["“”'\s]+$/g,'').replace(/\s+/g,' ').trim();return !t||t.length>170||t.split(' ').length>30?'':t}
+const qzFirst=x=>{ /* until the assistant has written one: the first words that were said */
+  let t='';for(const g of (x.segs||[])){t+=(t?' ':'')+g.text.replace(/\s+/g,' ').trim();if(t.length>=100)break}
+  return t.length>120?t.slice(0,117).replace(/\s+\S*$/,'')+'…':t;
+};
+async function qzAbout(list){ /* writes the missing descriptions, newest first and one at a time; it stops when you leave the page or start a quiz, and carries on next visit */
+  if(QZ.aboutBusy||!settings.apiKey||settings.aboutAI===false)return;
+  QZ.aboutBusy=true;
+  try{
+    await qzAboutLoad();
+    for(const x of list){
+      if(CUR!=='quiz'||QZ.mode!=='setup'||QZ.busy||R.active||document.hidden||!QZ.data||QZ.data.src!=='rec')break;
+      if(!x.segs.length||x.live||QZ.aboutFail.has(x.s.id))continue;
+      const a=QZ.about[x.s.id];
+      if(a&&a.t&&!(x.s.words>2*(a.w||0)+50))continue; /* kept, unless the transcript has since grown a lot */
+      const text=x.segs.map(g=>g.text.trim()).join(' ');
+      if(text.split(/\s+/).length<8)continue;
+      const mid=Math.floor(text.length/2),sample=text.length>3600?text.slice(0,1800)+' … '+text.slice(mid-450,mid+450):text;
+      let out;
+      try{out=await callClaude({system:QZ_ABOUT_SYS,messages:[{role:'user',content:(x.s.title&&!/^Recording\b/i.test(x.s.title)?'Recording title: '+clip(x.s.title,80)+'\n\n':'')+'<transcript>\n'+sample+'\n</transcript>'}],max:120})}
+      catch(e){break} /* no key, a wrong key, or a busy service: stop here instead of failing on every recording */
+      const t=aboutClean(out);
+      if(!t){QZ.aboutFail.add(x.s.id);continue}
+      QZ.about[x.s.id]={t,w:x.s.words||0};await qzAboutSave();
+      $$('#qz-root [data-desc]').forEach(e=>{if(e.dataset.desc===x.s.id){e.textContent=t;e.classList.remove('plain')}});
+    }
+  }finally{QZ.aboutBusy=false}
+}
 const shuffle=a=>{const o=a.slice();for(let i=o.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[o[i],o[j]]=[o[j],o[i]]}return o};
 const FIXED=/\b(all|none|both|neither)\b[^.]{0,12}\b(above|these|them)\b/i;
 function shuffleQ(q){ /* mix up the order of the options, except when an option refers to the others */
@@ -4001,6 +4066,7 @@ async function qzStart(){
   if(QZ.busy)return;
   QZ.busy=true;QZ.err='';QZ.errKey=false;QZ.part=null;QZ.pre=null; /* claimed right away, so a double tap cannot start two quizzes */
   const d=await qzLoad(),proj=d.src==='proj';
+  if(d.paused.length>=QZ_MAXSAVED){QZ.busy=false;QZ.err=`You have ${QZ_MAXSAVED} saved quizzes. Delete one under Saved quizzes to start another.`;renderQuiz();return}
   let list;try{list=await textSessions();await pjLoad()}catch(e){QZ.busy=false;QZ.err='Could not read your '+(proj?'projects.':'recordings.');renderQuiz();return}
   const use=proj?[]:list.filter(x=>d.sel.includes(x.s.id)&&x.segs.length&&!x.live);
   const chosen=proj?PJ.data.projects.filter(p=>d.psel.includes(p.id)&&p.items.length):[];
@@ -4070,7 +4136,8 @@ async function qzStart(){
         else{q.rec='';q.t=null}
       });
     }
-    d.cur={at:Date.now(),titles:proj?chosen.map(p=>p.name):use.map(x=>x.s.title),qs,idx:0,picks:qs.map(()=>null),sampled,asked:d.count,retry:false,logged:false,src:d.src,note:partial};
+    qzPause(d);
+    d.cur={id:qzNewId(),at:Date.now(),titles:proj?chosen.map(p=>p.name):use.map(x=>x.s.title),qs,idx:0,picks:qs.map(()=>null),sampled,asked:d.count,retry:false,logged:false,src:d.src,note:partial};
     d.seen=d.seen.concat(qs.map(q=>q.q)).slice(-40);
     QZ.mode='play';await qzSave();
   }catch(e){
@@ -4109,26 +4176,29 @@ function setupHtml(d,list){
   let h='';
   const c=d.cur,pre=QZ.pre;
   if(pre&&!proj&&d.sel.length===1&&d.sel[0]===pre.sid&&d.focus===pre.focus)h+=`<div class="card" id="qz-pre"><p style="margin:0">Set up from your assignment <strong>${esc(pre.title)}</strong>: this recording, ${d.count} questions. Change anything below, then tap Start quiz.</p><div style="margin-top:6px"><button class="linkbtn" type="button" data-go="assign">Back to Assignments</button></div></div>`;
-  if(c&&c.idx<c.qs.length)h+=`<div class="card"><div class="card-head" style="margin:0"><div><strong>Quiz in progress</strong><div class="meta">Question ${c.idx+1} of ${c.qs.length} · ${esc(labelOf(c.titles))}</div></div><button class="btn" type="button" data-q="resume">Back to quiz</button></div><p class="meta" style="margin:8px 0 0">Starting a new quiz replaces this one.</p></div>`;
   /* the banner: a question, where the questions come from, an optional topic bar, and how many */
   const hero=more=>`<div class="card qz-hero"><h2 class="qz-title">What will you quiz on today?</h2><div class="chips qz-tabs" role="group" aria-label="Where the questions come from"><button class="chip${proj?' on':''}" type="button" data-src="proj" aria-pressed="${proj}">Projects</button><button class="chip${proj?'':' on'}" type="button" data-src="rec" aria-pressed="${!proj}">Recordings</button></div>${more}</div>`;
   const ctl=`<div class="qz-bar-field"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/></svg><label class="qz-sr" for="qz-focus">Focus (optional)</label><input type="text" id="qz-focus" maxlength="200" placeholder="Focus on a topic (optional)" value="${esc(d.focus)}"></div><p class="meta qz-hint">For example, chapter 3. Leave this empty to be quizzed on everything in the chosen ${proj?'projects':'recordings'}.</p><div class="qz-count"><span class="qz-lbl" aria-hidden="true">Questions</span><div class="chips" role="group" aria-label="Number of questions">${QZ_COUNTS.map(n=>`<button class="chip${n===d.count?' on':''}" type="button" data-count="${n}" aria-pressed="${n===d.count}">${n}</button>`).join('')}</div></div><p class="meta" id="qz-lock" hidden></p>`;
   const acts=`<span class="ch-act"><button class="linkbtn" type="button" data-q="all">Select all</button> <button class="linkbtn" type="button" data-q="none" style="margin-left:10px">Clear</button></span>`;
+  const sq=d.paused.length?`<div class="qz-sect" id="qz-saved"><div class="qz-sh"><h2>Saved quizzes</h2></div><div class="qz-grid">${d.paused.map(q=>{
+    const n=q.qs.length,done=q.picks.filter(x=>x!=null).length,pct=Math.round(done/n*100),nm=labelOf(q.titles);
+    return `<div class="sq"><button class="sq-open" type="button" data-q="resume" data-qid="${esc(q.id)}" style="--p:${pct}"><span class="hs-t">${esc(nm)}<br><span class="meta">In progress · Question ${Math.min(q.idx+1,n)} of ${n}${q.retry?' · missed questions':''}</span></span><span class="num"><strong>${pct}%</strong> done</span></button><button class="linkbtn sq-del" type="button" data-q="drop" data-qid="${esc(q.id)}" aria-label="Delete saved quiz: ${esc(nm)}">Delete</button></div>`}).join('')}</div></div>`:'';
   let body='';
   if(proj){
-    if(!pfull.length)return h+hero('')+`<div class="card"><p class="empty" style="margin:0">${pall.length?'None of your projects has a saved answer yet.':'No projects yet.'} Save answers from your recordings into a project, then come back to be quizzed on it.</p><div class="btns" style="margin-top:12px"><button class="btn" type="button" data-go="projects">Go to Projects</button></div></div>`;
+    if(!pfull.length)return h+hero('')+sq+`<div class="card"><p class="empty" style="margin:0">${pall.length?'None of your projects has a saved answer yet.':'No projects yet.'} Save answers from your recordings into a project, then come back to be quizzed on it.</p><div class="btns" style="margin-top:12px"><button class="btn" type="button" data-go="projects">Go to Projects</button></div></div>`;
     body+=`<div class="qz-sect"><div class="qz-sh"><h2>Choose projects</h2>${acts}</div><div class="qz-grid">`;
     body+=pfull.map(p=>{const m=qzMaterial({src:'proj',psel:[p.id],sel:[]},list);return `<label class="pick"><input type="checkbox" data-pid="${esc(p.id)}"${psel.has(p.id)?' checked':''}><span class="pk-th" aria-hidden="true">${QZ_NOTES}</span><span class="pk"><strong>${esc(p.name)}</strong><small>${pjCount(p.items)}${m.ms?' · from '+fmtLen(m.ms)+' of recordings':''}</small></span></label>`}).join('');
     body+=pall.filter(p=>!pfull.includes(p)).map(p=>`<div class="pick off"><input type="checkbox" disabled aria-label="${esc(p.name)} ${p.items.length?'has nothing to quiz on yet':'has nothing saved yet'}"><span class="pk-th" aria-hidden="true">${QZ_NOTES}</span><span class="pk"><strong>${esc(p.name)}</strong><small>${p.items.length?'No transcript to quiz on yet':'Nothing saved yet'}</small></span></div>`).join('');
     body+=`</div></div>`;
   }else{
-    if(!avail.length)return h+hero('')+`<div class="card"><p class="empty" style="margin:0">${list.length?'None of your recordings has a transcript yet.':'No recordings yet.'} Record a lecture, meeting or talk, then come back here to be quizzed on it.</p></div>`;
-    body+=`<div class="qz-sect"><div class="qz-sh"><h2>Choose recordings</h2>${acts}</div><div class="qz-grid">`;
-    body+=avail.map(x=>`<label class="pick"><input type="checkbox" data-sid="${esc(x.s.id)}"${sel.has(x.s.id)?' checked':''}><span class="pk-th" aria-hidden="true">${qzWave(x.s.id)}</span><span class="pk"><strong>${esc(x.s.title)}</strong><small>${stamp(x.s.startedAt)} · ${fmtLen(x.s.durationMs||0)}${x.s.words?' · '+x.s.words.toLocaleString()+' words':''}</small></span></label>`).join('');
-    body+=off.map(x=>`<div class="pick off"><input type="checkbox" disabled aria-label="${esc(x.s.title)} has no transcript"><span class="pk-th" aria-hidden="true">${qzWave(x.s.id)}</span><span class="pk"><strong>${esc(x.s.title)}</strong><small>No transcript yet</small></span></div>`).join('');
+    if(!avail.length)return h+hero('')+sq+`<div class="card"><p class="empty" style="margin:0">${list.length?'None of your recordings has a transcript yet.':'No recordings yet.'} Record a lecture, meeting or talk, then come back here to be quizzed on it.</p></div>`;
+    const ic=x=>folderThumb(x.s.folder||x.s.title||'',false),ab=QZ.about||{};
+    body+=`<div class="qz-sect"><div class="qz-sh"><h2>Choose recordings</h2>${acts}</div><div class="qz-list">`;
+    body+=avail.map(x=>{const a=ab[x.s.id],t=a&&a.t?a.t:qzFirst(x);return `<label class="pick pk-row"><input type="checkbox" data-sid="${esc(x.s.id)}"${sel.has(x.s.id)?' checked':''}>${ic(x)}<span class="pk"><strong>${esc(x.s.title)}</strong>${t?`<span class="pk-desc${a&&a.t?'':' plain'}" data-desc="${esc(x.s.id)}">${esc(t)}</span>`:''}<small>${stamp(x.s.startedAt)} · ${fmtLen(x.s.durationMs||0)}${x.s.words?' · '+x.s.words.toLocaleString()+' words':''}</small></span></label>`}).join('');
+    body+=off.map(x=>`<div class="pick pk-row off"><input type="checkbox" disabled aria-label="${esc(x.s.title)} has no transcript">${ic(x)}<span class="pk"><strong>${esc(x.s.title)}</strong><small>No transcript yet</small></span></div>`).join('');
     body+=`</div></div>`;
   }
-  h+=hero(ctl)+body;
+  h+=hero(ctl)+sq+body;
   if(d.history.length)h+=`<div class="qz-sect"><div class="qz-sh"><h2>Recent quizzes</h2></div><div class="qz-grid">${d.history.slice(0,5).map(x=>`<div class="hist" style="--p:${x.total?Math.round(x.score/x.total*100):0}"><span class="hs-t">${esc(labelOf(x.titles))}<br><span class="meta">${fmtDate(x.at)}</span></span><span class="num"><strong>${x.score}</strong> of ${x.total}</span></div>`).join('')}</div></div>`;
   /* Start stays in reach at the bottom of the screen, with the count of what is chosen and any error beside it */
   h+=`<div class="qz-bar"><div class="err" id="qz-err" ${QZ.err?'':'hidden'}>${esc(QZ.err)}${QZ.errKey?' <button class="linkbtn" type="button" data-go="settings">Open Settings</button>':''}</div><div class="qz-bar-row"><p class="meta" id="qz-sum" aria-live="polite"></p><button class="btn primary" type="button" data-q="start" id="qz-start">Start quiz</button></div></div>`;
@@ -4146,7 +4216,7 @@ function qzSync(d,list){ /* keep the summary line, the question counts and the S
 function busyHtml(d){return `<div class="card" role="status"><h2>Writing your quiz</h2><div class="prog"><div class="bar ind"><span></span></div><div class="meta" id="qz-prog-t">${qzProgText()}</div></div><div class="btns" style="margin-top:12px"><button class="btn" type="button" data-q="cancel">Stop</button></div></div>`}
 function questionHtml(c){
   const q=c.qs[c.idx],pick=c.picks[c.idx],answered=pick!=null,last=c.idx===c.qs.length-1;
-  let h=`<div class="card"><div class="qz-top"><span class="meta">Question ${c.idx+1} of ${c.qs.length}${c.retry?' · missed questions':''}</span><button class="linkbtn" type="button" data-q="new">New quiz</button></div><div class="prog" aria-hidden="true"><div class="bar"><span style="width:${Math.round((c.idx+(answered?1:0))/c.qs.length*100)}%"></span></div></div>`;
+  let h=`<div class="card"><div class="qz-top"><span class="meta">Question ${c.idx+1} of ${c.qs.length}${c.retry?' · missed questions':''}</span><button class="linkbtn" type="button" data-q="new">Save and exit</button></div><div class="prog" aria-hidden="true"><div class="bar"><span style="width:${Math.round((c.idx+(answered?1:0))/c.qs.length*100)}%"></span></div></div>`;
   if(c.idx===0&&!answered&&c.asked&&c.qs.length<c.asked&&!c.retry)h+=`<p class="meta" style="margin:8px 0 0">The assistant wrote ${c.qs.length} of the ${c.asked} questions you asked for.${c.note?' '+esc(c.note):''}</p>`;
   if(c.idx===0&&!answered&&c.sampled)h+=`<p class="meta" style="margin:8px 0 0">These recordings are long, so the questions come from passages spread across them.</p>`;
   h+=`<h2 class="qz-q" id="qz-q" tabindex="-1">${esc(q.q)}</h2><div class="opts" role="group" aria-labelledby="qz-q">`;
@@ -4183,10 +4253,12 @@ async function renderQuiz(focus){
   QZ.list=list; /* reused by the checkboxes, so a tap does not re-read every transcript */
   if(!QZ.mode)QZ.mode=d.cur?'play':'setup';
   if(QZ.mode==='play'&&!d.cur)QZ.mode='setup';
+  if(QZ.mode==='setup'&&!QZ.busy&&qzPause(d))await qzSave(); /* arriving at setup with a quiz still open (from an assignment or a project) saves it instead of replacing it */
+  if(d.src==='rec')await qzAboutLoad();
   const c=d.cur;
   if(QZ.busy)root.innerHTML=busyHtml(d);
   else if(QZ.mode==='play')root.innerHTML=c.idx>=c.qs.length?resultsHtml(c):questionHtml(c);
-  else{root.innerHTML=setupHtml(d,list);qzSync(d,list)}
+  else{root.innerHTML=setupHtml(d,list);qzSync(d,list);if(d.src==='rec')qzAbout(list)}
   if(focus){
     const t=focus==='next'?$('#qz-next'):focus==='top'?($('#qz-score')||$('#qz-q')):null;
     if(t)try{t.focus({preventScroll:false})}catch(e){}
@@ -4223,8 +4295,18 @@ $('#qz-root').addEventListener('click',async e=>{
     qzSync(d,list);
   }else if(act==='start')qzStart();
   else if(act==='cancel'){if(QZ.abort)QZ.abort.abort()}
-  else if(act==='resume'){QZ.mode='play';renderQuiz('top')}
-  else if(act==='new'){QZ.mode='setup';QZ.err='';renderQuiz();window.scrollTo(0,0)}
+  else if(act==='resume'){
+    if(a.dataset.qid){ /* a saved quiz: it becomes the open one, with its answers */
+      qzPause(d);const i=d.paused.findIndex(x=>x.id===a.dataset.qid);if(i<0)return;
+      d.cur=d.paused.splice(i,1)[0];delete d.cur.pausedAt;await qzSave();
+    }
+    QZ.mode='play';renderQuiz('top');
+  }
+  else if(act==='drop')twoTap(a,'Tap again to delete',async()=>{d.paused=d.paused.filter(x=>x.id!==a.dataset.qid);await qzSave();renderQuiz()});
+  else if(act==='new'){
+    const saved=qzPause(d);if(saved){await qzSave();toast('Saved. Pick it up again under Saved quizzes.')}
+    QZ.mode='setup';QZ.err='';renderQuiz();window.scrollTo(0,0);
+  }
   else if(act==='next'&&c&&c.idx<c.qs.length&&c.picks[c.idx]!=null){c.idx++;if(c.idx>=c.qs.length)qzFinish(d);qzSave();renderQuiz('top')}
   else if(act==='retry'&&c&&c.idx>=c.qs.length){
     const missed=c.qs.filter((q,i)=>c.picks[i]!==q.ans);
