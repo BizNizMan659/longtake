@@ -436,6 +436,8 @@ details.donebox .stack{padding-bottom:4px}
 @media (hover:hover){.pj-card:hover .pj-th{filter:brightness(.96)}}
 .pj-card:focus-visible{outline:2px solid var(--accent);outline-offset:4px}
 .pj-empty{grid-column:1/-1}
+/* the review list after a quiz matters most, so its heading is large */
+.rv-h{font-size:1.65rem;line-height:1.2;font-weight:700;letter-spacing:-.01em;margin:2px 0 6px}
 #pj-name{font-size:1.25rem}
 #sheet-scrim{position:fixed;inset:0;background:rgba(0,0,0,.5);opacity:0;visibility:hidden;transition:opacity .2s,visibility 0s .2s;z-index:30}
 #sheet-scrim.open{opacity:1;visibility:visible;transition:opacity .2s}
@@ -605,6 +607,7 @@ mark.hit{background:var(--accent-soft);color:var(--accent);border-radius:4px;pad
   .qz-hero .pj-bar input[type=text]{padding-right:120px}
   .pj-bar .btn{padding:0 26px}
   .pj-grid{grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:28px 18px}
+  .rv-h{font-size:1.95rem}
 }
 @media (min-width:960px) and (min-height:540px) and (prefers-reduced-motion:reduce){body,#drawer{transition:none!important}}
 </style>
@@ -945,7 +948,7 @@ let toastT;
 function toast(m){const t=$('#toast');t.textContent=m;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>{t.hidden=true},4500)}
 
 /* ---------- settings ---------- */
-const BUILD='28 Oct 2026, Projects page in the same style as Create quiz';
+const BUILD='28 Oct 2026, Harder quiz questions, Next button, bigger review heading';
 const DEF={apiKey:'',model:'claude-sonnet-5-5',lang:'',kbps:64,terms:'',aaiKey:'',speakers:false,sound:'natural',liveTx:true,meter:true,orb:true};
 const settings=Object.assign({},DEF);
 let savedSettings={};try{savedSettings=JSON.parse(localStorage.getItem('longtake.settings')||'{}')||{}}catch(e){}
@@ -3929,7 +3932,8 @@ $('#pj-quiz').addEventListener('click',async()=>{
 });
 
 /* ---------- Quiz ---------- */
-const QZ_SYS='You write quiz questions that help a student study from recordings of lectures, meetings and talks. Use only what the speaker actually says in the transcripts; never rely on outside knowledge for a question or for its correct answer. The transcripts come from automatic speech recognition and can contain misheard words, so quietly fix obvious errors. Write clear multiple-choice questions, each with exactly four options and exactly one correct answer. The wrong options must be plausible but clearly wrong according to the transcript. Never use options such as \"all of the above\" or \"none of the above\". Test understanding of the real ideas, definitions, steps, examples, numbers, names and decisions, not trivia. Vary the kinds of question and spread them across the material in the order it was taught. For each question, write a short explanation in the voice of a good teacher: one or two sentences saying why the answer is right and what the speaker said.\n\nReturn one JSON object and nothing else, in exactly this shape: {"questions":[{"q":"the question","options":["first option","second option","third option","fourth option"],"answer":0,"why":"the explanation","rec":"the id of the recording the question comes from","time":"hh:mm:ss where the speaker said it"}]}. \"answer\" is the zero-based position of the correct option. Do not put letters such as A) in front of the options.';
+const QZ_HARD='Make the quiz genuinely challenging and impossible to pass by guessing. Write about one third of the questions as recall of a key fact, and the rest as questions that need understanding: why something happens, how two ideas differ, what would change if something changed, which example fits a definition, or which step comes next. Make the options hard to guess without knowing the material. First, all four options must be about the same length, in the same style and with the same level of detail; no option may stand out by being longer, more specific, more complete or more carefully qualified than the others, and across the whole quiz the right answer should be the shortest option about as often as it is the longest. Second, every wrong option must be a believable mistake: a common misconception, a true statement that answers a different question, two real ideas from the material mixed up, or the right idea with one key detail changed (a number, a name, a direction, a condition or an order). Third, wrong options should use the same words and terms from the material as the right one, so a student cannot pick by matching keywords, and they must not sound extreme (\"always\", \"never\", \"only\") unless the right option does too. Do not let the question itself give the answer away.';
+const QZ_SYS='You write quiz questions that help a student study from recordings of lectures, meetings and talks. Use only what the speaker actually says in the transcripts; never rely on outside knowledge for a question or for its correct answer. The transcripts come from automatic speech recognition and can contain misheard words, so quietly fix obvious errors. Write clear multiple-choice questions, each with exactly four options and exactly one correct answer. The wrong options must be plausible but clearly wrong according to the transcript. Never use options such as \"all of the above\" or \"none of the above\". Test understanding of the real ideas, definitions, steps, examples, numbers, names and decisions, not trivia. Vary the kinds of question and spread them across the material in the order it was taught. For each question, write a short explanation in the voice of a good teacher: one or two sentences saying why the answer is right and what the speaker said.\n\n'+QZ_HARD+'\n\nReturn one JSON object and nothing else, in exactly this shape: {"questions":[{"q":"the question","options":["first option","second option","third option","fourth option"],"answer":0,"why":"the explanation","rec":"the id of the recording the question comes from","time":"hh:mm:ss where the speaker said it"}]}. \"answer\" is the zero-based position of the correct option. Do not put letters such as A) in front of the options.';
 const QZ={data:null,mode:null,busy:false,abort:null,err:'',errKey:false,tok:0,count:0,part:null,what:'',pre:null,about:null,aboutBusy:false,aboutFail:new Set()};
 async function qzLoad(){
   if(QZ.data)return QZ.data;
@@ -4039,14 +4043,35 @@ function quizSource(use,budget){
   });
   return {texts,sampled};
 }
+/* The right answer must not be spotted by its length. The assistant is told to match the options; if several right answers are still much longer than every wrong option, those questions get their options rewritten once. */
+const lenTell=q=>{const L=q.opts[q.ans].length;let mx=0;q.opts.forEach((o,i)=>{if(i!==q.ans&&o.length>mx)mx=o.length});return L>=mx*1.2&&L-mx>=20};
+const QZ_BAL_SYS='You fix multiple-choice quiz questions so that a student cannot find the right answer by its length or style. You are given questions, each with its options, which option is right, and a short explanation of why. Rewrite the options of each question. Keep the right answer correct and keep its meaning. Make every wrong option about as long, detailed and specific as the right one, within about 15 percent in length, and make each one a believable mistake that is clearly wrong according to the explanation: a common misconception, two real ideas mixed up, or the right idea with one key detail changed. You may trim unneeded words from the right option, but keep every fact it needs. Never use \"all of the above\" or \"none of the above\". Do not put letters such as A) in front of options.\n\nReturn one JSON object and nothing else, in exactly this shape: {"fixes":[{"i":0,"options":["first option","second option","third option","fourth option"],"answer":0}]}. \"i\" is the number of the question as given and \"answer\" is the zero-based position of the right option. Return every question you were given.';
+async function qzBalance(qs,signal){
+  const bad=qs.map((q,i)=>({q,i})).filter(({q})=>lenTell(q));
+  if(bad.length<2||bad.length<qs.length*0.25)return qs;
+  const pt=$('#qz-prog-t');if(pt)pt.textContent='Making the answers harder to guess.';
+  const body=bad.map(({q,i})=>`Question ${i}: ${q.q}\nOptions:\n${q.opts.map((o,k)=>`${k}. ${o}`).join('\n')}\nRight option: ${q.ans}\nWhy it is right: ${q.why||'(none given)'}`).join('\n\n');
+  let j;
+  try{j=parseJson(await callClaude({system:QZ_BAL_SYS,messages:[{role:'user',content:body}],max:Math.max(2000,500+bad.length*340),signal}))}
+  catch(e){if(e&&e.name==='AbortError')throw e;return qs} /* the questions as written are still good; keep them */
+  const out=qs.slice();
+  for(const f of (j&&Array.isArray(j.fixes)?j.fixes:[])){
+    const i=f&&Number.isInteger(f.i)?f.i:-1,q=out[i];
+    if(!q||!lenTell(q)||!Array.isArray(f.options)||f.options.length!==q.opts.length)continue; /* only the questions that were asked about, with the same number of options */
+    const opts=f.options.map(o=>typeof o==='string'||typeof o==='number'?clip(String(o),300):''),a=f.answer;
+    if(opts.some(o=>!o||FIXED.test(o))||new Set(opts.map(o=>o.toLowerCase())).size!==opts.length||!Number.isInteger(a)||a<0||a>=opts.length)continue;
+    out[i]=shuffleQ(Object.assign({},q,{opts,ans:a}));
+  }
+  return out;
+}
 const QZ_COUNTS=[5,10,15,20,30,45];
 const QZ_MIN={30:45*60000,45:60*60000}; /* 30 questions need MORE than 45 minutes of material, 45 need MORE than 1 hour */
 const QZ_WORDS={30:500,45:800}; /* a project also needs this much saved text, so a quiz is not padded out of one short answer */
 const QZ_PART=15; /* long quizzes are written in parts of up to 15 questions */
 const splitN=(n,k)=>Array.from({length:k},(_,i)=>Math.floor(n/k)+(i<n%k?1:0));
 const wordsIn=t=>(String(t).match(/\S+/g)||[]).length;
-const QZ_SYS_P='You write quiz questions that help a student study from answers they saved to a study project. The saved answers were written by a teaching assistant from recordings of lectures, meetings and talks. Use only what the saved answers say; never rely on outside knowledge for a question or for its correct answer. Write clear multiple-choice questions, each with exactly four options and exactly one correct answer. The wrong options must be plausible but clearly wrong according to the saved answers. Never use options such as \"all of the above\" or \"none of the above\". Test understanding of the real ideas, definitions, steps, examples, numbers, names and decisions, not trivia. Vary the kinds of question and spread them across the saved answers. For each question, write a short explanation in the voice of a good teacher: one or two sentences saying why the answer is right.\n\nReturn one JSON object and nothing else, in exactly this shape: {"questions":[{"q":"the question","options":["first option","second option","third option","fourth option"],"answer":0,"why":"the explanation","rec":"the id of the saved answer the question comes from"}]}. \"answer\" is the zero-based position of the correct option. Do not put letters such as A) in front of the options.';
-const QZ_SYS_PR='You write quiz questions that help a student study from the material in a study project. The project holds two kinds of material. A <saved_answer> is an answer a teaching assistant wrote from a recording. A <recording> is the full transcript of a recording the student added, with the time of each line. Use only what the saved answers and the recordings say; never rely on outside knowledge for a question or for its correct answer. The transcripts come from automatic speech recognition and can contain misheard words, so quietly fix obvious errors. Write clear multiple-choice questions, each with exactly four options and exactly one correct answer. The wrong options must be plausible but clearly wrong according to the material. Never use options such as \"all of the above\" or \"none of the above\". Test understanding of the real ideas, definitions, steps, examples, numbers, names and decisions, not trivia. Vary the kinds of question and spread them across the material in the order it was taught. For each question, write a short explanation in the voice of a good teacher: one or two sentences saying why the answer is right.\n\nReturn one JSON object and nothing else, in exactly this shape: {"questions":[{"q":"the question","options":["first option","second option","third option","fourth option"],"answer":0,"why":"the explanation","rec":"the id of the saved answer or recording the question comes from","time":"hh:mm:ss where the speaker said it, only for a recording"}]}. \"answer\" is the zero-based position of the correct option. Do not put letters such as A) in front of the options.';
+const QZ_SYS_P='You write quiz questions that help a student study from answers they saved to a study project. The saved answers were written by a teaching assistant from recordings of lectures, meetings and talks. Use only what the saved answers say; never rely on outside knowledge for a question or for its correct answer. Write clear multiple-choice questions, each with exactly four options and exactly one correct answer. The wrong options must be plausible but clearly wrong according to the saved answers. Never use options such as \"all of the above\" or \"none of the above\". Test understanding of the real ideas, definitions, steps, examples, numbers, names and decisions, not trivia. Vary the kinds of question and spread them across the saved answers. For each question, write a short explanation in the voice of a good teacher: one or two sentences saying why the answer is right.\n\n'+QZ_HARD+'\n\nReturn one JSON object and nothing else, in exactly this shape: {"questions":[{"q":"the question","options":["first option","second option","third option","fourth option"],"answer":0,"why":"the explanation","rec":"the id of the saved answer the question comes from"}]}. \"answer\" is the zero-based position of the correct option. Do not put letters such as A) in front of the options.';
+const QZ_SYS_PR='You write quiz questions that help a student study from the material in a study project. The project holds two kinds of material. A <saved_answer> is an answer a teaching assistant wrote from a recording. A <recording> is the full transcript of a recording the student added, with the time of each line. Use only what the saved answers and the recordings say; never rely on outside knowledge for a question or for its correct answer. The transcripts come from automatic speech recognition and can contain misheard words, so quietly fix obvious errors. Write clear multiple-choice questions, each with exactly four options and exactly one correct answer. The wrong options must be plausible but clearly wrong according to the material. Never use options such as \"all of the above\" or \"none of the above\". Test understanding of the real ideas, definitions, steps, examples, numbers, names and decisions, not trivia. Vary the kinds of question and spread them across the material in the order it was taught. For each question, write a short explanation in the voice of a good teacher: one or two sentences saying why the answer is right.\n\n'+QZ_HARD+'\n\nReturn one JSON object and nothing else, in exactly this shape: {"questions":[{"q":"the question","options":["first option","second option","third option","fourth option"],"answer":0,"why":"the explanation","rec":"the id of the saved answer or recording the question comes from","time":"hh:mm:ss where the speaker said it, only for a recording"}]}. \"answer\" is the zero-based position of the correct option. Do not put letters such as A) in front of the options.';
 const wholeOk=(it,list)=>list.some(x=>x.s.id===it.sid&&x.segs.length&&!x.live); /* a recording in a project can be quizzed on once it has a transcript */
 function sliceSegs(segs,k,K){ /* the k-th of K stretches of a recording, cut by amount of text */
   if(K<=1)return segs;
@@ -4157,6 +4182,7 @@ async function qzStart(){
       }
     }
     if(!qs.length)throw Object.assign(new Error(d.focus?`No questions could be written about that from the chosen ${proj?'projects':'recordings'}. Try clearing the focus or choosing other ${proj?'projects':'recordings'}.`:'No usable questions came back. Please try again.'),{bad:true});
+    {const bal=await qzBalance(qs,signal);bal.forEach((q,i)=>{qs[i]=q})}
     if(proj){ /* tie each question back to the saved answer it came from */
       const by=new Map(items.map(x=>[x.it.id,x]));
       qs.forEach(q=>{
@@ -4265,9 +4291,9 @@ function resultsHtml(c){
   const missed=c.qs.map((q,i)=>({q,i})).filter(({q,i})=>c.picks[i]!==q.ans);
   let h=`<div class="card" style="text-align:center"><div class="meta">${c.retry?'Missed questions':'Your result'} · ${esc(labelOf(c.titles))}</div><div class="score" id="qz-score" tabindex="-1">${sc}<span style="font-size:.5em;color:var(--muted)"> of ${n}</span></div><div class="meta" style="font-size:.95rem">${pct}% correct</div><p style="margin:10px 0 14px">${esc(msg)}</p><div class="btns" style="justify-content:center">`;
   if(missed.length)h+=`<button class="btn primary" type="button" data-q="retry">Retry the ${plural(missed.length,'missed question','missed questions')}</button>`;
-  h+=`<button class="btn${missed.length?'':' primary'}" type="button" data-q="new">New quiz</button></div></div>`;
+  h+=`<button class="btn${missed.length?'':' primary'}" type="button" data-q="new">Next</button></div></div>`;
   if(missed.length){
-    h+=`<div class="card"><h2 style="margin-bottom:4px">Review what you missed</h2>`+missed.map(({q,i})=>`<div class="miss"><p><strong>${esc(q.q)}</strong></p><p>Your answer: ${esc(q.opts[c.picks[i]])}</p><p>Correct answer: <strong>${esc(q.opts[q.ans])}</strong></p>${q.why?`<p class="meta">${esc(q.why)}</p>`:''}${srcBtn(q)?`<p>${srcBtn(q)}</p>`:''}</div>`).join('')+'</div>';
+    h+=`<div class="card"><h2 class="rv-h">Review what you missed</h2>`+missed.map(({q,i})=>`<div class="miss"><p><strong>${esc(q.q)}</strong></p><p>Your answer: ${esc(q.opts[c.picks[i]])}</p><p>Correct answer: <strong>${esc(q.opts[q.ans])}</strong></p>${q.why?`<p class="meta">${esc(q.why)}</p>`:''}${srcBtn(q)?`<p>${srcBtn(q)}</p>`:''}</div>`).join('')+'</div>';
   }else h+=`<div class="card"><p class="empty" style="margin:0">You got every question right.</p></div>`;
   return h;
 }
