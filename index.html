@@ -25,6 +25,8 @@
   --font-ui:system-ui,-apple-system,"SF Pro Text","Segoe UI",Roboto,"Helvetica Neue",sans-serif;
   --font-serif:ui-serif,"Iowan Old Style","Palatino Linotype",Georgia,serif;
   --font-num:ui-monospace,"SF Mono","Cascadia Mono",Menlo,Consolas,monospace;
+  --hero-a:#cfe9fb; --hero-b:#dcd3fb; --hero-field:#f7f8fb; --hero-chip:rgba(255,255,255,.55);
+  --tick:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5'/%3E%3C/svg%3E");
   color-scheme:light;
 }
 @media (prefers-color-scheme:dark){
@@ -33,6 +35,8 @@
     --ink:#ecedf0; --muted:#a1a5ad; --line:#32343a;
     --accent:#a8c1ff; --accent-ink:#0f1b3a; --accent-soft:#2a3558;
     --rec:#ff6b5e; --rec-ink:#2a0905; --warn:#e8b45a;
+    --hero-a:#1f3a52; --hero-b:#2e2858; --hero-field:#1b1c20; --hero-chip:rgba(255,255,255,.1);
+    --tick:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%230f1b3a' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5'/%3E%3C/svg%3E");
     color-scheme:dark;
   }
 }
@@ -324,14 +328,49 @@ button.cite:hover{text-decoration:underline}
 .tick[aria-checked=true] svg{opacity:1}
 details.donebox summary{cursor:pointer;font-weight:650;font-size:1.05rem;padding:6px 0 10px;color:var(--muted)}
 details.donebox .stack{padding-bottom:4px}
-.pick{display:flex;align-items:flex-start;gap:12px;padding:11px 0;border-top:1px solid var(--line);cursor:pointer}
-.pick:first-of-type{border-top:0}
-.pick input{flex:none;width:22px;height:22px;margin:1px 0 0;accent-color:var(--accent)}
-.pick .pk{display:flex;flex-direction:column;min-width:0}
-.pick .pk strong{overflow-wrap:anywhere}
-.pick .pk small{color:var(--muted)}
-.pick.off{cursor:default;opacity:.6}
 .chip.on{background:var(--accent);color:var(--accent-ink)}
+/* Create quiz, in the style of a Canva home: a soft banner with a friendly question, cards to pick from, and a bar that keeps Start in reach */
+.qz-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+.qz-hero{background:linear-gradient(125deg,var(--hero-a),var(--hero-b));border-radius:28px;padding:26px 18px 22px;text-align:center}
+.qz-title{font-family:var(--font-serif);font-weight:600;font-size:clamp(1.5rem,6.2vw,1.95rem);line-height:1.15;letter-spacing:-.01em;margin:2px 0 16px}
+.qz-tabs{justify-content:center;margin:0 0 16px}
+.qz-hero .chip{min-height:40px;padding:8px 18px;font-size:.95rem;color:var(--ink);background:var(--hero-chip)}
+.qz-hero .chip.on{background:var(--ink);color:var(--bg)}
+.qz-hero .chip:disabled{opacity:.4}
+.qz-bar-field{position:relative;display:flex;align-items:center;max-width:640px;margin:0 auto}
+.qz-bar-field svg{position:absolute;left:20px;width:22px;height:22px;stroke:var(--muted);fill:none;stroke-width:2;stroke-linecap:round;pointer-events:none}
+.qz-hero .qz-bar-field input[type=text]{height:56px;border-radius:28px;padding:0 22px 0 54px;background:var(--hero-field);border-color:transparent;font-size:1rem}
+.qz-hero .qz-bar-field input[type=text]::placeholder{color:var(--muted);opacity:1}
+.qz-hint{margin:10px 0 0}
+.qz-count{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:8px 14px;margin-top:16px}
+.qz-lbl{font-size:.92rem;font-weight:650}
+.qz-count .chips{margin:0;justify-content:center}
+.qz-count .chip{min-width:42px;padding:7px 12px}
+#qz-lock{margin:10px 0 0}
+.qz-sect{display:flex;flex-direction:column;gap:12px}
+.qz-sh{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:2px 12px;padding:0 4px}
+.qz-sh h2{font-size:1.15rem}
+.qz-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:12px}
+.pick{position:relative;display:flex;flex-direction:column;min-width:0;overflow:hidden;border-radius:20px;background:var(--surface);cursor:pointer}
+@media (hover:hover){.pick:not(.off):hover{background:var(--raised)}}
+.pick .pk-th{display:grid;place-items:center;aspect-ratio:16/9;color:var(--accent);background:color-mix(in srgb,var(--accent) 9%,var(--raised))}
+.pick .pk-th svg{width:62%;height:62%;fill:currentColor;opacity:.78}
+.pick .pk{display:flex;flex-direction:column;gap:2px;min-width:0;padding:10px 14px 13px}
+.pick .pk strong{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;overflow-wrap:anywhere;line-height:1.3}
+.pick .pk small{color:var(--muted);font-size:.8rem;line-height:1.35}
+.pick input{-webkit-appearance:none;appearance:none;position:absolute;top:10px;right:10px;width:28px;height:28px;margin:0;border-radius:50%;border:2px solid color-mix(in srgb,var(--ink) 40%,transparent);background:color-mix(in srgb,var(--surface) 78%,transparent);cursor:pointer}
+.pick input:checked{background-color:var(--accent);border-color:var(--accent);background-image:var(--tick);background-repeat:no-repeat;background-position:center;background-size:16px}
+.pick:has(input:checked){box-shadow:0 0 0 2px var(--accent)}
+.pick:has(input:checked) .pk-th{background:color-mix(in srgb,var(--accent) 22%,var(--raised))}
+.pick:has(input:focus-visible){outline:2px solid var(--accent);outline-offset:3px}
+.pick input:focus-visible{outline:none}
+.pick.off{cursor:default;opacity:.55}
+.pick.off input{cursor:default;border-style:dashed}
+.qz-bar{position:sticky;bottom:calc(10px + env(safe-area-inset-bottom,0px));z-index:6;display:flex;flex-direction:column;gap:4px;padding:10px 10px 10px 20px;border-radius:30px;background:color-mix(in srgb,var(--raised) 92%,transparent);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);box-shadow:0 6px 24px rgba(0,0,0,.16),inset 0 0 0 1px var(--line)}
+.qz-bar .err{margin:2px 8px 0 0}
+.qz-bar-row{display:flex;align-items:center;gap:12px}
+#qz-sum{flex:1;min-width:0;margin:0;font-size:.9rem}
+.qz-bar .btn.primary{flex:none;min-height:48px;border-radius:24px;padding:0 24px}
 .qz-top{display:flex;align-items:center;justify-content:space-between;gap:8px}
 .qz-q{font-size:1.18rem;font-weight:650;line-height:1.35;margin:8px 0 14px;overflow-wrap:anywhere;outline:none}
 .opts{display:flex;flex-direction:column;gap:10px}
@@ -352,9 +391,12 @@ details.donebox .stack{padding-bottom:4px}
 .miss{padding:12px 0;border-top:1px solid var(--line)}
 .miss:first-of-type{border-top:0}
 .miss p{margin:.25em 0}
-.hist{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-top:1px solid var(--line);font-size:.92rem}
-.hist:first-of-type{border-top:0}
-.hist span:first-child{min-width:0;overflow-wrap:anywhere}
+.hist{display:flex;flex-direction:column-reverse;min-width:0;overflow:hidden;border-radius:20px;background:var(--surface);font-size:.92rem}
+.hist .hs-t{display:block;min-width:0;padding:10px 14px 13px;line-height:1.3}
+.hist .hs-t .meta{line-height:1.35}
+.hist .num{position:relative;display:grid;align-content:center;justify-items:center;aspect-ratio:16/9;background:color-mix(in srgb,var(--accent) 9%,var(--raised));color:var(--muted);font-size:.78rem;line-height:1.2}
+.hist .num strong{font-size:1.45rem;line-height:1.1;color:var(--ink)}
+.hist .num::before{content:"";position:absolute;left:50%;top:50%;width:78px;height:78px;margin:-39px 0 0 -39px;border-radius:50%;background:conic-gradient(var(--accent) calc(var(--p)*1%),var(--bubble) 0);-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 7px),#000 calc(100% - 6px));mask:radial-gradient(farthest-side,transparent calc(100% - 7px),#000 calc(100% - 6px))}
 
 /* Projects */
 .pj-row{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;text-align:left;background:var(--surface);border:0;border-radius:20px;padding:16px 18px;color:var(--ink)}
@@ -511,6 +553,20 @@ mark.hit{background:var(--accent-soft);color:var(--accent);border-radius:4px;pad
   .composer{max-width:760px;width:100%;margin-inline:auto;gap:10px;align-items:flex-end}
   .composer textarea{min-height:56px;border-radius:28px;padding:15px 22px;background:var(--surface);border-color:var(--line)}
   .composer .btn{min-height:56px;border-radius:28px;padding:0 24px}
+  /* Create quiz: a roomier banner and a four-across card grid */
+  body[data-view=quiz] main>#view-quiz{max-width:1040px}
+  .qz-hero{padding:46px 48px 40px;border-radius:34px}
+  .qz-title{font-size:clamp(2.1rem,3.4vw,2.9rem);margin:0 0 24px}
+  .qz-tabs{margin-bottom:26px}
+  .qz-hero .chip{min-height:44px;padding:10px 24px;font-size:1rem}
+  .qz-bar-field svg{left:24px}
+  .qz-hero .qz-bar-field input[type=text]{height:64px;border-radius:32px;padding-left:60px;font-size:1.05rem}
+  .qz-count{margin-top:22px}
+  .qz-count .chip{min-height:40px;padding:8px 16px;font-size:.95rem}
+  .qz-sh h2{font-size:1.3rem}
+  .qz-grid{grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:16px}
+  .pick .pk,.hist .hs-t{padding:12px 16px 15px}
+  .qz-bar{align-self:center;width:min(100%,760px);bottom:20px}
 }
 @media (min-width:960px) and (min-height:540px) and (prefers-reduced-motion:reduce){body,#drawer{transition:none!important}}
 </style>
@@ -810,7 +866,7 @@ mark.hit{background:var(--accent-soft);color:var(--accent);border-radius:4px;pad
     <button class="dr-item" data-view="projects" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.6 3.6 8 12 12.4 20.4 8z"/><path d="M3.6 12 12 16.4 20.4 12"/><path d="M3.6 16 12 20.4 20.4 16"/></svg>Projects</button>
         <button class="dr-item" data-view="marked" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.5 4.5h9a1 1 0 0 1 1 1V20l-5.5-3.8L6.5 20V5.5a1 1 0 0 1 1-1z"/></svg>Marked</button>
     <button class="dr-item" data-view="assign" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5H7.5a2 2 0 0 0-2 2v11.5a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H15"/><rect x="9" y="3.5" width="6" height="3" rx="1"/><path d="M8.8 12.6l1.8 1.8 3.4-3.6"/><path d="M8.8 17.5h6.4"/></svg>Assignments</button>
-    <button class="dr-item" data-view="quiz" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M9.6 9.7a2.5 2.5 0 1 1 3.6 2.2c-.8.5-1.2 1-1.2 1.9"/><path d="M12 16.9h.01"/></svg>Create quiz</button>
+    <button class="dr-item" data-view="quiz" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4.5v15M4.5 12h15"/></svg>Create quiz</button>
     <button class="dr-item" data-view="settings" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9.92 5.21L10.39 2.84L13.61 2.84L14.08 5.21A7.1 7.1 0 0 1 15.33 5.73L15.33 5.73L17.33 4.38L19.62 6.67L18.27 8.67A7.1 7.1 0 0 1 18.79 9.92L18.79 9.92L21.16 10.39L21.16 13.61L18.79 14.08A7.1 7.1 0 0 1 18.27 15.33L18.27 15.33L19.62 17.33L17.33 19.62L15.33 18.27A7.1 7.1 0 0 1 14.08 18.79L14.08 18.79L13.61 21.16L10.39 21.16L9.92 18.79A7.1 7.1 0 0 1 8.67 18.27L8.67 18.27L6.67 19.62L4.38 17.33L5.73 15.33A7.1 7.1 0 0 1 5.21 14.08L5.21 14.08L2.84 13.61L2.84 10.39L5.21 9.92A7.1 7.1 0 0 1 5.73 8.67L5.73 8.67L4.38 6.67L6.67 4.38L8.67 5.73A7.1 7.1 0 0 1 9.92 5.21Z"/><circle cx="12" cy="12" r="3.1"/></svg>Settings</button>
   </nav>
   <div class="dr-sect">Recents</div>
@@ -849,7 +905,7 @@ let toastT;
 function toast(m){const t=$('#toast');t.textContent=m;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>{t.hidden=true},4500)}
 
 /* ---------- settings ---------- */
-const BUILD='27 Oct 2026, Settings gear icon, and the Quiz tab is now Create quiz';
+const BUILD='27 Oct 2026, Create quiz looks like a home page, Projects first';
 const DEF={apiKey:'',model:'claude-sonnet-5-5',lang:'',kbps:64,terms:'',aaiKey:'',speakers:false,sound:'natural',liveTx:true,meter:true,orb:true};
 const settings=Object.assign({},DEF);
 let savedSettings={};try{savedSettings=JSON.parse(localStorage.getItem('longtake.settings')||'{}')||{}}catch(e){}
@@ -3835,10 +3891,10 @@ async function qzLoad(){
   const okQ=q=>q&&typeof q.q==='string'&&Array.isArray(q.opts)&&q.opts.length>=2&&Number.isInteger(q.ans)&&q.ans>=0&&q.ans<q.opts.length;
   if(!cur||!Array.isArray(cur.qs)||!cur.qs.length||!cur.qs.every(okQ))cur=null;
   else{cur.picks=cur.qs.map((_,i)=>Array.isArray(cur.picks)&&Number.isInteger(cur.picks[i])?cur.picks[i]:null);cur.idx=Math.max(0,Math.min(cur.qs.length,Number.isInteger(cur.idx)?cur.idx:0))}
-  QZ.data={sel:Array.isArray(r.sel)?r.sel.filter(x=>typeof x==='string'):[],count:[5,10,15,20,30,45].includes(r.count)?r.count:10,src:r.src==='proj'?'proj':'rec',psel:Array.isArray(r.psel)?r.psel.filter(x=>typeof x==='string'):[],focus:clip(r.focus,200),cur,history:Array.isArray(r.history)?r.history.slice(0,10):[],seen:Array.isArray(r.seen)?r.seen.filter(x=>typeof x==='string').slice(-40):[]};
+  QZ.data={sel:Array.isArray(r.sel)?r.sel.filter(x=>typeof x==='string'):[],count:[5,10,15,20,30,45].includes(r.count)?r.count:10,src:r.v>=2&&r.src==='rec'?'rec':'proj', /* Projects come first; a source saved before this default existed (no v) is not kept */psel:Array.isArray(r.psel)?r.psel.filter(x=>typeof x==='string'):[],focus:clip(r.focus,200),cur,history:Array.isArray(r.history)?r.history.slice(0,10):[],seen:Array.isArray(r.seen)?r.seen.filter(x=>typeof x==='string').slice(-40):[]};
   return QZ.data;
 }
-const qzSave=()=>{const d=QZ.data;return idb.put('notes',{sid:'__quiz',sel:d.sel,count:d.count,src:d.src,psel:d.psel,focus:d.focus,cur:d.cur,history:d.history,seen:d.seen}).catch(()=>{})};
+const qzSave=()=>{const d=QZ.data;return idb.put('notes',{sid:'__quiz',v:2,sel:d.sel,count:d.count,src:d.src,psel:d.psel,focus:d.focus,cur:d.cur,history:d.history,seen:d.seen}).catch(()=>{})};
 const shuffle=a=>{const o=a.slice();for(let i=o.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[o[i],o[j]]=[o[j],o[i]]}return o};
 const FIXED=/\b(all|none|both|neither)\b[^.]{0,12}\b(above|these|them)\b/i;
 function shuffleQ(q){ /* mix up the order of the options, except when an option refers to the others */
@@ -4033,6 +4089,17 @@ function srcBtn(q){
   if(q.rec&&LIB.titles[q.rec])h+=(h?' ':'')+`<button class="cite" type="button" data-sid="${esc(q.rec)}" data-t="${q.t==null?0:q.t}">Hear it: ${esc(LIB.titles[q.rec])}${q.t==null?'':' · '+shortClock(q.t)}</button>`;
   return h;
 }
+function qzWave(id){ /* a calm little waveform for a recording's card; the same recording always gets the same picture */
+  let x=1;for(const ch of String(id))x=(Math.imul(x,31)+ch.charCodeAt(0))>>>0;
+  let r='';
+  for(let i=0;i<22;i++){
+    x=(Math.imul(x,1664525)+1013904223)>>>0;
+    const v=(.25+.75*((x>>>8)&255)/255)*(.5+.5*Math.sin(Math.PI*(i+.5)/22)),hh=Math.max(3,Math.round(v*34));
+    r+=`<rect x="${(i*4+.8).toFixed(1)}" y="${(20-hh/2).toFixed(1)}" width="2.4" height="${hh}" rx="1.2"/>`;
+  }
+  return `<svg viewBox="0 0 88 40" aria-hidden="true">${r}</svg>`;
+}
+const QZ_NOTES='<svg viewBox="0 0 88 40" aria-hidden="true"><rect x="22" y="8" width="3.2" height="3.2" rx="1.6"/><rect x="30" y="8" width="34" height="3.2" rx="1.6"/><rect x="22" y="18.4" width="3.2" height="3.2" rx="1.6"/><rect x="30" y="18.4" width="27" height="3.2" rx="1.6"/><rect x="22" y="28.8" width="3.2" height="3.2" rx="1.6"/><rect x="30" y="28.8" width="31" height="3.2" rx="1.6"/></svg>';
 function setupHtml(d,list){
   const proj=d.src==='proj';
   const avail=list.filter(x=>x.segs.length&&!x.live),off=list.filter(x=>!x.segs.length&&!x.live);
@@ -4043,24 +4110,28 @@ function setupHtml(d,list){
   const c=d.cur,pre=QZ.pre;
   if(pre&&!proj&&d.sel.length===1&&d.sel[0]===pre.sid&&d.focus===pre.focus)h+=`<div class="card" id="qz-pre"><p style="margin:0">Set up from your assignment <strong>${esc(pre.title)}</strong>: this recording, ${d.count} questions. Change anything below, then tap Start quiz.</p><div style="margin-top:6px"><button class="linkbtn" type="button" data-go="assign">Back to Assignments</button></div></div>`;
   if(c&&c.idx<c.qs.length)h+=`<div class="card"><div class="card-head" style="margin:0"><div><strong>Quiz in progress</strong><div class="meta">Question ${c.idx+1} of ${c.qs.length} · ${esc(labelOf(c.titles))}</div></div><button class="btn" type="button" data-q="resume">Back to quiz</button></div><p class="meta" style="margin:8px 0 0">Starting a new quiz replaces this one.</p></div>`;
-  h+=`<div class="card"><h2 style="margin-bottom:10px">Quiz me on</h2><div class="chips" role="group" aria-label="Where the questions come from" style="margin:0"><button class="chip${proj?'':' on'}" type="button" data-src="rec" aria-pressed="${!proj}">Recordings</button><button class="chip${proj?' on':''}" type="button" data-src="proj" aria-pressed="${proj}">Projects</button></div></div>`;
+  /* the banner: a question, where the questions come from, an optional topic bar, and how many */
+  const hero=more=>`<div class="card qz-hero"><h2 class="qz-title">What will you quiz on today?</h2><div class="chips qz-tabs" role="group" aria-label="Where the questions come from"><button class="chip${proj?' on':''}" type="button" data-src="proj" aria-pressed="${proj}">Projects</button><button class="chip${proj?'':' on'}" type="button" data-src="rec" aria-pressed="${!proj}">Recordings</button></div>${more}</div>`;
+  const ctl=`<div class="qz-bar-field"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/></svg><label class="qz-sr" for="qz-focus">Focus (optional)</label><input type="text" id="qz-focus" maxlength="200" placeholder="Focus on a topic (optional)" value="${esc(d.focus)}"></div><p class="meta qz-hint">For example, chapter 3. Leave this empty to be quizzed on everything in the chosen ${proj?'projects':'recordings'}.</p><div class="qz-count"><span class="qz-lbl" aria-hidden="true">Questions</span><div class="chips" role="group" aria-label="Number of questions">${QZ_COUNTS.map(n=>`<button class="chip${n===d.count?' on':''}" type="button" data-count="${n}" aria-pressed="${n===d.count}">${n}</button>`).join('')}</div></div><p class="meta" id="qz-lock" hidden></p>`;
+  const acts=`<span class="ch-act"><button class="linkbtn" type="button" data-q="all">Select all</button> <button class="linkbtn" type="button" data-q="none" style="margin-left:10px">Clear</button></span>`;
+  let body='';
   if(proj){
-    if(!pfull.length)return h+`<div class="card"><p class="empty" style="margin:0">${pall.length?'None of your projects has a saved answer yet.':'No projects yet.'} Save answers from your recordings into a project, then come back to be quizzed on it.</p><div class="btns" style="margin-top:12px"><button class="btn" type="button" data-go="projects">Go to Projects</button></div></div>`;
-    h+=`<div class="card"><div class="card-head"><h2>Choose projects</h2><span class="ch-act"><button class="linkbtn" type="button" data-q="all">Select all</button> <button class="linkbtn" type="button" data-q="none" style="margin-left:10px">Clear</button></span></div>`;
-    h+=pfull.map(p=>{const m=qzMaterial({src:'proj',psel:[p.id],sel:[]},list);return `<label class="pick"><input type="checkbox" data-pid="${esc(p.id)}"${psel.has(p.id)?' checked':''}><span class="pk"><strong>${esc(p.name)}</strong><small>${pjCount(p.items)}${m.ms?' · from '+fmtLen(m.ms)+' of recordings':''}</small></span></label>`}).join('');
-    h+=pall.filter(p=>!pfull.includes(p)).map(p=>`<div class="pick off"><input type="checkbox" disabled aria-label="${esc(p.name)} ${p.items.length?'has nothing to quiz on yet':'has nothing saved yet'}"><span class="pk"><strong>${esc(p.name)}</strong><small>${p.items.length?'No transcript to quiz on yet':'Nothing saved yet'}</small></span></div>`).join('');
-    h+=`<p class="meta" id="qz-sum" style="margin:10px 0 0"></p></div>`;
+    if(!pfull.length)return h+hero('')+`<div class="card"><p class="empty" style="margin:0">${pall.length?'None of your projects has a saved answer yet.':'No projects yet.'} Save answers from your recordings into a project, then come back to be quizzed on it.</p><div class="btns" style="margin-top:12px"><button class="btn" type="button" data-go="projects">Go to Projects</button></div></div>`;
+    body+=`<div class="qz-sect"><div class="qz-sh"><h2>Choose projects</h2>${acts}</div><div class="qz-grid">`;
+    body+=pfull.map(p=>{const m=qzMaterial({src:'proj',psel:[p.id],sel:[]},list);return `<label class="pick"><input type="checkbox" data-pid="${esc(p.id)}"${psel.has(p.id)?' checked':''}><span class="pk-th" aria-hidden="true">${QZ_NOTES}</span><span class="pk"><strong>${esc(p.name)}</strong><small>${pjCount(p.items)}${m.ms?' · from '+fmtLen(m.ms)+' of recordings':''}</small></span></label>`}).join('');
+    body+=pall.filter(p=>!pfull.includes(p)).map(p=>`<div class="pick off"><input type="checkbox" disabled aria-label="${esc(p.name)} ${p.items.length?'has nothing to quiz on yet':'has nothing saved yet'}"><span class="pk-th" aria-hidden="true">${QZ_NOTES}</span><span class="pk"><strong>${esc(p.name)}</strong><small>${p.items.length?'No transcript to quiz on yet':'Nothing saved yet'}</small></span></div>`).join('');
+    body+=`</div></div>`;
   }else{
-    if(!avail.length)return h+`<div class="card"><p class="empty" style="margin:0">${list.length?'None of your recordings has a transcript yet.':'No recordings yet.'} Record a lecture, meeting or talk, then come back here to be quizzed on it.</p></div>`;
-    h+=`<div class="card"><div class="card-head"><h2>Choose recordings</h2><span class="ch-act"><button class="linkbtn" type="button" data-q="all">Select all</button> <button class="linkbtn" type="button" data-q="none" style="margin-left:10px">Clear</button></span></div>`;
-    h+=avail.map(x=>`<label class="pick"><input type="checkbox" data-sid="${esc(x.s.id)}"${sel.has(x.s.id)?' checked':''}><span class="pk"><strong>${esc(x.s.title)}</strong><small>${stamp(x.s.startedAt)} · ${fmtLen(x.s.durationMs||0)}${x.s.words?' · '+x.s.words.toLocaleString()+' words':''}</small></span></label>`).join('');
-    h+=off.map(x=>`<div class="pick off"><input type="checkbox" disabled aria-label="${esc(x.s.title)} has no transcript"><span class="pk"><strong>${esc(x.s.title)}</strong><small>No transcript yet</small></span></div>`).join('');
-    h+=`<p class="meta" id="qz-sum" style="margin:10px 0 0"></p></div>`;
+    if(!avail.length)return h+hero('')+`<div class="card"><p class="empty" style="margin:0">${list.length?'None of your recordings has a transcript yet.':'No recordings yet.'} Record a lecture, meeting or talk, then come back here to be quizzed on it.</p></div>`;
+    body+=`<div class="qz-sect"><div class="qz-sh"><h2>Choose recordings</h2>${acts}</div><div class="qz-grid">`;
+    body+=avail.map(x=>`<label class="pick"><input type="checkbox" data-sid="${esc(x.s.id)}"${sel.has(x.s.id)?' checked':''}><span class="pk-th" aria-hidden="true">${qzWave(x.s.id)}</span><span class="pk"><strong>${esc(x.s.title)}</strong><small>${stamp(x.s.startedAt)} · ${fmtLen(x.s.durationMs||0)}${x.s.words?' · '+x.s.words.toLocaleString()+' words':''}</small></span></label>`).join('');
+    body+=off.map(x=>`<div class="pick off"><input type="checkbox" disabled aria-label="${esc(x.s.title)} has no transcript"><span class="pk-th" aria-hidden="true">${qzWave(x.s.id)}</span><span class="pk"><strong>${esc(x.s.title)}</strong><small>No transcript yet</small></span></div>`).join('');
+    body+=`</div></div>`;
   }
-  h+=`<div class="card"><h2 style="margin-bottom:10px">Questions</h2><div class="chips" role="group" aria-label="Number of questions" style="margin-bottom:6px">${QZ_COUNTS.map(n=>`<button class="chip${n===d.count?' on':''}" type="button" data-count="${n}" aria-pressed="${n===d.count}">${n}</button>`).join('')}</div><p class="meta" id="qz-lock" hidden style="margin:0 0 10px"></p><div class="field" style="margin:10px 0 0"><label for="qz-focus">Focus (optional)</label><input type="text" id="qz-focus" maxlength="200" placeholder="For example: chapter 3" value="${esc(d.focus)}"><small>Leave this empty to be quizzed on everything in the chosen ${proj?'projects':'recordings'}.</small></div></div>`;
-  h+=`<div class="err" id="qz-err" ${QZ.err?'':'hidden'}>${esc(QZ.err)}${QZ.errKey?' <button class="linkbtn" type="button" data-go="settings">Open Settings</button>':''}</div>`;
-  h+=`<div class="btns"><button class="btn primary" type="button" data-q="start" id="qz-start">Start quiz</button></div>`;
-  if(d.history.length)h+=`<div class="card"><h2 style="margin-bottom:6px">Recent quizzes</h2>${d.history.slice(0,5).map(x=>`<div class="hist"><span>${esc(labelOf(x.titles))}<br><span class="meta">${fmtDate(x.at)}</span></span><span class="num"><strong>${x.score}</strong> of ${x.total}</span></div>`).join('')}</div>`;
+  h+=hero(ctl)+body;
+  if(d.history.length)h+=`<div class="qz-sect"><div class="qz-sh"><h2>Recent quizzes</h2></div><div class="qz-grid">${d.history.slice(0,5).map(x=>`<div class="hist" style="--p:${x.total?Math.round(x.score/x.total*100):0}"><span class="hs-t">${esc(labelOf(x.titles))}<br><span class="meta">${fmtDate(x.at)}</span></span><span class="num"><strong>${x.score}</strong> of ${x.total}</span></div>`).join('')}</div></div>`;
+  /* Start stays in reach at the bottom of the screen, with the count of what is chosen and any error beside it */
+  h+=`<div class="qz-bar"><div class="err" id="qz-err" ${QZ.err?'':'hidden'}>${esc(QZ.err)}${QZ.errKey?' <button class="linkbtn" type="button" data-go="settings">Open Settings</button>':''}</div><div class="qz-bar-row"><p class="meta" id="qz-sum" aria-live="polite"></p><button class="btn primary" type="button" data-q="start" id="qz-start">Start quiz</button></div></div>`;
   return h;
 }
 function qzSync(d,list){ /* keep the summary line, the question counts and the Start button in step with the choices */
