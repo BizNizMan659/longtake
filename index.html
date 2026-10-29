@@ -948,7 +948,7 @@ let toastT;
 function toast(m){const t=$('#toast');t.textContent=m;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>{t.hidden=true},4500)}
 
 /* ---------- settings ---------- */
-const BUILD='28 Oct 2026, Harder quiz questions, Next button, bigger review heading';
+const BUILD='28 Oct 2026, Quiz setup starts fresh each launch';
 const DEF={apiKey:'',model:'claude-sonnet-5-5',lang:'',kbps:64,terms:'',aaiKey:'',speakers:false,sound:'natural',liveTx:true,meter:true,orb:true};
 const settings=Object.assign({},DEF);
 let savedSettings={};try{savedSettings=JSON.parse(localStorage.getItem('longtake.settings')||'{}')||{}}catch(e){}
@@ -3935,6 +3935,8 @@ $('#pj-quiz').addEventListener('click',async()=>{
 const QZ_HARD='Make the quiz genuinely challenging and impossible to pass by guessing. Write about one third of the questions as recall of a key fact, and the rest as questions that need understanding: why something happens, how two ideas differ, what would change if something changed, which example fits a definition, or which step comes next. Make the options hard to guess without knowing the material. First, all four options must be about the same length, in the same style and with the same level of detail; no option may stand out by being longer, more specific, more complete or more carefully qualified than the others, and across the whole quiz the right answer should be the shortest option about as often as it is the longest. Second, every wrong option must be a believable mistake: a common misconception, a true statement that answers a different question, two real ideas from the material mixed up, or the right idea with one key detail changed (a number, a name, a direction, a condition or an order). Third, wrong options should use the same words and terms from the material as the right one, so a student cannot pick by matching keywords, and they must not sound extreme (\"always\", \"never\", \"only\") unless the right option does too. Do not let the question itself give the answer away.';
 const QZ_SYS='You write quiz questions that help a student study from recordings of lectures, meetings and talks. Use only what the speaker actually says in the transcripts; never rely on outside knowledge for a question or for its correct answer. The transcripts come from automatic speech recognition and can contain misheard words, so quietly fix obvious errors. Write clear multiple-choice questions, each with exactly four options and exactly one correct answer. The wrong options must be plausible but clearly wrong according to the transcript. Never use options such as \"all of the above\" or \"none of the above\". Test understanding of the real ideas, definitions, steps, examples, numbers, names and decisions, not trivia. Vary the kinds of question and spread them across the material in the order it was taught. For each question, write a short explanation in the voice of a good teacher: one or two sentences saying why the answer is right and what the speaker said.\n\n'+QZ_HARD+'\n\nReturn one JSON object and nothing else, in exactly this shape: {"questions":[{"q":"the question","options":["first option","second option","third option","fourth option"],"answer":0,"why":"the explanation","rec":"the id of the recording the question comes from","time":"hh:mm:ss where the speaker said it"}]}. \"answer\" is the zero-based position of the correct option. Do not put letters such as A) in front of the options.';
 const QZ={data:null,mode:null,busy:false,abort:null,err:'',errKey:false,tok:0,count:0,part:null,what:'',pre:null,about:null,aboutBusy:false,aboutFail:new Set()};
+/* The setup choices (source, recordings, projects, topic, number of questions) belong to one visit. They start clean on every launch and after a long time away. Saved quizzes, the quiz in progress and the history are kept. */
+function qzFresh(d){d.sel=[];d.psel=[];d.focus='';d.count=10;d.src='proj'}
 async function qzLoad(){
   if(QZ.data)return QZ.data;
   const r=await getRec('__quiz')||{};
@@ -3947,6 +3949,7 @@ async function qzLoad(){
   const cur=fixQ(r.cur);
   const paused=(Array.isArray(r.paused)?r.paused:[]).map(fixQ).filter(c=>c&&c.idx<c.qs.length).slice(0,60).map((c,i)=>{if(typeof c.id!=='string'||!c.id)c.id='q'+Date.now().toString(36)+i;return c});
   QZ.data={sel:Array.isArray(r.sel)?r.sel.filter(x=>typeof x==='string'):[],count:[5,10,15,20,30,45].includes(r.count)?r.count:10,src:r.v>=2&&r.src==='rec'?'rec':'proj', /* Projects come first; a source saved before this default existed (no v) is not kept */psel:Array.isArray(r.psel)?r.psel.filter(x=>typeof x==='string'):[],focus:clip(r.focus,200),cur,paused,history:Array.isArray(r.history)?r.history.slice(0,10):[],seen:Array.isArray(r.seen)?r.seen.filter(x=>typeof x==='string').slice(-40):[]};
+  qzFresh(QZ.data); /* what you picked last time is not kept: every launch starts the setup page clean */
   return QZ.data;
 }
 const qzSave=()=>{const d=QZ.data;return idb.put('notes',{sid:'__quiz',v:2,sel:d.sel,count:d.count,src:d.src,psel:d.psel,focus:d.focus,cur:d.cur,paused:d.paused,history:d.history,seen:d.seen}).catch(()=>{})};
@@ -4557,6 +4560,10 @@ $('#ch-thread').addEventListener('click',e=>{
 document.addEventListener('visibilitychange',()=>{
   if(document.hidden){CH.hiddenAt=Date.now();return}
   if(CH.hiddenAt&&Date.now()-CH.hiddenAt>30*60*1000&&HOMECTX&&!LIB.busy&&LIB.chat.length)archiveLib('left');
+  if(CH.hiddenAt&&Date.now()-CH.hiddenAt>10*60*1000&&QZ.data&&!QZ.busy){ /* back after a long time away: the quiz setup starts clean, as after a restart */
+    qzFresh(QZ.data);QZ.pre=null;QZ.err='';qzSave();
+    if(CUR==='quiz'&&QZ.mode==='setup')renderQuiz();
+  }
   CH.hiddenAt=0;
 });
 
