@@ -948,7 +948,7 @@ let toastT;
 function toast(m){const t=$('#toast');t.textContent=m;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>{t.hidden=true},4500)}
 
 /* ---------- settings ---------- */
-const BUILD='28 Oct 2026, Quiz setup starts fresh each launch';
+const BUILD='28 Oct 2026, Quiz tab opens on the setup page';
 const DEF={apiKey:'',model:'claude-sonnet-5-5',lang:'',kbps:64,terms:'',aaiKey:'',speakers:false,sound:'natural',liveTx:true,meter:true,orb:true};
 const settings=Object.assign({},DEF);
 let savedSettings={};try{savedSettings=JSON.parse(localStorage.getItem('longtake.settings')||'{}')||{}}catch(e){}
@@ -1780,7 +1780,7 @@ document.addEventListener('keydown',e=>{
     else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus()}
   }
 });
-function goNav(v){if(v==='library'){LV.folder=null;LV.q='';LV.year=0;LV.restore=null;LV.useRestore=false}show(v)}
+function goNav(v){if(v==='quiz'&&CUR!=='quiz')qzDropFinished();if(v==='library'){LV.folder=null;LV.q='';LV.year=0;LV.restore=null;LV.useRestore=false}show(v)}
 $$('.dr-item').forEach(b=>b.onclick=()=>goNav(b.dataset.view));
 $('#dr-all').onclick=()=>goNav('library');
 $('#dr-set').onclick=()=>goNav('settings');
@@ -3950,6 +3950,7 @@ async function qzLoad(){
   const paused=(Array.isArray(r.paused)?r.paused:[]).map(fixQ).filter(c=>c&&c.idx<c.qs.length).slice(0,60).map((c,i)=>{if(typeof c.id!=='string'||!c.id)c.id='q'+Date.now().toString(36)+i;return c});
   QZ.data={sel:Array.isArray(r.sel)?r.sel.filter(x=>typeof x==='string'):[],count:[5,10,15,20,30,45].includes(r.count)?r.count:10,src:r.v>=2&&r.src==='rec'?'rec':'proj', /* Projects come first; a source saved before this default existed (no v) is not kept */psel:Array.isArray(r.psel)?r.psel.filter(x=>typeof x==='string'):[],focus:clip(r.focus,200),cur,paused,history:Array.isArray(r.history)?r.history.slice(0,10):[],seen:Array.isArray(r.seen)?r.seen.filter(x=>typeof x==='string').slice(-40):[]};
   qzFresh(QZ.data); /* what you picked last time is not kept: every launch starts the setup page clean */
+  {const c=QZ.data.cur;if(c&&c.idx>=c.qs.length)QZ.data.cur=null} /* and so is the results page of a quiz you already finished (it stays in Recent quizzes) */
   return QZ.data;
 }
 const qzSave=()=>{const d=QZ.data;return idb.put('notes',{sid:'__quiz',v:2,sel:d.sel,count:d.count,src:d.src,psel:d.psel,focus:d.focus,cur:d.cur,paused:d.paused,history:d.history,seen:d.seen}).catch(()=>{})};
@@ -4304,6 +4305,12 @@ function qzFinish(d){
   const c=d.cur;
   if(!c.logged&&!c.retry){d.history.unshift({at:Date.now(),titles:c.titles,score:qzScore(c),total:c.qs.length});d.history=d.history.slice(0,10);c.logged=true}
 }
+/* A quiz you have finished is already in Recent quizzes. Opening the Quiz tab (from the menu), restarting the app or coming back after a long time away starts on the setup page, not on old results. */
+function qzDropFinished(){
+  const d=QZ.data,c=d&&d.cur;
+  if(c&&c.idx>=c.qs.length){qzFinish(d);d.cur=null;QZ.mode='setup';qzSave();return true}
+  return false;
+}
 async function renderQuiz(focus){
   const tok=++QZ.tok,root=$('#qz-root');
   let d,list;try{d=await qzLoad();list=await textSessions();await refreshTitles();await pjLoad()}catch(e){root.innerHTML='<p class="empty">Could not read your recordings.</p>';return}
@@ -4561,7 +4568,7 @@ document.addEventListener('visibilitychange',()=>{
   if(document.hidden){CH.hiddenAt=Date.now();return}
   if(CH.hiddenAt&&Date.now()-CH.hiddenAt>30*60*1000&&HOMECTX&&!LIB.busy&&LIB.chat.length)archiveLib('left');
   if(CH.hiddenAt&&Date.now()-CH.hiddenAt>10*60*1000&&QZ.data&&!QZ.busy){ /* back after a long time away: the quiz setup starts clean, as after a restart */
-    qzFresh(QZ.data);QZ.pre=null;QZ.err='';qzSave();
+    qzFresh(QZ.data);QZ.pre=null;QZ.err='';qzDropFinished();qzSave();
     if(CUR==='quiz'&&QZ.mode==='setup')renderQuiz();
   }
   CH.hiddenAt=0;
