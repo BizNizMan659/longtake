@@ -183,6 +183,32 @@ audio{width:100%;margin:6px 0 10px}
 .tx-bar .field{flex:1 1 auto;min-width:0;margin:0}
 .tx-bar .btn{flex:none}
 .tx-meta{display:flex;flex-wrap:wrap;justify-content:space-between;gap:2px 12px;margin-bottom:10px}
+/* AI Chat page: a greeting, prompt pills, and one rounded ask bar */
+.cp{display:flex;flex-direction:column;gap:18px}
+.cp-hero{display:flex;flex-direction:column;gap:18px;padding-top:6px}
+.cp-mark{width:54px;height:54px;border-radius:16px;display:grid;place-items:center;background:var(--accent-soft);color:var(--accent)}
+.cp-mark svg{width:30px;height:30px;fill:currentColor}
+.cp-hi{margin:0;font-family:var(--font-serif);font-weight:500;font-size:2rem;line-height:1.15;letter-spacing:-.01em}
+#quick{display:flex;flex-direction:column;align-items:flex-start;gap:12px;margin:0}
+#quick .chip{display:inline-flex;align-items:center;gap:12px;background:var(--surface);color:var(--ink);padding:14px 22px 14px 16px;font-size:1rem;font-weight:500;line-height:1.3;text-align:left;max-width:100%}
+#quick .chip svg{flex:none;width:22px;height:22px;fill:var(--accent)}
+@media (hover:hover){#quick .chip:not(:disabled):hover{background:var(--raised)}}
+#dp-chat.has-qa .cp-hero{display:none}
+#dp-chat.has-qa #quick{flex-direction:row;flex-wrap:nowrap;align-items:center;overflow-x:auto;gap:8px;margin:0 -16px;padding:2px 16px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+#dp-chat.has-qa #quick::-webkit-scrollbar{display:none}
+#dp-chat.has-qa #quick .chip{flex:none;padding:9px 16px 9px 12px;font-size:.9rem;white-space:nowrap}
+#dp-chat.has-qa #quick .chip svg{width:18px;height:18px}
+#chat:not(:empty){background:var(--surface);border-radius:22px;padding:4px 18px;margin:0}
+#chat .qa:first-child{border-top:0}
+#chat .qa:last-child{border-bottom:0}
+#chat-form{flex-direction:column;align-items:stretch;gap:8px;background:var(--surface);border-radius:28px;padding:16px 14px 12px 20px;bottom:max(10px,env(safe-area-inset-bottom,0px));margin-bottom:max(10px,env(safe-area-inset-bottom,0px));box-shadow:0 0 0 10px var(--bg)}
+#chat-form textarea{flex:none;width:100%;background:transparent;border:0;border-radius:0;padding:0;min-height:28px;max-height:128px;font-size:1.02rem;line-height:1.4;outline:none;box-shadow:none}
+.cf-row{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.cf-ctx{flex:1;min-width:0}
+#chat-send{--ic-up:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 19V5M5.5 11.5 12 5l6.5 6.5'/%3E%3C/svg%3E");--ic-stop:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='6' y='6' width='12' height='12' rx='2.5' fill='black'/%3E%3C/svg%3E");flex:none;width:44px;height:44px;min-height:44px;padding:0;border-radius:50%;font-size:0;line-height:0;display:grid;place-items:center}
+#chat-send::before{content:"";width:22px;height:22px;background:currentColor;-webkit-mask:var(--ic-up) center/contain no-repeat;mask:var(--ic-up) center/contain no-repeat}
+#chat-send[type=button]::before{-webkit-mask-image:var(--ic-stop);mask-image:var(--ic-stop)}
+#chat-form:has(#chat-input:placeholder-shown) #chat-send[type=submit]{background:var(--raised);color:var(--muted)}
 #view-detail{flex:1 0 auto;padding-bottom:0}
 #view-detail [role=tabpanel]{padding-bottom:24px}
 #dp-tools .improve{border:0;padding:0;margin:0;background:transparent}
@@ -801,14 +827,17 @@ mark.hit{background:var(--accent-soft);color:var(--accent);border-radius:4px;pad
     </div>
 
     <div role="tabpanel" id="dp-chat" aria-labelledby="dt-chat" hidden>
-      <div class="card">
-        <div class="card-head"><h2>Ask about this recording</h2><span class="meta" id="d-ctx"></span></div>
+      <div class="cp">
+        <div class="cp-hero">
+          <div class="cp-mark"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4.5l1.7 4.3 4.3 1.7-4.3 1.7L9 16.5l-1.7-4.3L3 10.5l4.3-1.7z"/><path d="M18.5 3.5l.7 1.8 1.8.7-1.8.7-.7 1.8-.7-1.8-1.8-.7 1.8-.7z"/><path d="M17.5 14l.6 1.5 1.5.6-1.5.6-.6 1.5-.6-1.5-1.5-.6 1.5-.6z"/></svg></div>
+          <h2 class="cp-hi">How can I help you?</h2>
+        </div>
         <div class="chips" id="quick">
-          <button class="chip" type="button" data-label="Summary" data-max="1500" data-q="Give me a summary of this recording.">Summary</button>
-          <button class="chip" type="button" data-label="Main ideas" data-max="3000" data-q="Give me the main ideas of this recording.">Main ideas</button>
-          <button class="chip" type="button" data-label="Outline" data-max="4000" data-q="Give me an outline of this recording.">Outline</button>
-          <button class="chip" type="button" data-label="Task" data-max="2500" data-q="Give me the tasks from this recording.">Task</button>
-          <button class="chip" type="button" data-label="Bullet points" data-max="8000" data-q="Show the transcript of this recording in bullet point format.">Bullet points</button>
+          <button class="chip" type="button" data-label="Summary" data-max="1500" data-q="Give me a summary of this recording."><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4.5l1.7 4.3 4.3 1.7-4.3 1.7L9 16.5l-1.7-4.3L3 10.5l4.3-1.7z"/><path d="M18.5 3.5l.7 1.8 1.8.7-1.8.7-.7 1.8-.7-1.8-1.8-.7 1.8-.7z"/><path d="M17.5 14l.6 1.5 1.5.6-1.5.6-.6 1.5-.6-1.5-1.5-.6 1.5-.6z"/></svg><span>Give me a summary of this recording</span></button>
+          <button class="chip" type="button" data-label="Main ideas" data-max="3000" data-q="Give me the main ideas of this recording."><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4.5l1.7 4.3 4.3 1.7-4.3 1.7L9 16.5l-1.7-4.3L3 10.5l4.3-1.7z"/><path d="M18.5 3.5l.7 1.8 1.8.7-1.8.7-.7 1.8-.7-1.8-1.8-.7 1.8-.7z"/><path d="M17.5 14l.6 1.5 1.5.6-1.5.6-.6 1.5-.6-1.5-1.5-.6 1.5-.6z"/></svg><span>What are the main ideas of this recording?</span></button>
+          <button class="chip" type="button" data-label="Outline" data-max="4000" data-q="Give me an outline of this recording."><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4.5l1.7 4.3 4.3 1.7-4.3 1.7L9 16.5l-1.7-4.3L3 10.5l4.3-1.7z"/><path d="M18.5 3.5l.7 1.8 1.8.7-1.8.7-.7 1.8-.7-1.8-1.8-.7 1.8-.7z"/><path d="M17.5 14l.6 1.5 1.5.6-1.5.6-.6 1.5-.6-1.5-1.5-.6 1.5-.6z"/></svg><span>Give me an outline of this recording</span></button>
+          <button class="chip" type="button" data-label="Task" data-max="2500" data-q="Give me the tasks from this recording."><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4.5l1.7 4.3 4.3 1.7-4.3 1.7L9 16.5l-1.7-4.3L3 10.5l4.3-1.7z"/><path d="M18.5 3.5l.7 1.8 1.8.7-1.8.7-.7 1.8-.7-1.8-1.8-.7 1.8-.7z"/><path d="M17.5 14l.6 1.5 1.5.6-1.5.6-.6 1.5-.6-1.5-1.5-.6 1.5-.6z"/></svg><span>What tasks came out of this recording?</span></button>
+          <button class="chip" type="button" data-label="Bullet points" data-max="8000" data-q="Show the transcript of this recording in bullet point format."><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4.5l1.7 4.3 4.3 1.7-4.3 1.7L9 16.5l-1.7-4.3L3 10.5l4.3-1.7z"/><path d="M18.5 3.5l.7 1.8 1.8.7-1.8.7-.7 1.8-.7-1.8-1.8-.7 1.8-.7z"/><path d="M17.5 14l.6 1.5 1.5.6-1.5.6-.6 1.5-.6-1.5-1.5-.6 1.5-.6z"/></svg><span>Show the transcript in bullet points</span></button>
         </div>
         <div class="qas" id="chat"></div>
         <div class="err" id="chat-err" hidden></div>
@@ -860,7 +889,10 @@ mark.hit{background:var(--accent-soft);color:var(--accent);border-radius:4px;pad
 
     <form class="composer chat-form" id="chat-form" hidden>
       <textarea id="chat-input" rows="1" placeholder="Ask about this recording" aria-label="Ask about this recording"></textarea>
-      <button class="btn primary" id="chat-send" type="submit">Ask</button>
+      <div class="cf-row">
+        <span class="meta cf-ctx" id="d-ctx"></span>
+        <button class="btn primary" id="chat-send" type="submit" aria-label="Ask">Ask</button>
+      </div>
     </form>
   </section>
 
@@ -968,7 +1000,7 @@ let toastT;
 function toast(m){const t=$('#toast');t.textContent=m;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>{t.hidden=true},4500)}
 
 /* ---------- settings ---------- */
-const BUILD='29 Oct 2026, Recording page: tabs on top, audio with the transcript';
+const BUILD='29 Oct 2026, AI Chat page restyled, prompt pills';
 const DEF={apiKey:'',model:'claude-sonnet-5-5',lang:'',kbps:64,terms:'',aaiKey:'',speakers:false,sound:'natural',liveTx:true,meter:true,orb:true};
 const settings=Object.assign({},DEF);
 let savedSettings={};try{savedSettings=JSON.parse(localStorage.getItem('longtake.settings')||'{}')||{}}catch(e){}
@@ -2519,7 +2551,8 @@ function qaItem(pr,p,last){
 function renderChat(){ /* every question is a row that opens to its answer, so the page stays short */
   const box=$('#chat'),ps=pairsOf();
   if(D.open>=ps.length)D.open=-1;
-  box.innerHTML=ps.length?ps.map((pr,p)=>qaItem(pr,p,p===ps.length-1)).join(''):'<p class="meta" style="margin:2px 0 8px">Tap a button above, or type a question below.</p>';
+  box.innerHTML=ps.length?ps.map((pr,p)=>qaItem(pr,p,p===ps.length-1)).join(''):'';
+  $('#dp-chat').classList.toggle('has-qa',ps.length>0); /* the greeting is for an empty chat; once there are answers the prompts shrink to one row */
 }
 function setQA(p){
   D.open=p;
@@ -2558,7 +2591,7 @@ $('#chat').addEventListener('click',async e=>{
   });
 });
 function setBusy(b){
-  D.busy=b;$('#chat-send').textContent=b?'Stop':'Ask';$('#chat-send').type=b?'button':'submit';
+  D.busy=b;$('#chat-send').textContent=b?'Stop':'Ask';$('#chat-send').type=b?'button':'submit';$('#chat-send').setAttribute('aria-label',b?'Stop':'Ask');
   $$('#quick .chip').forEach(c=>c.disabled=b);
 }
 function showErr(m){const e=$('#chat-err');e.textContent=m||'';e.hidden=!m}
