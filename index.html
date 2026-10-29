@@ -167,6 +167,22 @@ audio{width:100%;margin:6px 0 10px}
 #chat .qa{scroll-margin-top:calc(var(--bar-h) + var(--tab-h) + 6px)}
 #dp-tools h2{margin:0 0 8px;font-size:1.05rem}
 #d-tx{max-height:none;overflow:visible} /* the transcript is its own tab now: it flows with the page instead of scrolling inside a box */
+/* recording page: the tabs come first, then the title; the audio and the transcript are one page */
+.dtabs{margin-top:-12px;margin-bottom:-6px} /* starts exactly where it stays pinned, right under the app bar */
+.dt-play svg{width:34px;height:34px;padding:8px;box-sizing:border-box;border-radius:50%;background:var(--accent-soft)} /* a round button, with the whole tab-bar height to tap */
+.dhead{display:flex;flex-direction:column;gap:3px;margin-top:-2px}
+.dhead .back{padding:2px 0 0}
+#d-title{font-size:1.45rem;font-weight:700;letter-spacing:-.015em;margin:2px -8px}
+.dstack{display:flex;flex-direction:column;gap:12px}
+.dchips .btn{border-radius:999px;padding:7px 14px;font-size:.9rem;gap:6px}
+.dplayer{padding:14px}
+.dplayer audio{margin:0}
+.dplayer .btns{margin-top:10px}
+.dplayer .err{background:color-mix(in srgb,var(--warn) 13%,transparent);border-radius:12px;padding:10px 12px;margin:10px 0 0;line-height:1.45;font-size:.88rem}
+.tx-bar{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+.tx-bar .field{flex:1 1 auto;min-width:0;margin:0}
+.tx-bar .btn{flex:none}
+.tx-meta{display:flex;flex-wrap:wrap;justify-content:space-between;gap:2px 12px;margin-bottom:10px}
 #view-detail{flex:1 0 auto;padding-bottom:0}
 #view-detail [role=tabpanel]{padding-bottom:24px}
 #dp-tools .improve{border:0;padding:0;margin:0;background:transparent}
@@ -743,29 +759,33 @@ mark.hit{background:var(--accent-soft);color:var(--accent);border-radius:4px;pad
 
   <!-- DETAIL -->
   <section id="view-detail" class="view" hidden style="flex-direction:column;gap:16px">
-    <button class="back" id="d-back">&larr; Library</button>
-    <div>
-      <input type="text" class="title-input" id="d-title" aria-label="Recording title">
-      <div class="meta" id="d-meta"></div>
-      <div class="btns" style="margin-top:10px"><button class="btn" id="d-folder" type="button" aria-label="Add this recording to a folder"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 7.5a2 2 0 0 1 2-2h4l2 2.2h7a2 2 0 0 1 2 2V17.5a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z"/></svg><span>Add to a folder</span></button><button class="btn" id="d-proj" type="button" aria-label="Add this whole recording to a project"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M4 12h7M4 17h7M17 12v7M13.5 15.5h7"/></svg><span>Add to a project</span></button></div>
-    </div>
-    <div class="card">
-      <audio id="d-audio" controls preload="metadata"></audio>
-      <p class="err" id="d-audio-err" role="status" hidden></p>
-      <p class="err" id="d-cut" role="status" style="overflow-wrap:anywhere" hidden></p>
-      <div class="btns"><button class="btn" id="d-mark" type="button">Mark this moment</button></div>
-    </div>
     <div class="dtabs" role="tablist" aria-label="This recording">
       <button class="dtab" role="tab" id="dt-tx" data-tab="tx" aria-controls="dp-tx" aria-selected="true" type="button">Transcript</button>
       <button class="dtab" role="tab" id="dt-chat" data-tab="chat" aria-controls="dp-chat" aria-selected="false" tabindex="-1" type="button">AI Chat</button>
       <button class="dtab" role="tab" id="dt-tools" data-tab="tools" aria-controls="dp-tools" aria-selected="false" tabindex="-1" type="button">Tools</button>
       <button class="dt-play" id="dt-play" type="button" aria-label="Play the recording"><svg viewBox="0 0 24 24" aria-hidden="true"><path class="i-play" d="M8 5v14l11-7z"/><path class="i-pause" d="M7 5h4v14H7zM13 5h4v14h-4z" style="display:none"/></svg></button>
     </div>
+    <div class="dhead">
+      <button class="back" id="d-back">&larr; Library</button>
+      <input type="text" class="title-input" id="d-title" aria-label="Recording title">
+      <div class="meta" id="d-meta"></div>
+    </div>
 
     <div role="tabpanel" id="dp-tx" aria-labelledby="dt-tx">
-      <div class="card" id="d-tbox">
-        <div class="card-head"><span class="meta" id="d-tx-sum"></span><button class="btn" id="d-edit" type="button">Edit</button></div>
-        <p class="meta" style="margin:0 0 8px">Tap a time to hear that moment.</p>
+      <div class="dstack">
+        <div class="btns dchips"><button class="btn" id="d-folder" type="button" aria-label="Add this recording to a folder"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 7.5a2 2 0 0 1 2-2h4l2 2.2h7a2 2 0 0 1 2 2V17.5a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z"/></svg><span>Add to a folder</span></button><button class="btn" id="d-proj" type="button" aria-label="Add this whole recording to a project"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M4 12h7M4 17h7M17 12v7M13.5 15.5h7"/></svg><span>Add to a project</span></button></div>
+        <div class="card dplayer">
+          <audio id="d-audio" controls preload="metadata"></audio>
+          <p class="err" id="d-audio-err" role="status" hidden></p>
+          <p class="err" id="d-cut" role="status" style="overflow-wrap:anywhere" hidden></p>
+          <div class="btns"><button class="btn sm" id="d-mark" type="button">Mark this moment</button></div>
+        </div>
+        <div class="card" id="d-tbox">
+          <div class="tx-bar">
+            <div class="field"><input type="text" id="d-search" placeholder="Search the transcript" aria-label="Search the transcript"></div>
+            <button class="btn sm" id="d-edit" type="button">Edit</button>
+          </div>
+          <div class="tx-meta"><span class="meta" id="d-tx-sum"></span><span class="meta">Tap a time to hear that moment.</span></div>
         <div id="d-editbar" hidden>
           <p class="meta" style="margin:0 0 8px">Tap a line to fix it. Changes save when you tap away. Clearing a line removes it. Edits update the transcript the assistant reads and the one you download.</p>
           <div class="find-row">
@@ -775,8 +795,8 @@ mark.hit{background:var(--accent-soft);color:var(--accent);border-radius:4px;pad
           </div>
           <label class="check"><input type="checkbox" id="d-whole" checked> Match whole words only</label>
         </div>
-        <div class="field" style="margin-bottom:8px"><input type="text" id="d-search" placeholder="Search the transcript" aria-label="Search the transcript"></div>
-        <div class="tx" id="d-tx"></div>
+          <div class="tx" id="d-tx"></div>
+        </div>
       </div>
     </div>
 
@@ -948,7 +968,7 @@ let toastT;
 function toast(m){const t=$('#toast');t.textContent=m;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>{t.hidden=true},4500)}
 
 /* ---------- settings ---------- */
-const BUILD='28 Oct 2026, Quiz tab opens on the setup page';
+const BUILD='29 Oct 2026, Recording page: tabs on top, audio with the transcript';
 const DEF={apiKey:'',model:'claude-sonnet-5-5',lang:'',kbps:64,terms:'',aaiKey:'',speakers:false,sound:'natural',liveTx:true,meter:true,orb:true};
 const settings=Object.assign({},DEF);
 let savedSettings={};try{savedSettings=JSON.parse(localStorage.getItem('longtake.settings')||'{}')||{}}catch(e){}
