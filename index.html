@@ -98,6 +98,7 @@ button{cursor:pointer}
 .seg .t{overflow-wrap:anywhere}
 .seg.interim .t{color:var(--muted);font-style:italic}
 .seg.mark .t{color:var(--accent);font-weight:600}
+.seg.gap .t{color:var(--warn);font-weight:600;font-style:italic}
 button.ts{background:none;border:0;padding:2px 0 0;cursor:pointer}
 button.ts:hover{color:var(--accent)}
 button.ts.inl{display:inline;font-family:var(--font-num);font-size:.82em;color:var(--accent);padding:0;text-decoration:underline}
@@ -1026,7 +1027,7 @@ let toastT;
 function toast(m){const t=$('#toast');t.textContent=m;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>{t.hidden=true},4500)}
 
 /* ---------- settings ---------- */
-const BUILD='29 Oct 2026, Improve checks the live transcript, Check the audio list';
+const BUILD='29 Oct 2026, Recording survives a lost microphone';
 const DEF={apiKey:'',model:'claude-sonnet-5-5',lang:'',kbps:64,terms:'',aaiKey:'',speakers:false,sound:'natural',liveTx:true,meter:true,orb:true};
 const settings=Object.assign({},DEF);
 let savedSettings={};try{savedSettings=JSON.parse(localStorage.getItem('longtake.settings')||'{}')||{}}catch(e){}
@@ -1077,9 +1078,213 @@ function storageFail(e){
   toast((e&&e.name==='QuotaExceededError'?'This device is out of storage space.':'A piece of audio could not be saved.')+' Stop and export what you have.');
 }
 
+/* ---------- one recording, several recorders ----------
+   When the phone takes the microphone away and gives it back, Yukon starts a new recorder inside the same recording (a new "part").
+   Every recorder writes a small file of its own with its own header, and a player only reads the first one when they are simply glued together.
+   So when the audio is put back together, each later part loses its header and its clock is moved to start where the part before it ended.
+   The silent stretch in between is not in the file (the transcript marks it, and rjMap lines audio time up with the recording's clock).
+   The saved pieces are never changed: this only builds the file that is played and sent, one part at a time. */
+function rjU32(d,o){return ((d[o]*16777216)+(d[o+1]<<16)+(d[o+2]<<8)+d[o+3])}
+function rjPut32(d,o,v){d[o]=(v>>>24)&255;d[o+1]=(v>>>16)&255;d[o+2]=(v>>>8)&255;d[o+3]=v&255}
+function rjSame(a,b){if(!a||!b||a.length!==b.length)return false;for(let i=0;i<a.length;i++)if(a[i]!==b[i])return false;return true}
+/* ---- MP4 (fragmented): ftyp, moov, then moof + mdat pairs ---- */
+function rjBoxes(d,a,b){
+  const out=[];let i=a;
+  while(i+8<=b){
+    let sz=rjU32(d,i),hdr=8;const typ=String.fromCharCode(d[i+4],d[i+5],d[i+6],d[i+7]);
+    if(sz===1){if(i+16>b)break;sz=rjU32(d,i+8)*4294967296+rjU32(d,i+12);hdr=16}else if(sz===0)sz=b-i;
+    if(sz<hdr||i+sz>b)break; /* a half-written box at the very end is left out */
+    out.push({typ,at:i,end:i+sz,hdr});i+=sz;
+  }
+  return out;
+}
+const RJ_KIDS={moov:1,trak:1,mdia:1,minf:1,stbl:1,moof:1,traf:1,mvex:1};
+function rjKids(d,bx){return RJ_KIDS[bx.typ]?rjBoxes(d,bx.at+bx.hdr,bx.end):[]}
+function rjPath(d,bx,path){let cur=[bx];for(const p of path){const nx=[];for(const c of cur)for(const k of rjKids(d,c))if(k.typ===p)nx.push(k);cur=nx}return cur}
+function rjMdhd(d,moov){const m=rjPath(d,moov,['trak','mdia','mdhd'])[0];if(!m)return 0;const v=d[m.at+m.hdr];return rjU32(d,m.at+m.hdr+4+(v===1?16:8))}
+function rjStsd(d,moov){const s=rjPath(d,moov,['trak','mdia','minf','stbl','stsd'])[0];return s?d.slice(s.at,s.end):null}
+function rjTrexDur(d,moov){const t=rjPath(d,moov,['mvex','trex'])[0];return t?rjU32(d,t.at+t.hdr+12):0}
+function rjTfdt(d,moof){ /* where the decode time of each track fragment sits: [{pos, w, value}], or null when the offsets are absolute and cannot be moved */
+  const out=[];
+  for(const tf of rjPath(d,moof,['traf'])){
+    const kids=rjKids(d,tf),hd=kids.find(k=>k.typ==='tfhd');if(!hd)continue;
+    if(rjU32(d,hd.at+hd.hdr)&1)return null;
+    const t=kids.find(k=>k.typ==='tfdt');if(!t)continue;
+    const v=d[t.at+t.hdr],p=t.at+t.hdr+4;
+    out.push(v===1?{pos:p,w:8,value:rjU32(d,p)*4294967296+rjU32(d,p+4)}:{pos:p,w:4,value:rjU32(d,p)});
+  }
+  return out;
+}
+function rjSpan(d,moof,trexDur){ /* start and length of the first track fragment, in the track's own ticks */
+  const tf=rjPath(d,moof,['traf'])[0];if(!tf)return null;
+  const kids=rjKids(d,tf),hd=kids.find(x=>x.typ==='tfhd'),td=kids.find(x=>x.typ==='tfdt');if(!hd||!td)return null;
+  const fl=rjU32(d,hd.at+hd.hdr)&0xFFFFFF;let o=hd.at+hd.hdr+8;if(fl&1)o+=8;if(fl&2)o+=4;
+  const defDur=(fl&8)?rjU32(d,o):trexDur;
+  const v=d[td.at+td.hdr],p=td.at+td.hdr+4,start=v===1?rjU32(d,p)*4294967296+rjU32(d,p+4):rjU32(d,p);
+  let dur=0;
+  for(const tr of kids.filter(x=>x.typ==='trun')){
+    const f=rjU32(d,tr.at+tr.hdr)&0xFFFFFF,n=rjU32(d,tr.at+tr.hdr+4);let q=tr.at+tr.hdr+8;if(f&1)q+=4;if(f&4)q+=4;
+    const per=(f&0x100?4:0)+(f&0x200?4:0)+(f&0x400?4:0)+(f&0x800?4:0);
+    if(f&0x100){for(let i=0;i<n;i++)dur+=rjU32(d,q+i*per)}else dur+=n*defDur;
+  }
+  return dur>0?{start,dur}:null;
+}
+function rjMp4Part(d,k,st){
+  const bs=rjBoxes(d,0,d.length),mv=bs.find(x=>x.typ==='moov');if(!mv)return null;
+  const ts=rjMdhd(d,mv),sd=rjStsd(d,mv);if(!ts||!sd)return null;
+  const frs=[];let pend=null;for(const x of bs){if(x.typ==='moof')pend=x;else if(x.typ==='mdat'&&pend){frs.push({moof:pend,mdat:x});pend=null}}
+  if(!frs.length)return null;
+  const trexDur=rjTrexDur(d,mv),f0=rjTfdt(d,frs[0].moof),sp=rjSpan(d,frs[frs.length-1].moof,trexDur);
+  if(!f0||!f0.length||!sp)return null;
+  const base=f0[0].value,end=sp.start+sp.dur,dur=(end-base)/ts*1000;
+  if(k===0){
+    let seq=0;for(const f of frs){const m=rjKids(d,f.moof).find(y=>y.typ==='mfhd');if(m)seq=Math.max(seq,rjU32(d,m.at+m.hdr+4))}
+    return {items:[{a:0,b:frs[frs.length-1].mdat.end}],st:{kind:'mp4',ts,sd,seq,cursor:end},dur};
+  }
+  if(!st||st.kind!=='mp4'||st.ts!==ts||!rjSame(st.sd,sd))return null; /* a different microphone setup: cannot be joined */
+  const shift=st.cursor-base,items=[];let seq=st.seq;
+  for(const f of frs){
+    const c=d.slice(f.moof.at,f.moof.end),box={typ:'moof',at:0,end:c.length,hdr:f.moof.hdr},m=rjKids(c,box).find(y=>y.typ==='mfhd'),tt=rjTfdt(c,box);
+    if(!tt)return null;
+    if(m)rjPut32(c,m.at+m.hdr+4,++seq);
+    for(const t of tt){
+      const v=Math.max(0,t.value+shift);
+      if(t.w===8){rjPut32(c,t.pos,Math.floor(v/4294967296));rjPut32(c,t.pos+4,v%4294967296)}
+      else{if(v>4294967295)return null;rjPut32(c,t.pos,v)}
+    }
+    items.push({u8:c},{a:f.mdat.at,b:f.mdat.end});
+  }
+  return {items,st:{kind:'mp4',ts,sd:st.sd,seq,cursor:end+shift},dur};
+}
+/* ---- WebM (Chrome, Android, Firefox): EBML header, Segment (Info, Tracks, Clusters...) ---- */
+function rjVint(d,i,keep){
+  if(i>=d.length)return null;
+  const b=d[i];let n=1,m=0x80;while(n<=8&&!(b&m)){n++;m>>=1}
+  if(n>8||i+n>d.length)return null;
+  let v=keep?b:(b&(m-1)),unk=(b&(m-1))===(m-1);
+  for(let k=1;k<n;k++){v=v*256+d[i+k];if(d[i+k]!==255)unk=false}
+  return {v,n,unk:keep?false:unk};
+}
+const RJ_TOP={0x1F43B675:1,0x1C53BB6B:1,0x1254C367:1,0x1941A469:1,0x1043A770:1,0x114D9B74:1,0x1549A966:1,0x1654AE6B:1};
+function rjWebmRead(d){ /* {scale, tracks, clusters:[{at,body,end,tc,tcLen,idLen,known}]} or null */
+  let i=0;const e=rjVint(d,i,true),es=e&&rjVint(d,i+e.n,false);
+  if(!e||!es||e.v!==0x1A45DFA3)return null;
+  i+=e.n+es.n+es.v;
+  const sg=rjVint(d,i,true),ss=sg&&rjVint(d,i+sg.n,false);
+  if(!sg||!ss||sg.v!==0x18538067)return null;
+  let p=i+sg.n+ss.n;const segEnd=ss.unk?d.length:Math.min(d.length,p+ss.v);
+  const res={scale:1000000,tracks:null,clusters:[]};
+  while(p<segEnd){
+    const id=rjVint(d,p,true),sz=id&&rjVint(d,p+id.n,false);if(!id||!sz)break;
+    const body=p+id.n+sz.n;
+    if(id.v===0x1F43B675){
+      let q=body;const t=rjVint(d,q,true),ts=t&&rjVint(d,q+t.n,false);
+      if(!t||t.v!==0xE7||!ts)break;
+      let tc=0;for(let k=0;k<ts.v;k++)tc=tc*256+d[q+t.n+ts.n+k];
+      const tcLen=t.n+ts.n+ts.v;q+=tcLen;
+      let end;
+      if(!sz.unk)end=Math.min(segEnd,body+sz.v);
+      else{ /* no size: it runs until the next top-level element */
+        end=q;
+        for(;;){const c=rjVint(d,end,true),cs=c&&rjVint(d,end+c.n,false);if(!c||!cs){end=segEnd;break}if(RJ_TOP[c.v])break;if(cs.unk)break;end+=c.n+cs.n+cs.v;if(end>segEnd){end=segEnd;break}}
+      }
+      if(end>segEnd||end<q)break;
+      res.clusters.push({at:p,body,end,tc,tcLen,idLen:id.n,known:!sz.unk});
+      p=end;continue;
+    }
+    if(sz.unk)break;
+    const end=body+sz.v;if(end>segEnd)break;
+    if(id.v===0x1549A966){let q=body;while(q<end){const c=rjVint(d,q,true),cs=c&&rjVint(d,q+c.n,false);if(!c||!cs)break;if(c.v===0x2AD7B1){let v=0;for(let k=0;k<cs.v;k++)v=v*256+d[q+c.n+cs.n+k];res.scale=v}q+=c.n+cs.n+cs.v}}
+    if(id.v===0x1654AE6B)res.tracks=d.subarray(p,end);
+    p=end;
+  }
+  return res.clusters.length?res:null;
+}
+function rjTracksKey(t){ /* the Tracks element without the random TrackUID, so two recorders on the same microphone compare equal */
+  if(!t)return null;
+  const id=rjVint(t,0,true),sz=id&&rjVint(t,id.n,false);if(!id||!sz)return null;
+  let p=id.n+sz.n;const out=[];
+  while(p<t.length){
+    const e=rjVint(t,p,true),es=e&&rjVint(t,p+e.n,false);if(!e||!es)break;
+    const body=p+e.n+es.n,end=Math.min(t.length,body+es.v);
+    if(e.v===0xAE){let q=body;while(q<end){const c=rjVint(t,q,true),cs=c&&rjVint(t,q+c.n,false);if(!c||!cs)break;const ce=q+c.n+cs.n+cs.v;if(c.v!==0x73C5)for(let k=q;k<ce&&k<end;k++)out.push(t[k]);q=ce}}
+    else for(let k=p;k<end;k++)out.push(t[k]);
+    p=end;
+  }
+  return out.join(',');
+}
+function rjWebmEnd(d,cl,scale){ /* the time just after the last sound in a cluster, in timecode ticks */
+  let q=cl.body+cl.tcLen,mx=0,any=false;
+  const blk=b=>{const tn=rjVint(d,b,false);if(!tn)return;let rel=(d[b+tn.n]<<8)|d[b+tn.n+1];if(rel>32767)rel-=65536;if(!any||rel>mx)mx=rel;any=true};
+  while(q<cl.end){
+    const c=rjVint(d,q,true),cs=c&&rjVint(d,q+c.n,false);if(!c||!cs||cs.unk)break;
+    const b=q+c.n+cs.n,e=b+cs.v;if(e>cl.end)break;
+    if(c.v===0xA3||c.v===0xA1)blk(b);
+    else if(c.v===0xA0){let p=b;while(p<e){const g=rjVint(d,p,true),gs=g&&rjVint(d,p+g.n,false);if(!g||!gs||gs.unk)break;if(g.v===0xA1)blk(p+g.n+gs.n);p+=g.n+gs.n+gs.v}}
+    q=e;
+  }
+  return cl.tc+mx+Math.round(20000000/scale);
+}
+function rjWebmPart(d,k,st){
+  const r=rjWebmRead(d);if(!r)return null;
+  const key=rjTracksKey(r.tracks);if(!key)return null;
+  const last=r.clusters[r.clusters.length-1],base=r.clusters[0].tc,end=rjWebmEnd(d,last,r.scale),dur=(end-base)*r.scale/1000000;
+  if(k===0)return {items:[{a:0,b:last.end}],st:{kind:'webm',scale:r.scale,key,cursor:end},dur};
+  if(!st||st.kind!=='webm'||st.scale!==r.scale||st.key!==key)return null;
+  const shift=st.cursor-base,items=[];
+  for(const c of r.clusters){
+    const tc=Math.max(0,c.tc+shift),v=6+(c.end-c.body-c.tcLen),h=new Uint8Array(c.idLen+8+6);
+    for(let i=0;i<c.idLen;i++)h[i]=d[c.at+i];
+    let o=c.idLen;h[o++]=1;
+    if(c.known){h[o++]=0;h[o++]=0;h[o++]=Math.floor(v/4294967296)&255;h[o++]=(v>>>24)&255;h[o++]=(v>>>16)&255;h[o++]=(v>>>8)&255;h[o++]=v&255}
+    else for(let i=0;i<7;i++)h[o++]=255;
+    h[o++]=0xE7;h[o++]=0x84;h[o++]=(tc>>>24)&255;h[o++]=(tc>>>16)&255;h[o++]=(tc>>>8)&255;h[o++]=tc&255;
+    items.push({u8:h},{a:c.body+c.tcLen,b:c.end});
+  }
+  return {items,st:{...st,cursor:end+shift},dur};
+}
+/* one part at a time: returns what goes into the joined file for this part, the state to carry on with, and how long the part is (ms), or null when it cannot be joined */
+function rjPart(d,k,st){
+  try{
+    if(d.length>4&&d[0]===0x1A&&d[1]===0x45&&d[2]===0xDF&&d[3]===0xA3)return rjWebmPart(d,k,st);
+    if(d.length>8&&String.fromCharCode(d[4],d[5],d[6],d[7])==='ftyp')return rjMp4Part(d,k,st);
+  }catch(e){}
+  return null;
+}
+/* The saved pieces of one recording -> {blob, map, parts, failed}. With one recorder it is the plain join it always was. With more, the parts are joined as described above, and
+   map says where each part sits: a = where it starts in the joined audio, c = where it starts on the recording's clock, d = how long it is (all in ms). */
+async function joinChunks(ch,mime){
+  const type=String(mime||'audio/webm').split(';')[0],plain=()=>new Blob(ch.map(c=>c.blob),{type});
+  const by=new Map();for(const c of ch){const p=c.part|0;if(!by.has(p))by.set(p,[]);by.get(p).push(c)}
+  const keys=[...by.keys()].sort((x,y)=>x-y);
+  if(keys.length<2)return {blob:plain(),map:null,parts:1};
+  try{
+    const out=[],map=[];let st=null,a=0,prevEnd=0;
+    for(let k=0;k<keys.length;k++){
+      const g=by.get(keys[k]).slice().sort((x,y)=>x.idx-y.idx),pb=new Blob(g.map(c=>c.blob),{type}),r=rjPart(new Uint8Array(await pb.arrayBuffer()),k,st);
+      if(!r)throw new Error('part '+k+' cannot be joined');
+      st=r.st;
+      for(const it of r.items)out.push(it.u8||pb.slice(it.a,it.b));
+      const tEnd=g.reduce((m,c)=>Math.max(m,+c.t||0),0),c0=k===0?0:Math.max(prevEnd,tEnd-r.dur); /* a piece is stamped when it arrives, which is when its sound ended */
+      map.push({a,c:c0,d:r.dur});a+=r.dur;prevEnd=c0+r.dur;
+    }
+    return {blob:new Blob(out,{type}),map,parts:keys.length};
+  }catch(e){return {blob:plain(),map:null,parts:keys.length,failed:true}}
+}
+function rjC2A(map,ms){ /* a moment on the recording's clock -> a position in the joined audio (a moment inside a gap lands where the next part begins) */
+  if(!map||map.length<2)return ms;
+  for(let k=map.length-1;k>=0;k--){const m=map[k];if(ms>=m.c||k===0)return m.a+Math.min(Math.max(0,ms-m.c),m.d)}
+  return ms;
+}
+function rjA2C(map,ms){ /* a position in the joined audio -> a moment on the recording's clock */
+  if(!map||map.length<2)return ms;
+  for(let k=map.length-1;k>=0;k--){const m=map[k];if(ms>=m.a||k===0)return m.c+Math.max(0,ms-m.a)}
+  return ms;
+}
+
 /* ---------- recorder ---------- */
 const R={active:false,paused:false,stopping:false,accMs:0,segStart:0,rec:null,stream:null,ctx:null,an:null,sid:null,idx:0,bytes:0,inflight:0,
-  segments:[],dirty:false,session:null,levels:[],interim:'',wake:null,recogWanted:false,recog:null,recogTimer:0,raf:0,timer:0,lastDraw:0,stopArm:false,stopArmT:0,txState:'idle',tick:0,starting:false,restarting:false,stoppedAt:-1e9,log:[],t0:0,gen:0,noLive:false,tries:0,wd:0,muted:false,sound:0,sampled:0,ctxRan:false,warn:'',nchk:0,passed:false,noMeter:false,learned:false,peak:0,first:true,plain:false,lastB:0,lastBt:0,stall:false,dead:false,srev:{},srUsed:false};
+  segments:[],dirty:false,session:null,levels:[],interim:'',wake:null,recogWanted:false,recog:null,recogTimer:0,raf:0,timer:0,lastDraw:0,stopArm:false,stopArmT:0,txState:'idle',tick:0,starting:false,restarting:false,stoppedAt:-1e9,log:[],t0:0,gen:0,noLive:false,tries:0,wd:0,muted:false,sound:0,sampled:0,ctxRan:false,warn:'',nchk:0,passed:false,noMeter:false,learned:false,peak:0,first:true,plain:false,lastB:0,lastBt:0,stall:false,dead:false,srev:{},srUsed:false,part:0,gap:null,gapRow:null,healing:false,gotPart:-1,gotT:0,healWake:null};
 const elapsed=()=>R.accMs+((R.active&&!R.paused)?performance.now()-R.segStart:0);
 
 const APPLE=/iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
@@ -1148,7 +1353,7 @@ async function beginRecording(again){
   catch(e){dlog('recorder could not be created: '+(e&&e.message));stream.getTracks().forEach(t=>t.stop());toast('This browser could not start the recorder.');return}
   dlog('recording as '+(rec.mimeType||mime||'(browser default)')+(APPLE?' (iPhone or iPad)':''));
   const sid='s'+Date.now().toString(36);
-  Object.assign(R,{active:true,paused:false,stopping:false,accMs:0,segStart:performance.now(),rec,stream,sid,idx:0,bytes:0,inflight:0,segments:[],dirty:false,interim:'',levels:[],stopArm:false,muted:false,sound:0,sampled:0,ctxRan:false,nchk:0,passed:false,peak:0,lastB:-1,lastBt:performance.now(),stall:false});
+  Object.assign(R,{active:true,paused:false,stopping:false,accMs:0,segStart:performance.now(),rec,stream,sid,idx:0,bytes:0,inflight:0,segments:[],dirty:false,interim:'',levels:[],stopArm:false,muted:false,sound:0,sampled:0,ctxRan:false,nchk:0,passed:false,peak:0,lastB:-1,lastBt:performance.now(),stall:false,part:0,gap:null,gapRow:null,gotPart:-1,gotT:0});
   $('#saved-note').hidden=true;
   R.session={id:sid,title:defaultTitle(),startedAt:Date.now(),durationMs:0,bytes:0,mime:rec.mimeType||mime||'audio/webm',chunks:0,words:0,status:'recording'};
   try{await idb.put('sessions',R.session);await idb.put('tx',{sid,segments:[]})}
@@ -1163,12 +1368,14 @@ async function beginRecording(again){
       .catch(storageFail).finally(()=>{R.inflight--});
   };
   rec.onstart=()=>dlog('recorder started');
-  rec.onerror=e=>{dlog('recorder error: '+(e&&e.error&&e.error.name||'unknown'));stopRecording('The recorder reported an error. What was captured has been saved.')};
-  if(track){
-    track.onended=()=>{dlog('the phone ended the microphone');stopRecording('The microphone was taken by the system (a call, another app or screen lock). What was captured has been saved.')};
-    track.onmute=()=>{R.muted=true;dlog('the phone muted the microphone');updateChips()};
-    track.onunmute=()=>{R.muted=false;dlog('the microphone is back');updateChips()};
-  }
+  rec.onerror=e=>{
+    const n=e&&e.error&&e.error.name||'unknown';
+    if(R.sid!==sid||R.rec!==rec)return;
+    if(R.passed&&!R.restarting&&!R.starting){dlog('the recorder reported a problem ('+n+'); starting a new recorder');heal('the recorder reported a problem ('+n+')');return}
+    dlog('recorder error: '+n);stopRecording('The recorder reported an error. What was captured has been saved.');
+  };
+  rec.onstop=()=>{if(R.sid===sid&&R.rec===rec&&R.active&&!R.stopping&&!R.restarting&&!R.paused&&R.passed){dlog('the recorder stopped by itself; starting a new recorder');heal('the recorder stopped by itself')}};
+  hookTrack(track,stream,sid);
 
   R.ctx=null;R.an=null;
   if(settings.meter!==false&&!R.noMeter){
@@ -1267,9 +1474,146 @@ async function restartCapture(why){
   finally{R.restarting=false;R.starting=false}
 }
 
+/* ---------- the microphone goes away in the middle of a recording ----------
+   A call, Siri, another app or the lock screen can take the microphone for a while. The phone then mutes the microphone or ends it,
+   and its recorder can stop writing without saying so. The recording has to survive that, so:
+   - the lost stretch is written down (session.gaps) and shown in the transcript as a grey row;
+   - as soon as the microphone is back, a new recorder starts inside the same recording. Its pieces are saved with part: 1, 2, ... and carry on the numbering;
+   - the first recorder's pieces are never touched. The parts are joined when the audio is played or sent (joinChunks above). */
+const GAP_BLINK=2500; /* a mute shorter than this, with no new recorder needed, is not worth a mark */
+const gapWords=ms=>ms<90000?Math.max(1,Math.round(ms/1000))+' seconds':ms<5400000?Math.round(ms/60000)+' minutes':(ms/3600000).toFixed(1)+' hours';
+function gapOpen(why,at){
+  if(!R.active||!R.session)return;
+  if(R.gap){if(why&&R.gap.why!==why)dlog('still lost: '+why);return}
+  const t=Math.max(0,at==null?elapsed():at),g={at:t,to:null,why};
+  R.gap=g;(R.session.gaps||(R.session.gaps=[])).push(g);
+  const row={t,mark:true,gap:true,why,to:null,text:''};
+  let i=R.segments.findIndex(x=>x.t>t);if(i<0)i=R.segments.length;R.segments.splice(i,0,row);
+  R.gapRow=row;R.dirty=true;LIVE.key='';renderLive();dlog('microphone lost at '+fmtDur(t)+': '+why);
+}
+function gapClose(to){
+  const g=R.gap;if(!g)return;
+  R.gap=null;const row=R.gapRow;R.gapRow=null;
+  g.to=Math.max(g.at,to);delete g.unT;
+  if(!g.parted&&g.to-g.at<GAP_BLINK){ /* a blink: the recorder never stopped, so there is nothing to mark */
+    const k=R.segments.indexOf(row);if(k>=0)R.segments.splice(k,1);
+    const j=R.session.gaps.indexOf(g);if(j>=0)R.session.gaps.splice(j,1);
+    dlog('the microphone was muted for under '+Math.ceil(GAP_BLINK/1000)+' seconds; nothing to mark');
+  }else{if(row)row.to=g.to;dlog('microphone gap closed: '+fmtDur(g.at)+' to '+fmtDur(g.to))}
+  R.dirty=true;LIVE.key='';renderLive();
+}
+function partSaver(sid,part){ /* the piece handler for every recorder after the first: same saving as the first one, with the part written on each piece */
+  return e=>{
+    if(!e.data||!e.data.size){if(R.sid===sid)dlog('an empty piece arrived');return}
+    const i=R.idx++;R.bytes+=e.data.size;const t=elapsed();R.inflight++;
+    if(R.part===part&&R.gotPart!==part){R.gotPart=part;R.gotT=t}
+    idb.put('chunks',{sid,idx:i,part,blob:e.data,t})
+      .then(()=>{if(R.sid===sid){R.session.durationMs=t;R.session.bytes=R.bytes;R.session.chunks=R.idx;return idb.put('sessions',R.session)}})
+      .catch(storageFail).finally(()=>{R.inflight--});
+  };
+}
+function hookTrack(track,stream,sid){
+  if(!track)return;
+  const mine=()=>R.sid===sid&&R.stream===stream&&R.active&&!R.stopping;
+  track.onended=()=>{
+    if(!mine())return;
+    if(R.passed&&!R.restarting&&!R.starting){dlog('the phone took the microphone away (the audio track ended)');heal('the phone took the microphone away')}
+    else{dlog('the phone ended the microphone');stopRecording('The microphone was taken by the system (a call, another app or screen lock). What was captured has been saved.')}
+  };
+  track.onmute=()=>{
+    if(!mine())return;
+    R.muted=true;dlog('the phone muted the microphone');updateChips();
+    if(R.passed&&!R.paused)gapOpen('the phone muted the microphone');
+  };
+  track.onunmute=()=>{
+    if(!mine())return;
+    R.muted=false;dlog('the microphone is back');updateChips();
+    if(R.gap&&R.gap.unT==null)R.gap.unT=elapsed();
+    healPoke();
+    if(R.passed&&!R.paused&&!R.healing){ /* a recorder that is still alive sends a piece within seconds; if it does not, a new one takes over */
+      const b=R.bytes,rec=R.rec;
+      setTimeout(()=>{if(mine()&&R.rec===rec&&R.bytes===b&&!R.paused&&!R.healing)heal('the microphone came back but the recorder stayed silent')},4500);
+    }
+  };
+}
+const healSleep=ms=>new Promise(res=>{const done=()=>{clearTimeout(t);if(R.healWake===done)R.healWake=null;res()};const t=setTimeout(done,ms);R.healWake=done});
+const healPoke=()=>{const w=R.healWake;if(w)w()};
+async function heal(why,at){ /* starts new recorders, as often as it takes, until sound is saved again or the recording is stopped */
+  if(!R.active||R.stopping||R.restarting||R.starting||R.healing||R.paused)return;
+  R.healing=true;const sid=R.sid,st={reuse:true};
+  try{
+    gapOpen(why,at);
+    dlog('recovering: '+why);
+    setWarn('The microphone was lost at '+fmtDur(R.gap?R.gap.at:elapsed())+'. Yukon is trying to get it back. Everything recorded before this is saved.');
+    for(let n=0;R.active&&!R.stopping&&R.sid===sid;n++){
+      if(R.paused){await healSleep(1000);n--;continue}
+      let done=false;
+      try{done=await reopenOnce(n,sid,st)}catch(e){dlog('could not start a new recorder: '+((e&&e.message)||e))}
+      if(done)break;
+      await healSleep(n<3?3000:10000);
+    }
+  }finally{R.healing=false}
+}
+async function reopenOnce(n,sid,st){ /* one try. true when it worked or the recording is over, false to try again */
+  const alive=()=>R.active&&!R.stopping&&R.sid===sid;
+  const old=R.rec,oldStream=R.stream,oldTrack=oldStream&&oldStream.getAudioTracks()[0],live=!!oldTrack&&oldTrack.readyState==='live';
+  if(live&&oldTrack.muted&&n%3!==2){if(n===0)dlog('the microphone is muted; waiting for the phone to give it back');return false}
+  if(old&&old.state!=='inactive'){ /* let go of the old recorder; whatever it still holds is saved as the end of its own part */
+    const stopped=new Promise(r=>old.addEventListener('stop',r,{once:true}));
+    try{old.requestData()}catch(e){}
+    try{old.stop()}catch(e){}
+    await Promise.race([stopped,sleep(1500)]);
+    if(!alive())return true;
+  }
+  let stream=oldStream,track=oldTrack;
+  if(live&&!oldTrack.muted&&st.reuse){st.reuse=false;dlog('the microphone is still open and not muted; starting a new recorder on it')}
+  else{
+    try{oldStream&&oldStream.getTracks().forEach(t=>{t.onended=t.onmute=t.onunmute=null;t.stop()})}catch(e){}
+    audioSessionType('play-and-record');
+    let s2=null;
+    try{s2=await navigator.mediaDevices.getUserMedia(micOpts())}catch(e){dlog('the phone has not given the microphone back yet: '+((e&&e.name)||'error'))}
+    if(!alive()){if(s2)s2.getTracks().forEach(t=>t.stop());return true}
+    if(!s2)return false;
+    stream=s2;track=s2.getAudioTracks()[0];
+    if(!track){stream.getTracks().forEach(t=>t.stop());dlog('the phone gave no audio track');return false}
+    if(track.muted){for(let i=0;i<15&&track.muted;i++)await sleep(100);if(!alive()){stream.getTracks().forEach(t=>t.stop());return true}}
+    dlog('microphone again: '+(track.label||'unnamed')+', '+track.readyState+(track.muted?', MUTED':''));
+  }
+  const drop=()=>{if(stream!==oldStream)try{stream.getTracks().forEach(t=>t.stop())}catch(e){}};
+  const part=R.part+1;let rec2;
+  try{rec2=new MediaRecorder(stream,Object.assign({audioBitsPerSecond:settings.kbps*1000},R.session.mime?{mimeType:R.session.mime}:{}))}
+  catch(e){dlog('a new recorder could not be created: '+((e&&e.message)||e));drop();return false}
+  rec2.ondataavailable=partSaver(sid,part);
+  rec2.onerror=e=>dlog('the new recorder reported a problem ('+(e&&e.error&&e.error.name||'unknown')+')');
+  rec2.onstop=()=>{if(R.sid===sid&&R.rec===rec2&&R.active&&!R.stopping&&!R.restarting&&!R.paused&&!R.healing){dlog('the recorder stopped by itself; starting a new recorder');heal('the recorder stopped by itself')}};
+  R.rec=rec2;R.stream=stream;R.part=part;R.gotPart=-1;R.lastB=-1;R.lastBt=performance.now();R.stall=false;
+  if(R.gap)R.gap.parted=true;
+  hookTrack(track,stream,sid);R.muted=!!track.muted;updateChips();
+  if(stream!==oldStream&&R.ctx&&R.an){try{R.ctx.createMediaStreamSource(stream).connect(R.an)}catch(e){dlog('the level meter could not follow the new microphone: '+((e&&e.message)||e))}}
+  try{if(R.ctx&&R.ctx.state!=='running')R.ctx.resume().catch(()=>{})}catch(e){}
+  try{rec2.start(3000)}catch(e){dlog('the new recorder could not start: '+((e&&e.message)||e));return false}
+  dlog('new recorder started (part '+(part+1)+') as '+(rec2.mimeType||'default'));
+  for(let i=0;i<90&&R.gotPart!==part&&alive();i++)await sleep(100);
+  if(!alive())return true;
+  if(R.gotPart!==part){dlog('the new recorder saved nothing in 9 seconds');return false}
+  const g=R.gap;let lost=0;
+  if(g){gapClose(Math.max(g.at,R.gotT-3000));lost=g.to-g.at}
+  R.session.parts=part+1;R.dirty=true;
+  dlog('the recording carries on in part '+(part+1)+(g?' after '+fmtDur(lost)+' without sound':''));
+  toast(lost>=GAP_BLINK?'The microphone is back. About '+gapWords(lost)+' were not recorded; the gap is marked in the transcript.':'The microphone is back and the recording carries on.');
+  if(/^The microphone was lost/.test(R.warn))setWarn('');
+  if(!R.noLive&&!R.paused&&settings.liveTx!==false){ /* the speech recogniser dies with the microphone; start it again */
+    const sr=stopRecog();R.interim='';await Promise.race([sr.done,sleep(600)]);sr.abort();
+    if(alive()&&!R.paused&&!R.recog){if(document.hidden){R.recogHidden=sid;dlog('live transcript set aside while the page is hidden')}else startRecog()}
+  }
+  return true;
+}
+document.addEventListener('visibilitychange',()=>{if(document.hidden||!R.active)return;R.lastBt=performance.now();healPoke()}); /* the page was asleep: give the recorder a moment before judging it, and let a waiting recovery try now */
+document.addEventListener('pointerdown',()=>{if(R.healing)healPoke()},{passive:true}); /* a tap counts as the person asking for the microphone, which some phones insist on */
+
 async function stopRecording(note){
   if(!R.active||R.stopping)return;
-  R.stopping=true;clearTimeout(R.wd);R.wd=0;
+  R.stopping=true;clearTimeout(R.wd);R.wd=0;healPoke();
   const rec=R.rec,sid=R.sid,session=R.session;
   const sr=stopRecog();
   const dur=elapsed();R.accMs=dur;R.active=false;
@@ -1286,6 +1630,8 @@ async function stopRecording(note){
         wordsHeard=R.segments.some(x=>!x.mark&&x.text),deaf=wordsHeard&&R.sampled>=2&&!R.sound;
   await releaseMic();
   dlog('level meter '+meter+'; microphone was '+micWas+(R.muted?' (the phone muted it during the recording)':''));
+  if(R.gap)dlog('the microphone had not come back when the recording ended (lost at '+fmtDur(R.gap.at)+')');
+  if(R.part>0)dlog('this recording was made by '+(R.part+1)+' recorders in a row; Yukon joins them when it plays the audio');
   R.dirty=true;await saveTx();
   dlog('stopped after '+fmtDur(dur)+': '+R.idx+' audio pieces, '+R.bytes+' bytes, '+countWords(R.segments)+' words');
   Object.assign(session,{durationMs:dur,bytes:R.bytes,chunks:R.idx,words:countWords(R.segments),status:'done',diag:R.log.join('\n'),silent:deaf||undefined});
@@ -1301,6 +1647,7 @@ async function stopRecording(note){
     if(!SAFE.noLive){sn.textContent+=' Tap Reload Yukon to get it back for the next one.';showReload(true)}
   }
   if(R.dead)showReload(true);
+  if(session.gaps&&session.gaps.length){const lost=session.gaps.reduce((n,g)=>n+Math.max(0,(g.to!=null?g.to:dur)-g.at),0);sn.textContent+=' The phone took the microphone away during this recording; about '+gapWords(lost)+' were not recorded. The break is marked in the transcript.'}
   if(typeof note==='string'&&note){sn.textContent+=' '+note+' Tap Record to carry on in a new recording.'}
   toast(typeof note==='string'?note:'Saved to your library.');
   autoFolder(sid).then(n=>{if(n&&CUR==='library')renderLibrary()}).catch(()=>{})
@@ -1330,7 +1677,7 @@ async function verifyAudio(sid){ /* asks the phone to open the start of the save
     const ch=await idb.chunks(sid),cur=await idb.get('sessions',sid);if(!cur)return 'ok';
     if(!ch.length||!(cur.bytes>0)){res='none';info='no audio was saved'}
     else{
-      const type=String(cur.mime||'audio/webm').split(';')[0],blob=new Blob(ch.slice(0,4).map(c=>c.blob),{type}),url=URL.createObjectURL(blob),a=new Audio();
+      const type=String(cur.mime||'audio/webm').split(';')[0],blob=new Blob(ch.filter(c=>!c.part).slice(0,4).map(c=>c.blob),{type}),url=URL.createObjectURL(blob),a=new Audio();
       a.preload='metadata';
       const r=await new Promise(done=>{const t=setTimeout(()=>done('slow'),8000);a.onloadedmetadata=()=>{clearTimeout(t);done('ok')};a.onerror=()=>{clearTimeout(t);done('error '+(a.error?a.error.code:'?'))};a.src=url;try{a.load()}catch(e){}});
       try{a.removeAttribute('src');a.load()}catch(e){}URL.revokeObjectURL(url);
@@ -1384,8 +1731,12 @@ function tick(){
     silentSample();
     if(R.passed&&!R.restarting){ /* sound was arriving; warn if the saving stops moving */
       const now=performance.now();
-      if(R.bytes!==R.lastB){R.lastB=R.bytes;R.lastBt=now;if(R.stall){R.stall=false;dlog('audio is arriving again');setWarn('')}}
-      else if(!R.stall&&now-R.lastBt>15000){R.stall=true;dlog('no new audio for 15 seconds');setWarn('Recording looks stuck: nothing new has been saved for 15 seconds. Tap Stop, then Reload Yukon, then Record.')}
+      if(R.bytes!==R.lastB){
+        R.lastB=R.bytes;R.lastBt=now;
+        if(R.stall){R.stall=false;dlog('audio is arriving again');if(!R.healing)setWarn('')}
+        if(R.gap&&!R.healing&&!R.muted)gapClose(R.gap.unT!=null?R.gap.unT:elapsed()); /* the recorder never stopped; only the mute is left to mark */
+      }
+      else if(!R.stall&&now-R.lastBt>10000){R.stall=true;dlog('no new audio for 10 seconds');heal('no new audio for 10 seconds',Math.min(elapsed(),R.session.durationMs||0))}
     }
   }
 }
@@ -1693,7 +2044,10 @@ function spawnRecog(SR,gen,segs){ /* gen and segs tie this recogniser to one rec
 }
 
 /* record view rendering */
-const segRow=s=>s.mark
+const gapText=(s,live)=>{const end=s.to!=null?s.to:null;return end!=null?'Microphone lost for '+gapWords(end-s.t)+(s.to-s.t<GAP_BLINK?'':' · not recorded'):(live?'Microphone lost · trying to get it back':'Microphone lost · the recording ended before it came back')};
+const segRow=s=>s.gap
+  ?`<div class="seg gap"><span class="ts">${fmtDur(s.t)}</span><span class="t">${esc(gapText(s,R.active))}</span></div>`
+  :s.mark
   ?`<div class="seg mark"><span class="ts">${fmtDur(s.t)}</span><span class="t">Marked moment</span></div>`
   :`<div class="seg"><span class="ts">${fmtDur(s.t)}</span><span class="t">${esc(s.text)}</span></div>`;
 const LIVE={key:''};
@@ -2360,7 +2714,7 @@ async function openDetail(sid,back){
   D.hl=null;$('#d-title').value=s.title;
   $('#d-meta').textContent=metaText();updateFolderBtn();updateProjBtn();
   if(D.url)URL.revokeObjectURL(D.url);
-  D.blob=new Blob(ch.map(c=>c.blob),{type:String(s.mime||'audio/webm').split(';')[0]});
+  const jn=await joinChunks(ch,s.mime);D.blob=jn.blob;D.map=jn.map;D.joinFail=!!jn.failed; /* with more than one recorder, D.map lines the audio up with the recording's clock */
   if(D.blob.size){D.url=URL.createObjectURL(D.blob);audio.src=D.url}else{D.url=null;audio.removeAttribute('src');try{audio.load()}catch(e){}} /* nothing was captured: do not hand the player an empty file */
   audioNote();
   $('#d-search').value='';$('#chat-err').hidden=true;$('#d-ctx').textContent='';
@@ -2396,7 +2750,12 @@ function audioNote(failed){ /* a plain sentence instead of a bare "Error" on the
     :x.check==='silent'?'The audio saved for this recording is silent, although the phone understood the words. The transcript is still here. To record sound next time, turn off Live transcript while recording in Settings.'
     :(failed||x.check==='error')?'This phone could not play the audio here. It is saved: open Tools, then Download audio, to listen in another app.':'';
   e.textContent=m;e.hidden=!m;
-  const c=$('#d-cut');if(c){const cut=cutShort(x);c.hidden=!cut;c.textContent=cut?'This recording stopped early, at about '+fmtDur(x.durationMs||0)+', when the phone or the page was interrupted (a locked screen, a call, another app or a shut-down). Anything said after that was not recorded.':''}
+  const c=$('#d-cut');if(c){
+    const cut=cutShort(x),gs=(x.gaps||[]).filter(g=>g&&typeof g.at==='number'),lostMs=gs.reduce((n,g)=>n+Math.max(0,(g.to!=null?g.to:(x.durationMs||0))-g.at),0),never=gs.some(g=>g.to==null);
+    const gm=gs.length&&!cut?(gs.length===1?'The phone took the microphone away once during this recording, at '+fmtDur(gs[0].at)+'.':'The phone took the microphone away '+gs.length+' times during this recording.')+' About '+gapWords(lostMs)+' were not recorded. '+(never?'The microphone did not come back before the recording ended. ':(x.parts>1?'Yukon started a new recorder each time it came back, so the sound after each break is here. ':''))+(D.joinFail?'This phone could not join the pieces, so only the first part plays here; Tools, then Download audio, keeps every piece. ':'')+'The breaks are marked in the transcript.':'';
+    const t=cut?'This recording stopped early, at about '+fmtDur(x.durationMs||0)+', when the phone or the page was interrupted (a locked screen, a call, another app or a shut-down). Anything said after that was not recorded.':gm;
+    c.hidden=!t;c.textContent=t;
+  }
   const d=$('#d-diag');if(d){d.textContent=x.diag||'No details were kept for this recording.';$('#d-diag-card').hidden=false}
 }
 audio.addEventListener('error',()=>{if(D.url)audioNote(true)});
@@ -2413,7 +2772,7 @@ $('#d-title').addEventListener('change',async e=>{
 });
 function renderTx(){
   const box=$('#d-tx'),terms=termsOf($('#d-search').value),hlT=terms.length?terms:D.hl;
-  const SG=viewSegs(),nw=countWords(SG),nm=SG.filter(s=>s.mark).length;
+  const SG=viewSegs(),nw=countWords(SG),nm=SG.filter(s=>s.mark&&!s.gap).length;
   $('#d-tx-sum').textContent=nw?nw.toLocaleString()+' words'+(nm?' · '+plural(nm,'mark','marks'):''):'No transcript';
   $('#d-edit').textContent=D.edit?'Done':'Edit';$('#d-editbar').hidden=!D.edit;
   if(!SG.length){box.innerHTML='<p class="empty">No transcript was captured for this recording. You can create one with Improve with AssemblyAI in Tools.</p><div class="btns"><button class="btn" type="button" data-go-tab="tools">Open Tools</button></div>';return}
@@ -2421,6 +2780,7 @@ function renderTx(){
   if(!segs.length){box.innerHTML='<p class="empty">No matches.</p>';return}
   box.innerHTML=segs.map(({s,i})=>{
     const ts=`<button class="ts" data-t="${Math.round(s.t)}">${fmtDur(s.t)}</button>`;
+    if(s.gap)return `<div class="seg gap">${ts}<span class="t">${esc(gapText(s,false))}</span></div>`;
     if(s.mark)return `<div class="seg mark">${ts}<span class="t">Marked moment</span></div>`;
     if(D.edit)return `<div class="seg">${ts}<textarea class="seg-edit" data-i="${i}" rows="${Math.max(2,Math.ceil(s.text.length/34))}" aria-label="Transcript text at ${fmtDur(s.t)}">${esc(s.text)}</textarea></div>`;
     return `<div class="seg">${ts}<span class="t">${segHtml(s,hlT)}</span></div>`;
@@ -2429,10 +2789,10 @@ function renderTx(){
 $('#d-search').addEventListener('input',renderTx);
 document.addEventListener('click',e=>{
   const b=e.target.closest('button.ts[data-t]');if(!b||!D.url)return;
-  try{audio.currentTime=(+b.dataset.t)/1000;audio.play().catch(()=>{});toast('Playing from '+fmtDur(+b.dataset.t)+'. Use the play button next to the tabs to pause.')}catch(err){}
+  try{audio.currentTime=rjC2A(D.map,+b.dataset.t)/1000;audio.play().catch(()=>{});toast('Playing from '+fmtDur(+b.dataset.t)+'. Use the play button next to the tabs to pause.')}catch(err){}
 });
 function transcriptText(){
-  return D.segs.map(s=>s.mark?`[${fmtDur(s.t)}] (marked by the user)`:`[${fmtDur(s.t)}] ${s.text}`).join('\n');
+  return D.segs.map(s=>s.gap?`[${fmtDur(s.t)}] (${gapText(s,false)})`:s.mark?`[${fmtDur(s.t)}] (marked by the user)`:`[${fmtDur(s.t)}] ${s.text}`).join('\n');
 }
 function download(blob,name){
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();
@@ -3147,7 +3507,7 @@ async function improve(){
     for(const x of (sj.sentences||[])){
       let text=(x.text||'').trim();if(!text)continue;
       if(x.speaker&&x.speaker!==prevSp)text='Speaker '+x.speaker+': '+text;
-      prevSp=x.speaker||null;fresh.push({t:x.start,text});
+      prevSp=x.speaker||null;fresh.push({t:rjA2C(D.map,x.start),text}); /* AssemblyAI counts the sound it was sent; the clock also counts the lost stretch */
     }
     if(!fresh.length&&last.text)fresh.push({t:0,text:last.text.trim()});
     if(!fresh.length)throw Object.assign(new Error('AssemblyAI found no speech in this recording.'),{fatal:true});
@@ -3197,9 +3557,9 @@ async function autoComplete(s,pending){
   AUTOI.busy=true;AUTOI.sid=s.id;AUTOI.ctl=new AbortController();
   const ctl=AUTOI.ctl,signal=ctl.signal,sid=s.id,title=clip(s.title||'Recording',40);
   try{
-    let id=pending?s.aai.id:null;
+    let id=pending?s.aai.id:null,map=null;
     if(!id){
-      const ch=await idb.chunks(sid),blob=new Blob(ch.map(c=>c.blob),{type:String(s.mime||'audio/webm').split(';')[0]});
+      const ch=await idb.chunks(sid),jn=await joinChunks(ch,s.mime),blob=jn.blob;map=jn.map;
       if(!blob.size)throw Object.assign(new Error('There is no saved audio.'),{fatal:true});
       const c1=await idb.get('sessions',sid);if(!c1)return;
       c1.aaiTries=(c1.aaiTries||0)+1;await idb.put('sessions',c1); /* counted before the upload, so a page that dies halfway cannot loop for ever */
@@ -3219,12 +3579,13 @@ async function autoComplete(s,pending){
       if(last.status==='error')throw Object.assign(new Error(last.error||'AssemblyAI could not transcribe this audio.'),{fatal:true});
       await waitMs(4000,signal);
     }
+    if(!map){const ch2=await idb.chunks(sid);if(ch2.some(c=>c.part))map=(await joinChunks(ch2,s.mime)).map} /* a job that was started earlier: work out where the parts sit again */
     const sj=await aaiFetch('/transcript/'+id+'/sentences',{signal});
     let prevSp=null;const fresh=[];
     for(const x of (sj.sentences||[])){
       let text=(x.text||'').trim();if(!text)continue;
       if(x.speaker&&x.speaker!==prevSp)text='Speaker '+x.speaker+': '+text;
-      prevSp=x.speaker||null;fresh.push({t:x.start,text});
+      prevSp=x.speaker||null;fresh.push({t:rjA2C(map,x.start),text});
     }
     if(!fresh.length&&last.text)fresh.push({t:0,text:last.text.trim()});
     if(!fresh.length)throw Object.assign(new Error('AssemblyAI found no speech in this recording.'),{fatal:true});
@@ -3511,7 +3872,7 @@ async function openAt(sid,ms,back,opts){
     if(D.sid!==sid){clearInterval(iv);return}
     if((isFinite(audio.duration)&&audio.duration>0)||Date.now()-t0>4000){
       clearInterval(iv);
-      setTimeout(()=>{try{audio.currentTime=ms/1000;if(!(opts&&opts.seg!=null))audio.scrollIntoView({block:'center',behavior:'smooth'})}catch(e){}},350);
+      setTimeout(()=>{try{audio.currentTime=rjC2A(D.map,ms)/1000;if(!(opts&&opts.seg!=null))audio.scrollIntoView({block:'center',behavior:'smooth'})}catch(e){}},350);
     }
   },200);
 }
@@ -3568,7 +3929,7 @@ async function markedData(){
   if(R.active&&R.sid)m.set(R.sid,R.segments); /* marks made in the recording that is running right now */
   const out=[];
   for(const s of ss.sort((a,b)=>b.startedAt-a.startedAt)){
-    const segs=m.get(s.id)||[],marks=segs.filter(g=>g.mark).sort((a,b)=>a.t-b.t);
+    const segs=m.get(s.id)||[],marks=segs.filter(g=>g.mark&&!g.gap).sort((a,b)=>a.t-b.t);
     if(marks.length)out.push({s,marks:marks.map(g=>({t:g.t,snip:snippet(segs,g.t)}))});
   }
   return out;
@@ -3657,7 +4018,7 @@ async function renderMarked(){
   mktRun().catch(()=>{});
 }
 async function removeMark(sid,t){
-  const drop=arr=>{if(!Array.isArray(arr))return false;const i=arr.findIndex(g=>g.mark&&g.t===t);if(i<0)return false;arr.splice(i,1);return true};
+  const drop=arr=>{if(!Array.isArray(arr))return false;const i=arr.findIndex(g=>g.mark&&!g.gap&&g.t===t);if(i<0)return false;arr.splice(i,1);return true};
   if(R.active&&R.sid===sid){if(drop(R.segments)){R.dirty=true;await saveTx();renderLive()}}
   else{
     const tx=await idb.get('tx',sid);
@@ -3698,8 +4059,8 @@ function addMarkTo(arr,ms){ /* keeps the transcript in time order without touchi
 $('#d-mark').onclick=async()=>{
   if(!D.sid||!D.url)return;
   if(R.active&&R.sid===D.sid){toast('This recording is still going. Use the Mark button on the recorder.');return}
-  const ms=Math.round((audio.currentTime||0)*1000);
-  if(D.segs.some(g=>g.mark&&Math.abs(g.t-ms)<1500)){toast('Already marked here.');return}
+  const ms=Math.round(rjA2C(D.map,(audio.currentTime||0)*1000));
+  if(D.segs.some(g=>g.mark&&!g.gap&&Math.abs(g.t-ms)<1500)){toast('Already marked here.');return}
   addMarkTo(D.segs,ms);if(D.prev)addMarkTo(D.prev,ms);
   try{await idb.put('tx',{sid:D.sid,segments:D.segs,prev:D.prev||null})}catch(e){storageFail(e)}
   renderTx();toast('Marked at '+fmtDur(ms)+'. Find it under Marked in the menu.');
