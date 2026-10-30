@@ -183,6 +183,25 @@ audio{width:100%;margin:6px 0 10px}
 .tx-bar .field{flex:1 1 auto;min-width:0;margin:0}
 .tx-bar .btn{flex:none}
 .tx-meta{display:flex;flex-wrap:wrap;justify-content:space-between;gap:2px 12px;margin-bottom:10px}
+#d-chg{border:1px solid var(--line);border-radius:14px;padding:10px 12px;margin-bottom:12px}
+.chg-top{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px 10px}
+.chg-top .meta{flex:1 1 170px;min-width:0}
+.chg-top .btn[aria-pressed=true],.chg-tog[aria-pressed=true]{background:var(--accent-soft);color:var(--accent);box-shadow:inset 0 0 0 1.5px var(--accent)}
+.chg-note{margin:8px 0 0}
+#d-chg details{margin-top:8px;border-top:1px solid var(--line)}
+#d-chg summary{cursor:pointer;font-weight:600;padding:9px 0;display:flex;justify-content:space-between;gap:8px;list-style:none}
+#d-chg summary::-webkit-details-marker{display:none}
+#d-chg summary .n{color:var(--muted);font-weight:500}
+#d-chg>.btns{margin:6px 0 0}
+.chg-list{max-height:min(46vh,380px);overflow:auto;margin:0 0 6px}
+.chg-row{display:grid;grid-template-columns:66px minmax(0,1fr);gap:8px;padding:6px 0;border-top:1px solid var(--line);align-items:start}
+.chg-row:first-child{border-top:0}
+.chg-row.ap .chg-tog{grid-column:2;justify-self:start;margin:2px 0 4px}
+.chg-row .ts{font-family:var(--font-num);font-size:.78rem;color:var(--muted);padding-top:2px;text-align:left}
+.chg-tx{overflow-wrap:anywhere}
+.chg-why{display:block}
+mark.ed{background:var(--accent-soft);color:inherit;border-radius:4px;padding:0 2px;box-shadow:inset 0 -2px 0 var(--accent);cursor:pointer}
+mark.ed.off{background:transparent;box-shadow:inset 0 -2px 0 var(--warn)}
 /* AI Chat page: a greeting, prompt pills, and one rounded ask bar */
 .cp{display:flex;flex-direction:column;gap:18px}
 .cp-hero{display:flex;flex-direction:column;gap:18px;padding-top:6px}
@@ -812,6 +831,13 @@ mark.hit{background:var(--accent-soft);color:var(--accent);border-radius:4px;pad
             <button class="btn sm" id="d-edit" type="button">Edit</button>
           </div>
           <div class="tx-meta"><span class="meta" id="d-tx-sum"></span><span class="meta">Tap a time to hear that moment.</span></div>
+          <div id="d-chg" hidden>
+            <div class="chg-top"><span class="meta" id="d-chg-sum" role="status"></span><button class="btn sm" id="d-chg-orig" type="button" aria-pressed="false">Show original</button></div>
+            <p class="meta chg-note" id="d-chg-note" hidden>This is the live transcript exactly as it was heard. Nothing in it is changed.</p>
+            <details id="d-chk"><summary><span>Check the audio</span><span class="n" id="d-chk-n"></span></summary><div class="chg-list" id="d-chk-list"></div></details>
+            <details id="d-apl"><summary><span>Edits made for you</span><span class="n" id="d-apl-n"></span></summary><div class="chg-list" id="d-apl-list"></div></details>
+            <div class="btns"><button class="btn sm" id="d-chg-copy" type="button">Copy edit log</button></div>
+          </div>
         <div id="d-editbar" hidden>
           <p class="meta" style="margin:0 0 8px">Tap a line to fix it. Changes save when you tap away. Clearing a line removes it. Edits update the transcript the assistant reads and the one you download.</p>
           <div class="find-row">
@@ -1000,7 +1026,7 @@ let toastT;
 function toast(m){const t=$('#toast');t.textContent=m;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>{t.hidden=true},4500)}
 
 /* ---------- settings ---------- */
-const BUILD='29 Oct 2026, AI Chat page restyled, prompt pills';
+const BUILD='29 Oct 2026, Improve checks the live transcript, Check the audio list';
 const DEF={apiKey:'',model:'claude-sonnet-5-5',lang:'',kbps:64,terms:'',aaiKey:'',speakers:false,sound:'natural',liveTx:true,meter:true,orb:true};
 const settings=Object.assign({},DEF);
 let savedSettings={};try{savedSettings=JSON.parse(localStorage.getItem('longtake.settings')||'{}')||{}}catch(e){}
@@ -2292,7 +2318,7 @@ async function deleteRecordings(ids){ /* the same four-store delete the recordin
   let n=0,kept=0;
   for(const sid of ids){
     if(R.active&&R.sid===sid){kept++;continue}
-    try{await idb.delChunks(sid);await idb.del('tx',sid);await idb.del('notes',sid);await idb.del('sessions',sid);n++}catch(e){}
+    try{await idb.delChunks(sid);await idb.del('tx',sid);await idb.del('notes',sid);await idb.del('notes','__edits:'+sid);await idb.del('sessions',sid);n++}catch(e){}
   }
   LV.idx=null;
   return {n,kept};
@@ -2328,8 +2354,8 @@ async function openDetail(sid,back){
   show('detail');
   const s=await idb.get('sessions',sid);
   if(!s){show('library');return}
-  const [txr,notes,ch]=await Promise.all([idb.get('tx',sid),idb.get('notes',sid),idb.chunks(sid)]);
-  Object.assign(D,{sid,session:s,segs:(txr&&txr.segments)||[],chat:cleanChat(notes&&notes.messages),digest:(notes&&notes.digest)||null,digestLen:(notes&&notes.digestLen)||0,busy:false});
+  const [txr,notes,ch,chg]=await Promise.all([idb.get('tx',sid),idb.get('notes',sid),idb.chunks(sid),getRec('__edits:'+sid)]);
+  Object.assign(D,{sid,session:s,segs:(txr&&txr.segments)||[],chat:cleanChat(notes&&notes.messages),digest:(notes&&notes.digest)||null,digestLen:(notes&&notes.digestLen)||0,busy:false,chg:chg&&chg.v===1&&Array.isArray(chg.changes)?chg:null,chgOrig:false});
   if(isWide())renderDrawer(); /* now that this recording is the open one, mark it in the sidebar */
   D.hl=null;$('#d-title').value=s.title;
   $('#d-meta').textContent=metaText();updateFolderBtn();updateProjBtn();
@@ -2341,7 +2367,7 @@ async function openDetail(sid,back){
   D.edit=false;$('#d-find').value='';$('#d-repl').value='';
   D.prev=(txr&&txr.prev)||null;J.arm=false;$('#d-prog').hidden=true;$('#d-improve-err').hidden=true;updateImproveUI();
   $('#d-terms').value=s.terms||'';
-  D.open=-1;renderTx();renderChat();setBusy(false);
+  D.open=-1;renderTx();renderChg();renderChat();setBusy(false);
   setTab(s.aai&&!s.aai.done?'tools':'tx',true); /* opens on the Transcript; on Tools when an improvement is waiting */
 }
 function updateFolderBtn(){
@@ -2387,17 +2413,17 @@ $('#d-title').addEventListener('change',async e=>{
 });
 function renderTx(){
   const box=$('#d-tx'),terms=termsOf($('#d-search').value),hlT=terms.length?terms:D.hl;
-  const nw=countWords(D.segs),nm=D.segs.filter(s=>s.mark).length;
+  const SG=viewSegs(),nw=countWords(SG),nm=SG.filter(s=>s.mark).length;
   $('#d-tx-sum').textContent=nw?nw.toLocaleString()+' words'+(nm?' · '+plural(nm,'mark','marks'):''):'No transcript';
   $('#d-edit').textContent=D.edit?'Done':'Edit';$('#d-editbar').hidden=!D.edit;
-  if(!D.segs.length){box.innerHTML='<p class="empty">No transcript was captured for this recording. You can create one with Improve with AssemblyAI in Tools.</p><div class="btns"><button class="btn" type="button" data-go-tab="tools">Open Tools</button></div>';return}
-  const segs=D.segs.map((s,i)=>({s,i})).filter(({s})=>!terms.length||(!s.mark&&terms.some(t=>fold(s.text).includes(t))));
+  if(!SG.length){box.innerHTML='<p class="empty">No transcript was captured for this recording. You can create one with Improve with AssemblyAI in Tools.</p><div class="btns"><button class="btn" type="button" data-go-tab="tools">Open Tools</button></div>';return}
+  const segs=SG.map((s,i)=>({s,i})).filter(({s})=>!terms.length||(!s.mark&&terms.some(t=>fold(s.text).includes(t))));
   if(!segs.length){box.innerHTML='<p class="empty">No matches.</p>';return}
   box.innerHTML=segs.map(({s,i})=>{
     const ts=`<button class="ts" data-t="${Math.round(s.t)}">${fmtDur(s.t)}</button>`;
     if(s.mark)return `<div class="seg mark">${ts}<span class="t">Marked moment</span></div>`;
     if(D.edit)return `<div class="seg">${ts}<textarea class="seg-edit" data-i="${i}" rows="${Math.max(2,Math.ceil(s.text.length/34))}" aria-label="Transcript text at ${fmtDur(s.t)}">${esc(s.text)}</textarea></div>`;
-    return `<div class="seg">${ts}<span class="t">${hlT&&hlT.length?hlHtml(s.text,hlT):esc(s.text)}</span></div>`;
+    return `<div class="seg">${ts}<span class="t">${segHtml(s,hlT)}</span></div>`;
   }).join('');
 }
 $('#d-search').addEventListener('input',renderTx);
@@ -2426,7 +2452,7 @@ $('#d-del').onclick=async()=>{
   clearTimeout(D.delT);D.delArm=false;b.textContent='Delete';
   if(R.active&&R.sid===D.sid){toast('Stop the recording before deleting it.');return}
   const sid=D.sid;leaveDetail();
-  try{await idb.delChunks(sid);await idb.del('tx',sid);await idb.del('notes',sid);await idb.del('sessions',sid)}catch(e){}
+  try{await idb.delChunks(sid);await idb.del('tx',sid);await idb.del('notes',sid);await idb.del('notes','__edits:'+sid);await idb.del('sessions',sid)}catch(e){}
   toast('Deleted.');show('library');
 };
 
@@ -2687,7 +2713,7 @@ async function saveEdits(){
   try{await idb.put('tx',{sid:D.sid,segments:D.segs,prev:D.prev||null});await idb.put('sessions',D.session);await persistNotes()}catch(e){storageFail(e)}
   $('#d-meta').textContent=metaText();
 }
-$('#d-edit').onclick=()=>{if(!D.edit&&liveGuard())return;D.edit=!D.edit;renderTx()};
+$('#d-edit').onclick=()=>{if(D.chgOrig){toast('Turn off Show original to edit the transcript.');return}if(!D.edit&&liveGuard())return;D.edit=!D.edit;renderTx()};
 $('#d-tx').addEventListener('change',async e=>{
   const ta=e.target.closest('textarea.seg-edit');if(!ta)return;
   const i=+ta.dataset.i,seg=D.segs[i];if(!seg||liveGuard())return;
@@ -2829,9 +2855,258 @@ function updateImproveUI(){
   b.textContent=J.running?'Cancel':J.arm?'Tap again to upload '+fmtBytes(D.blob?D.blob.size:0):pending?'Check AssemblyAI result':s.improvedAt?'Improve again with AssemblyAI':'Improve with AssemblyAI';
   b.classList.toggle('primary',!J.running);
   $('#d-restore').hidden=!D.prev;
-  $('#d-improve-note').textContent='Sends this recording\'s audio to AssemblyAI for a more accurate transcript, using your names and terms as hints.'
-    +(settings.speakers?' Speakers will be labeled.':'')+(D.prev?' Your earlier version is kept. Switch version swaps between them.':'')+(settings.aaiKey?'':' Add your AssemblyAI key in Settings first.');
+  $('#d-improve-note').textContent='Sends this recording\'s audio to AssemblyAI to check the transcript, using your names and terms as hints. Small fixes that sound alike, or that are on your names list, are made for you. Anything else is listed under Check the audio. Your live transcript is always kept.'
+    +(settings.speakers?' Speakers are labeled, so the whole AssemblyAI transcript is used instead.':'')+(D.prev?' Your earlier version is kept. Switch version swaps between them.':'')+(settings.aaiKey?'':' Add your AssemblyAI key in Settings first.');
 }
+/* ---------- check the improved transcript against the live one (build 69) ----------
+   AssemblyAI's transcript does not simply replace the live one. The two are lined up word by word, and only small, safe fixes are written
+   into the transcript: a word that sounds almost the same as the live word, or a word from the student's names and terms list.
+   A live word that is on that list is never replaced. Everything else is listed under "Check the audio" for the student to decide.
+   The live transcript is kept untouched in its own record (notes key "__edits:<id>", field "live"). Nothing ever writes to it, so Show original always works. */
+const ED={WIN:150000,MIN_WORDS:20,MIN_SHARE:0.6,MIN_EQUAL:0.5,
+  FILL:new Set(['uh','um','uhm','umm','uhh','er','erm','ah','mm','mmm','mhm','hm','hmm']),
+  STOP:new Set(['the','and','for','with','that','this','from','have','are','was','were','been','your','their','there','about','which','what','when','will','would','could','should','into','than','then','them','they','these','those','over','under','such','some','more','most','very'])};
+const edNorm=w=>String(w).normalize('NFKD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[^\p{L}\p{N}]+/gu,'');
+const edCore=w=>String(w).replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu,'');
+const edLead=w=>{const m=/^[^\p{L}\p{N}]*/u.exec(String(w));return m?m[0]:''};
+const edTrail=w=>{const m=/[^\p{L}\p{N}]*$/u.exec(String(w));return m?m[0]:''};
+/*ED-DIFF-START*/
+function edDiff(a,b,ta,tb,win){ /* the same matching as Python's difflib.SequenceMatcher (no junk words), so it is easy to check. With timestamps on both sides, two words only match if they were said within `win` ms of each other. */
+  const b2j=new Map();
+  for(let j=0;j<b.length;j++){let l=b2j.get(b[j]);if(!l){l=[];b2j.set(b[j],l)}l.push(j)}
+  const timed=!!(ta&&tb);
+  function longest(alo,ahi,blo,bhi){
+    let bi=alo,bj=blo,bk=0,prev=new Map();
+    for(let i=alo;i<ahi;i++){
+      const cur=new Map(),l=b2j.get(a[i]);
+      if(l){
+        let lo=0,hi=l.length;while(lo<hi){const m=(lo+hi)>>1;if(l[m]<blo)lo=m+1;else hi=m}
+        for(let x=lo;x<l.length;x++){
+          const j=l[x];if(j>=bhi)break;
+          if(timed&&Math.abs(ta[i]-tb[j])>win)continue;
+          const k=(prev.get(j-1)||0)+1;cur.set(j,k);
+          if(k>bk){bi=i-k+1;bj=j-k+1;bk=k}
+        }
+      }
+      prev=cur;
+    }
+    return [bi,bj,bk];
+  }
+  const queue=[[0,a.length,0,b.length]],blocks=[];
+  while(queue.length){
+    const [alo,ahi,blo,bhi]=queue.pop(),[i,j,k]=longest(alo,ahi,blo,bhi);
+    if(k){blocks.push([i,j,k]);if(alo<i&&blo<j)queue.push([alo,i,blo,j]);if(i+k<ahi&&j+k<bhi)queue.push([i+k,ahi,j+k,bhi])}
+  }
+  blocks.sort((x,y)=>x[0]-y[0]||x[1]-y[1]);
+  const m=[];for(const x of blocks){const l=m[m.length-1];if(l&&l[0]+l[2]===x[0]&&l[1]+l[2]===x[1])l[2]+=x[2];else m.push(x.slice())}
+  m.push([a.length,b.length,0]);
+  const ops=[];let i=0,j=0;
+  for(const [ai,bj,size] of m){
+    if(i<ai&&j<bj)ops.push(['replace',i,ai,j,bj]);else if(i<ai)ops.push(['delete',i,ai,j,bj]);else if(j<bj)ops.push(['insert',i,ai,j,bj]);
+    if(size)ops.push(['equal',ai,ai+size,bj,bj+size]);
+    i=ai+size;j=bj+size;
+  }
+  return ops;
+}
+/*ED-DIFF-END*/
+const edTimed=segs=>{const s=new Set();for(const g of segs)if(g&&!g.mark&&typeof g.t==='number')s.add(g.t);return s.size>1};
+function edFlatten(segs){ /* every spoken word with the line it came from and about when it was said (spread across its line) */
+  const norm=[],ref=[],time=[],st=[],rows=[];
+  for(let si=0;si<segs.length;si++){
+    const g=segs[si];
+    if(!g||g.mark||typeof g.text!=='string'||!g.text.trim()){rows.push(null);continue}
+    const raw=g.text.split(/\s+/).filter(Boolean);rows.push(raw);
+    let next=null;for(let sj=si+1;sj<segs.length;sj++){const h=segs[sj];if(h&&!h.mark&&typeof h.t==='number'&&h.t>(g.t||0)){next=h.t;break}}
+    const t0=typeof g.t==='number'?g.t:0,span=Math.min(next==null?raw.length*450:next-t0,raw.length*600);
+    const skip=raw.length>1&&raw[0]==='Speaker'&&/^\S+:$/.test(raw[1])?2:0; /* a "Speaker A:" label is not a spoken word */
+    for(let k=skip;k<raw.length;k++){const n=edNorm(raw[k]);if(!n)continue;norm.push(n);ref.push([si,k]);time.push(t0+span*k/raw.length);st.push(k===skip)}
+  }
+  return {norm,ref,time,st,rows};
+}
+function edLev(x,y){
+  if(x===y)return 0;
+  let p=Array.from({length:y.length+1},(_,i)=>i);
+  for(let i=1;i<=x.length;i++){const c=[i];for(let j=1;j<=y.length;j++)c[j]=Math.min(p[j]+1,c[j-1]+1,p[j-1]+(x[i-1]===y[j-1]?0:1));p=c}
+  return p[y.length];
+}
+const edSound=s=>s.replace(/ph/g,'f').replace(/ck/g,'k').replace(/^kn/,'n').replace(/^wr/,'r').replace(/c(?=[eiy])/g,'s').replace(/[cq]/g,'k').replace(/x/g,'ks').replace(/z/g,'s').replace(/y/g,'i').replace(/(.)\1+/g,'$1'); /* a light "sounds like" fold: c/k/q, ph/f, z/s, y/i, doubled letters */
+function edAlike(x,y){ /* do the two spellings sound alike? a small edit distance after the fold; short words must match exactly, and anything with a digit never counts */
+  if(/\p{N}/u.test(x+y))return {ok:false,close:false};
+  const fx=edSound(x),fy=edSound(y);
+  if(fx===fy)return {ok:true,close:true};
+  const L=Math.max(fx.length,fy.length),lim=L<=3?0:L<=5?1:L<=9?2:3,d=edLev(fx,fy);
+  return {ok:d<=lim,close:d<=1};
+}
+function edTermSets(){ /* the student's names and terms (Settings + this recording), as normalised words and whole phrases */
+  const words=new Set(),phrases=new Set();
+  for(const p of termsPhrases()){
+    const toks=p.split(/\s+/).map(edNorm).filter(Boolean);if(!toks.length)continue;
+    phrases.add(toks.join(''));
+    if(toks.length===1)words.add(toks[0]);else for(const w of toks)if(w.length>=4&&!ED.STOP.has(w))words.add(w);
+  }
+  return {words,phrases};
+}
+const edCounts=ch=>{let a=0,f=0,u=0,ue=0;for(const c of ch){if(c.status==='applied'){a++;if(c.undone)u++;ue+=c.undoCount||0}else f++}return {total:ch.length,applied:a,flagged:f,undone:u,undoEvents:ue}};
+function edBuild(live,fresh,opt){ /* live and fresh: arrays of {t,text}. Returns the mode and, when merged, the edited lines and the change list. `live` is never modified. */
+  const A=edFlatten(live),B=edFlatten(fresh);
+  const timed=edTimed(live)&&edTimed(fresh);
+  const ops=edDiff(A.norm,B.norm,timed?A.time:null,timed?B.time:null,ED.WIN);
+  let equal=0;for(const o of ops)if(o[0]==='equal')equal+=o[2]-o[1];
+  const out={timed,liveWords:A.norm.length,newWords:B.norm.length,equal,changes:[]};
+  if(opt&&opt.speakers){out.mode='replaced';out.why='speakers';return out} /* speaker labels only exist in AssemblyAI's own lines */
+  if(A.norm.length<ED.MIN_WORDS||A.norm.length<ED.MIN_SHARE*B.norm.length){out.mode='replaced';out.why='short';return out} /* the live transcript is missing too much to be the base */
+  if(equal<ED.MIN_EQUAL*Math.max(A.norm.length,B.norm.length)){out.mode='replaced';out.why='different';return out}
+  const T=edTermSets(),rawA=i=>A.rows[A.ref[i][0]][A.ref[i][1]],rawB=j=>B.rows[B.ref[j][0]][B.ref[j][1]];
+  const one=(tag,i1,i2,j1,j2)=>{ /* one difference: decide whether it is applied or flagged */
+    const on=[],nn=[];for(let i=i1;i<i2;i++)on.push(A.norm[i]);for(let j=j1;j<j2;j++)nn.push(B.norm[j]);
+    const oj=on.join(''),nj=nn.join('');
+    if(oj===nj)return null; /* only spacing, hyphens or punctuation differ */
+    if(on.every(w=>ED.FILL.has(w))&&nn.every(w=>ED.FILL.has(w)))return null; /* "um" and "uh" are not worth a line */
+    const hit=tag!=='delete'&&nn.length<=2&&(T.phrases.has(nj)||nn.some(w=>T.words.has(w)));
+    const prot=tag!=='insert'&&(T.phrases.has(oj)||on.some(w=>T.words.has(w)));
+    let same=true;for(let i=i1+1;i<i2;i++)if(A.ref[i][0]!==A.ref[i1][0])same=false;
+    let why='',ok=false,conf='low';
+    if(tag==='delete')why='AssemblyAI did not hear these words.';
+    else if(prot)why='Your names and terms list has the live word, so it was kept.';
+    else if(!same)why='The words run across two lines.';
+    else if(hit){ok=true;conf='high'}
+    else if(tag==='insert')why='AssemblyAI heard extra words.';
+    else{const al=edAlike(oj,nj);if(al.ok){ok=true;conf=al.close?'high':'medium'}else why=/\p{N}/u.test(oj+nj)?'Numbers need a check.':'AssemblyAI heard different words.'}
+    const near=i1<i2?rawA(i1):(i1>0?rawA(i1-1):null);
+    const surf=[];for(let j=j1;j<j2;j++){let s=edCore(rawB(j));if(!hit&&B.st[j]&&near!=null&&/^\p{Lu}\p{Ll}+$/u.test(s)&&/^\p{Ll}/u.test(edCore(near)))s=s[0].toLowerCase()+s.slice(1);surf.push(s)}
+    const tj=Math.min(j1,B.norm.length-1);
+    const c={type:tag,old:on.length?Array.from({length:i2-i1},(_,d)=>edCore(rawA(i1+d))).join(' '):'',new:surf.join(' '),t:Math.round(Math.min(B.time[tj]||0,(opt&&opt.maxT)||Infinity)),conf:ok?conf:'low',status:ok?'applied':'flagged',reason:ok?(hit?'The new word is in your names and terms list.':'The two words sound alike.'):why};
+    if(ok){
+      if(tag==='insert'){
+        const p=i1>0?A.ref[i1-1]:A.ref[0],at=i1>0?p[1]+1:p[1];
+        c.e={si:p[0],at,del:0};c.oldT=[];c.newT=surf.slice();
+      }else{
+        const s0=A.ref[i1],s1=A.ref[i2-1];
+        c.e={si:s0[0],at:s0[1],del:s1[1]-s0[1]+1};c.oldT=A.rows[s0[0]].slice(s0[1],s1[1]+1);
+        c.newT=surf.slice();c.newT[0]=edLead(rawA(i1))+c.newT[0];c.newT[c.newT.length-1]+=edTrail(rawA(i2-1));
+      }
+      c.seg=live[c.e.si].t;c.undone=false;c.undoCount=0;
+    }
+    return c;
+  };
+  const changes=out.changes;
+  for(const [tag,i1,i2,j1,j2] of ops){
+    if(tag==='equal')continue;
+    const list=[];
+    if(tag==='replace'&&i2-i1===j2-j1&&i2-i1>1){for(let d=0;d<i2-i1;d++){const c=one('replace',i1+d,i1+d+1,j1+d,j1+d+1);if(c)list.push(c)}}
+    else{const c=one(tag,i1,i2,j1,j2);if(c)list.push(c)}
+    const lines=[];
+    for(const c of list){ /* neighbouring words of one block that are all flagged for the same reason read better as one line */
+      const l=lines[lines.length-1];
+      if(l&&l.status==='flagged'&&c.status==='flagged'&&l.type==='replace'&&c.type==='replace'&&l.reason===c.reason){l.old+=' '+c.old;l.new+=' '+c.new}
+      else lines.push(c);
+    }
+    for(const c of lines)changes.push(c);
+  }
+  const edited=live.map(g=>Object.assign({},g)),per=new Map();
+  for(const c of changes)if(c.e){if(!per.has(c.e.si))per.set(c.e.si,[]);per.get(c.e.si).push(c)}
+  for(const [si,list] of per){
+    const raw=A.rows[si],o=[];list.sort((x,y)=>x.e.at-y.e.at||(x.type==='insert'?-1:1));
+    let p=0;
+    for(const c of list){while(p<c.e.at){o.push(raw[p]);p++}c.k=o.length;o.push(...c.newT);p+=c.e.del}
+    while(p<raw.length){o.push(raw[p]);p++}
+    edited[si].text=o.join(' ');
+  }
+  changes.forEach((c,n)=>{c.id='c'+(n+1);delete c.e});
+  out.mode='merged';out.edited=edited;out.counts=edCounts(changes);
+  return out;
+}
+async function edReview(sess,fresh){ /* called by Improve with AssemblyAI. Writes the change record first, then returns the lines to show. */
+  const prevRec=D.chg||null;
+  let base=null;
+  if(prevRec&&Array.isArray(prevRec.live))base=prevRec.live; /* improving again: always compare against the very first live transcript */
+  else if(!sess.improvedAt)base=D.segs.map(s=>Object.assign({},s)); /* the first time: the transcript now is the live one */
+  const r=base?edBuild(base,fresh,{speakers:!!settings.speakers,maxT:sess.durationMs||0}):null; /* times never run past the end of the audio */
+  const merged=!!(r&&r.mode==='merged');
+  const marks=D.segs.filter(s=>s.mark);
+  const segs=merged?r.edited.filter(s=>!s.mark).concat(marks).sort((a,b)=>a.t-b.t):fresh.concat(marks).sort((a,b)=>a.t-b.t);
+  const runs=((prevRec&&prevRec.runs)||[]).concat(prevRec?[Object.assign({at:prevRec.at,mode:prevRec.mode},prevRec.metrics||{})]:[]).slice(-10);
+  const rec={sid:'__edits:'+sess.id,v:1,rid:sess.id,at:Date.now(),aai:(sess.aai&&sess.aai.id)||'',mode:merged?'merged':'replaced',why:r?(r.why||''):'earlier',swapped:false,
+    live:base?base.map(s=>Object.assign({},s)):null,changes:merged?r.changes:[],metrics:merged?r.counts:edCounts([]),
+    stats:r?{timed:r.timed,liveWords:r.liveWords,newWords:r.newWords,equal:r.equal}:null,runs};
+  try{await idb.put('notes',rec)}catch(e){storageFail(e);return null}
+  D.chg=rec;D.chgOrig=false;
+  return {segs,merged,counts:rec.metrics};
+}
+const chgOn=()=>!!(D.chg&&D.chg.mode==='merged'&&!D.chg.swapped);
+const chgSave=()=>D.chg?idb.put('notes',D.chg).catch(()=>{}):Promise.resolve();
+function viewSegs(){ /* what the transcript page shows: the edited transcript, or the live one when Show original is on (read only) */
+  if(D.chgOrig&&chgOn()&&Array.isArray(D.chg.live))return D.chg.live.filter(s=>!s.mark).concat(D.segs.filter(s=>s.mark)).sort((a,b)=>a.t-b.t);
+  return D.segs;
+}
+function segHtml(s,hlT){ /* one line of text; the words changed by the check are picked out and can be tapped */
+  const cs=(!D.chgOrig&&chgOn())?D.chg.changes.filter(c=>c.status==='applied'&&c.seg===s.t):[];
+  if(!cs.length)return hlHtml(s.text,hlT);
+  const toks=s.text.split(/\s+/).filter(Boolean),spans=[];
+  for(const c of cs){const cur=c.undone?c.oldT:c.newT;if(cur.length&&toks.slice(c.k,c.k+cur.length).join(' ')===cur.join(' '))spans.push({k:c.k,n:cur.length,c})}
+  if(!spans.length)return hlHtml(s.text,hlT);
+  spans.sort((a,b)=>a.k-b.k);
+  let h='',p=0;
+  for(const sp of spans){
+    if(sp.k<p)continue;
+    if(sp.k>p)h+=hlHtml(toks.slice(p,sp.k).join(' '),hlT)+' ';
+    const old=sp.c.oldT.join(' '),nw=sp.c.newT.join(' ');
+    h+=`<mark class="ed${sp.c.undone?' off':''}" data-c="${esc(sp.c.id)}" role="button" tabindex="0" aria-label="${esc(sp.c.undone?'Original word, edit undone: '+old+'. Press to use '+nw:'Edited from '+(old||'nothing')+' to '+nw+'. Press to show the original')}">${esc(toks.slice(sp.k,sp.k+sp.n).join(' '))}</mark>`;
+    p=sp.k+sp.n;if(p<toks.length)h+=' ';
+  }
+  if(p<toks.length)h+=hlHtml(toks.slice(p).join(' '),hlT);
+  return h;
+}
+const chgDesc=x=>x.type==='insert'?`AssemblyAI heard extra: <b>“${esc(x.new)}”</b>`:x.type==='delete'?`Live heard <b>“${esc(x.old)}”</b>, AssemblyAI did not`:`Live heard <b>“${esc(x.old)}”</b>, AssemblyAI heard <b>“${esc(x.new)}”</b>`;
+function renderChg(){
+  const box=$('#d-chg');if(!box)return;
+  if(!chgOn()){box.hidden=true;return}
+  const c=D.chg,m=edCounts(c.changes);c.metrics=m;box.hidden=false;
+  $('#d-chg-sum').textContent=m.total?plural(m.total,'change','changes')+': '+m.applied+' applied'+(m.undone?' ('+m.undone+' undone)':'')+', '+m.flagged+' to check':'Checked against the audio: nothing needed changing.';
+  const o=$('#d-chg-orig');o.setAttribute('aria-pressed',D.chgOrig?'true':'false');
+  $('#d-chg-note').hidden=!D.chgOrig;
+  const fl=c.changes.filter(x=>x.status==='flagged'),ap=c.changes.filter(x=>x.status==='applied');
+  $('#d-chk').hidden=!fl.length;$('#d-chk-n').textContent=String(fl.length);
+  $('#d-chk-list').innerHTML=fl.map(x=>`<div class="chg-row"><button class="ts" type="button" data-t="${Math.max(0,x.t-1500)}" aria-label="Play from ${fmtDur(x.t)}">${fmtDur(x.t)}</button><span class="chg-tx">${chgDesc(x)}<span class="meta chg-why">${esc(x.reason)}</span></span></div>`).join('');
+  $('#d-apl').hidden=!ap.length;$('#d-apl-n').textContent=String(ap.length);
+  $('#d-apl-list').innerHTML=ap.map(x=>`<div class="chg-row ap"><button class="ts" type="button" data-t="${Math.max(0,x.t-1500)}" aria-label="Play from ${fmtDur(x.t)}">${fmtDur(x.t)}</button><span class="chg-tx">${x.type==='insert'?'Added':'<b>“'+esc(x.old)+'”</b> →'} <b>“${esc(x.new)}”</b><span class="meta chg-why">${esc(x.reason)}</span></span><button class="btn sm chg-tog" type="button" data-c="${esc(x.id)}" aria-pressed="${x.undone?'true':'false'}">Show original</button></div>`).join('');
+  $('#d-chg-copy').hidden=!m.total;
+}
+async function chgToggle(id){ /* switch one applied change between the edited word and the original (this is what "undone" counts) */
+  const c=D.chg&&D.chg.changes.find(x=>x.id===id);
+  if(!c||c.status!=='applied'||!chgOn()||liveGuard())return;
+  if(D.chgOrig){toast('Turn off Show original first.');return}
+  const seg=D.segs.find(s=>!s.mark&&s.t===c.seg);
+  const cur=c.undone?c.oldT:c.newT,nxt=c.undone?c.newT:c.oldT;
+  const toks=seg?seg.text.split(/\s+/).filter(Boolean):[];
+  const same=k=>k>=0&&k+cur.length<=toks.length&&toks.slice(k,k+cur.length).join(' ')===cur.join(' ');
+  let k=c.k;
+  if(!seg||!(cur.length?same(k):k<=toks.length)){
+    k=-1;if(seg&&cur.length)for(let i=0;i+cur.length<=toks.length;i++)if(same(i)){k=i;break}
+  }
+  if(k<0){toast('That line was changed by hand, so this edit cannot be switched. Use Edit to fix it.');return}
+  toks.splice(k,cur.length,...nxt);seg.text=toks.join(' ');
+  const delta=nxt.length-cur.length;c.k=k;
+  for(const o of D.chg.changes)if(o!==c&&o.status==='applied'&&o.seg===c.seg&&o.k>=k+(cur.length||0)&&delta)o.k+=delta;
+  c.undone=!c.undone;if(c.undone){c.undoCount=(c.undoCount||0)+1;c.undoneAt=Date.now()}else c.undoneAt=null;
+  D.chg.metrics=edCounts(D.chg.changes);
+  await saveEdits();await chgSave();renderTx();renderChg();
+  toast(c.undone?(c.type==='insert'?'Removed “'+c.new+'”. Tap Show original again to put it back.':'Showing the original, “'+c.old+'”. Tap it again to use “'+c.new+'”.'):'Using “'+c.new+'” again.');
+}
+$('#d-tx').addEventListener('click',e=>{const m=e.target.closest('mark.ed');if(m)chgToggle(m.dataset.c)});
+$('#d-tx').addEventListener('keydown',e=>{if(e.key!=='Enter'&&e.key!==' ')return;const m=e.target.closest('mark.ed');if(m){e.preventDefault();chgToggle(m.dataset.c)}});
+$('#d-chg').addEventListener('click',e=>{const b=e.target.closest('.chg-tog');if(b)chgToggle(b.dataset.c)});
+$('#d-chg-orig').onclick=()=>{
+  if(!chgOn())return;
+  if(D.edit){D.edit=false}
+  D.chgOrig=!D.chgOrig;renderTx();renderChg();
+};
+$('#d-chg-copy').onclick=async()=>{
+  if(!D.chg)return;const m=edCounts(D.chg.changes);
+  const head=`${D.session?D.session.title:'Recording'}: ${m.total} changes, ${m.applied} applied, ${m.flagged} to check, ${m.undone} undone`;
+  const rows=D.chg.changes.map(x=>[fmtDur(x.t),x.type,x.old,x.new,x.status+(x.undone?' (undone)':''),x.conf,x.reason].join('\t'));
+  try{await navigator.clipboard.writeText([head,'time\ttype\tlive\tAssemblyAI\tstatus\tconfidence\treason'].concat(rows).join('\n'));toast('Edit log copied.')}catch(e){toast('Copy was blocked on this device.')}
+};
 async function improve(){
   const eb=$('#d-improve-err'),err=m=>{eb.textContent=m||'';eb.hidden=!m};
   err('');
@@ -2877,11 +3152,12 @@ async function improve(){
     if(!fresh.length&&last.text)fresh.push({t:0,text:last.text.trim()});
     if(!fresh.length)throw Object.assign(new Error('AssemblyAI found no speech in this recording.'),{fatal:true});
     if(D.sid!==sid)return;
-    const marks=D.segs.filter(s=>s.mark);
-    D.prev=D.segs;D.segs=fresh.concat(marks).sort((a,b)=>a.t-b.t);
+    const rv=await edReview(sess,fresh); /* lines it up with the live transcript; writes the change record first */
+    if(!rv)return;
+    D.prev=D.segs;D.segs=rv.segs;
     sess.aai.done=true;sess.improvedAt=Date.now();
-    await saveEdits();renderTx();
-    toast('Transcript improved. Your earlier version is kept.');
+    await saveEdits();renderTx();renderChg();
+    toast(rv.merged?(rv.counts.total?'Checked against the audio: '+rv.counts.applied+' fixed, '+rv.counts.flagged+' to check. Your live transcript is kept.':'Checked against the audio: nothing needed changing.'):'Transcript improved. Your earlier version is kept.');
     if(!sess.folder)autoFolder(sid).then(n=>{if(n&&D.sid===sid)updateFolderBtn()}).catch(()=>{});
   }catch(e){
     if(e.name==='AbortError'){
@@ -2896,7 +3172,8 @@ $('#d-improve').onclick=()=>{if(J.running){if(J.ctl)J.ctl.abort();return}improve
 $('#d-restore').onclick=async()=>{
   if(!D.prev||liveGuard())return;
   const other=D.segs;D.segs=D.prev;D.prev=other;
-  await saveEdits();renderTx();updateImproveUI();toast('Switched to the other version.');
+  if(D.chg&&D.chg.mode==='merged'){D.chg.swapped=!D.chg.swapped;D.chgOrig=false;await chgSave()} /* the panel belongs to the edited version only */
+  await saveEdits();renderTx();renderChg();updateImproveUI();toast('Switched to the other version.');
 };
 /* ---------- complete a short transcript from the audio, by itself ----------
    The phone cannot run the live transcript with the screen off, so a recording made in a pocket can have all its audio and only its first minutes as words.
@@ -3070,6 +3347,7 @@ async function refreshTitles(){try{const t={};for(const s of await idb.all('sess
 const dLong=t=>new Date(t).toLocaleString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'});
 const nowLong=()=>new Date().toLocaleString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric',hour:'numeric',minute:'2-digit'});
 const safeTitle=t=>String(t).replace(/"/g,"'").replace(/\s+/g,' ');
+const subjAttr=x=>{const f=x&&typeof x.folder==='string'?safeTitle(x.folder).trim():'';return f?` subject="${f}"`:''}; /* the folder the student (or the app) filed the recording under, so questions use that subject's terms */
 const idxLine=x=>`${x.s.id} | "${safeTitle(x.s.title)}" | ${dLong(x.s.startedAt)} | ${Math.max(1,Math.round((x.s.durationMs||0)/60000))} min | ${x.s.words||0} words${x.blocks.length?'':' | no transcript'}`;
 
 async function planSearch(q,lib,signal){
@@ -3985,8 +4263,8 @@ $('#pj-quiz').addEventListener('click',async()=>{
 });
 
 /* ---------- Quiz ---------- */
-const QZ_HARD='Make the quiz genuinely challenging and impossible to pass by guessing. Write about one third of the questions as recall of a key fact, and the rest as questions that need understanding: why something happens, how two ideas differ, what would change if something changed, which example fits a definition, or which step comes next. Make the options hard to guess without knowing the material. First, all four options must be about the same length, in the same style and with the same level of detail; no option may stand out by being longer, more specific, more complete or more carefully qualified than the others, and across the whole quiz the right answer should be the shortest option about as often as it is the longest. Second, every wrong option must be a believable mistake: a common misconception, a true statement that answers a different question, two real ideas from the material mixed up, or the right idea with one key detail changed (a number, a name, a direction, a condition or an order). Third, wrong options should use the same words and terms from the material as the right one, so a student cannot pick by matching keywords, and they must not sound extreme (\"always\", \"never\", \"only\") unless the right option does too. Do not let the question itself give the answer away.';
-const QZ_SYS='You write quiz questions that help a student study from recordings of lectures, meetings and talks. Use only what the speaker actually says in the transcripts; never rely on outside knowledge for a question or for its correct answer. The transcripts come from automatic speech recognition and can contain misheard words, so quietly fix obvious errors. Write clear multiple-choice questions, each with exactly four options and exactly one correct answer. The wrong options must be plausible but clearly wrong according to the transcript. Never use options such as \"all of the above\" or \"none of the above\". Test understanding of the real ideas, definitions, steps, examples, numbers, names and decisions, not trivia. Vary the kinds of question and spread them across the material in the order it was taught. For each question, write a short explanation in the voice of a good teacher: one or two sentences saying why the answer is right and what the speaker said.\n\n'+QZ_HARD+'\n\nReturn one JSON object and nothing else, in exactly this shape: {"questions":[{"q":"the question","options":["first option","second option","third option","fourth option"],"answer":0,"why":"the explanation","rec":"the id of the recording the question comes from","time":"hh:mm:ss where the speaker said it"}]}. \"answer\" is the zero-based position of the correct option. Do not put letters such as A) in front of the options.';
+const QZ_HARD='Teach for understanding, not for memorizing the speaker\'s words. Ask about the concepts, not the wording: do not quote the speaker, do not write \"what did the speaker say about X\" or \"according to the speaker\", and do not ask who said what. Mix these kinds of question across the whole quiz, and use every kind at least once when there are enough questions. Explain: why does X happen, or what is the difference between X and Y. Apply: give a new example that was not in the material and ask how the idea applies to it; the idea must come from the material and the right answer must follow from it. Compare: ask how two ideas relate or differ. Spot the error: show a short claim with exactly one mistake and ask the student to find it; the four options each point to a different part of the claim, only one of them is the real mistake, and the other three are parts that are correct according to the material. Cover the main ideas rather than small details, and make the quiz genuinely challenging and impossible to pass by guessing. Make the options hard to guess without knowing the material. First, all four options must be about the same length, in the same style and with the same level of detail; no option may stand out by being longer, more specific, more complete or more carefully qualified than the others, and across the whole quiz the right answer should be the shortest option about as often as it is the longest. Second, except in a spot-the-error question, every wrong option must be a believable mistake: a common misconception, a true statement that answers a different question, two real ideas from the material mixed up, or the right idea with one key detail changed (a number, a name, a direction, a condition or an order). Third, wrong options should use the same words and terms from the material as the right one, so a student cannot pick by matching keywords, and they must not sound extreme (\"always\", \"never\", \"only\") unless the right option does too. Do not let the question itself give the answer away.';
+const QZ_SYS='You are a patient tutor writing quiz questions that help a student learn from recordings of lectures, meetings and talks. A recording can name its subject; when it does, write the questions in the terms of that subject. Use only the ideas the speaker actually presents in the transcripts; never rely on outside knowledge for the substance of a question or for its correct answer. The transcripts come from automatic speech recognition and can contain misheard words, so quietly fix obvious errors. Write clear multiple-choice questions, each with exactly four options and exactly one correct answer. The wrong options must be plausible but clearly wrong according to the transcript. Never use options such as \"all of the above\" or \"none of the above\". Test understanding of the real ideas, definitions, steps, examples, numbers, names and decisions, not trivia. Spread the questions across the material in the order it was taught. For each question, write a short explanation in the voice of a patient tutor: one or two sentences that teach the idea and say why the answer is right, in your own words rather than the speaker\'s. For a spot-the-error question, state the corrected claim.\n\n'+QZ_HARD+'\n\nReturn one JSON object and nothing else, in exactly this shape: {"questions":[{"q":"the question","options":["first option","second option","third option","fourth option"],"answer":0,"why":"the explanation","rec":"the id of the recording the question comes from","time":"hh:mm:ss where the speaker said it"}]}. \"answer\" is the zero-based position of the correct option. Do not put letters such as A) in front of the options.';
 const QZ={data:null,mode:null,busy:false,abort:null,err:'',errKey:false,tok:0,count:0,part:null,what:'',pre:null,about:null,aboutBusy:false,aboutFail:new Set()};
 /* The setup choices (source, recordings, projects, topic, number of questions) belong to one visit. They start clean on every launch and after a long time away. Saved quizzes, the quiz in progress and the history are kept. */
 function qzFresh(d){d.sel=[];d.psel=[];d.focus='';d.count=10;d.src='proj'}
@@ -4127,8 +4405,8 @@ const QZ_WORDS={30:500,45:800}; /* a project also needs this much saved text, so
 const QZ_PART=15; /* long quizzes are written in parts of up to 15 questions */
 const splitN=(n,k)=>Array.from({length:k},(_,i)=>Math.floor(n/k)+(i<n%k?1:0));
 const wordsIn=t=>(String(t).match(/\S+/g)||[]).length;
-const QZ_SYS_P='You write quiz questions that help a student study from answers they saved to a study project. The saved answers were written by a teaching assistant from recordings of lectures, meetings and talks. Use only what the saved answers say; never rely on outside knowledge for a question or for its correct answer. Write clear multiple-choice questions, each with exactly four options and exactly one correct answer. The wrong options must be plausible but clearly wrong according to the saved answers. Never use options such as \"all of the above\" or \"none of the above\". Test understanding of the real ideas, definitions, steps, examples, numbers, names and decisions, not trivia. Vary the kinds of question and spread them across the saved answers. For each question, write a short explanation in the voice of a good teacher: one or two sentences saying why the answer is right.\n\n'+QZ_HARD+'\n\nReturn one JSON object and nothing else, in exactly this shape: {"questions":[{"q":"the question","options":["first option","second option","third option","fourth option"],"answer":0,"why":"the explanation","rec":"the id of the saved answer the question comes from"}]}. \"answer\" is the zero-based position of the correct option. Do not put letters such as A) in front of the options.';
-const QZ_SYS_PR='You write quiz questions that help a student study from the material in a study project. The project holds two kinds of material. A <saved_answer> is an answer a teaching assistant wrote from a recording. A <recording> is the full transcript of a recording the student added, with the time of each line. Use only what the saved answers and the recordings say; never rely on outside knowledge for a question or for its correct answer. The transcripts come from automatic speech recognition and can contain misheard words, so quietly fix obvious errors. Write clear multiple-choice questions, each with exactly four options and exactly one correct answer. The wrong options must be plausible but clearly wrong according to the material. Never use options such as \"all of the above\" or \"none of the above\". Test understanding of the real ideas, definitions, steps, examples, numbers, names and decisions, not trivia. Vary the kinds of question and spread them across the material in the order it was taught. For each question, write a short explanation in the voice of a good teacher: one or two sentences saying why the answer is right.\n\n'+QZ_HARD+'\n\nReturn one JSON object and nothing else, in exactly this shape: {"questions":[{"q":"the question","options":["first option","second option","third option","fourth option"],"answer":0,"why":"the explanation","rec":"the id of the saved answer or recording the question comes from","time":"hh:mm:ss where the speaker said it, only for a recording"}]}. \"answer\" is the zero-based position of the correct option. Do not put letters such as A) in front of the options.';
+const QZ_SYS_P='You are a patient tutor writing quiz questions that help a student learn from answers they saved to a study project. The saved answers were written by a teaching assistant from recordings of lectures, meetings and talks. Use only what the saved answers say; never rely on outside knowledge for a question or for its correct answer. Write clear multiple-choice questions, each with exactly four options and exactly one correct answer. The wrong options must be plausible but clearly wrong according to the saved answers. Never use options such as \"all of the above\" or \"none of the above\". Test understanding of the real ideas, definitions, steps, examples, numbers, names and decisions, not trivia. Spread the questions across the saved answers. For each question, write a short explanation in the voice of a patient tutor: one or two sentences that teach the idea and say why the answer is right. For a spot-the-error question, state the corrected claim.\n\n'+QZ_HARD+'\n\nReturn one JSON object and nothing else, in exactly this shape: {"questions":[{"q":"the question","options":["first option","second option","third option","fourth option"],"answer":0,"why":"the explanation","rec":"the id of the saved answer the question comes from"}]}. \"answer\" is the zero-based position of the correct option. Do not put letters such as A) in front of the options.';
+const QZ_SYS_PR='You are a patient tutor writing quiz questions that help a student learn from the material in a study project. The project holds two kinds of material. A <saved_answer> is an answer a teaching assistant wrote from a recording. A <recording> is the full transcript of a recording the student added, with the time of each line, and it can name its subject. Use only what the saved answers and the recordings say; never rely on outside knowledge for a question or for its correct answer. The transcripts come from automatic speech recognition and can contain misheard words, so quietly fix obvious errors. Write clear multiple-choice questions, each with exactly four options and exactly one correct answer. The wrong options must be plausible but clearly wrong according to the material. Never use options such as \"all of the above\" or \"none of the above\". Test understanding of the real ideas, definitions, steps, examples, numbers, names and decisions, not trivia. Spread the questions across the material in the order it was taught. For each question, write a short explanation in the voice of a patient tutor: one or two sentences that teach the idea and say why the answer is right. For a spot-the-error question, state the corrected claim.\n\n'+QZ_HARD+'\n\nReturn one JSON object and nothing else, in exactly this shape: {"questions":[{"q":"the question","options":["first option","second option","third option","fourth option"],"answer":0,"why":"the explanation","rec":"the id of the saved answer or recording the question comes from","time":"hh:mm:ss where the speaker said it, only for a recording"}]}. \"answer\" is the zero-based position of the correct option. Do not put letters such as A) in front of the options.';
 const wholeOk=(it,list)=>list.some(x=>x.s.id===it.sid&&x.segs.length&&!x.live); /* a recording in a project can be quizzed on once it has a transcript */
 function sliceSegs(segs,k,K){ /* the k-th of K stretches of a recording, cut by amount of text */
   if(K<=1)return segs;
@@ -4214,7 +4492,7 @@ async function qzStart(){
         if(mine.some(x=>x.it.text.length>per))sampled=true;
         const wp=wholes.map(x=>({x,e:Object.assign({},x.e,{segs:sliceSegs(x.e.segs,k,K)})})).filter(v=>v.e.segs.length);
         const src=quizSource(wp.map(v=>v.e),Math.floor(QZ_BUDGET*(answers.length?0.7:1)/K));if(src.sampled)sampled=true;
-        body=mine.map(x=>`<saved_answer id="${x.it.id}" project="${safeTitle(x.p.name)}" question="${safeTitle(x.it.q)}" from="${safeTitle(x.it.kind==='lib'?'the library':(LIB.titles[x.it.sid]||x.it.rtitle||'a recording'))}">\n${x.it.text.slice(0,per)}\n</saved_answer>`).concat(wp.map((v,i)=>`<recording id="${v.x.it.id}" title="${safeTitle(v.e.s.title)}" recorded="${dLong(v.e.s.startedAt)}">\n${src.texts[i]}\n</recording>`)).join('\n\n');
+        body=mine.map(x=>`<saved_answer id="${x.it.id}" project="${safeTitle(x.p.name)}" question="${safeTitle(x.it.q)}" from="${safeTitle(x.it.kind==='lib'?'the library':(LIB.titles[x.it.sid]||x.it.rtitle||'a recording'))}">\n${x.it.text.slice(0,per)}\n</saved_answer>`).concat(wp.map((v,i)=>`<recording id="${v.x.it.id}" title="${safeTitle(v.e.s.title)}"${subjAttr(v.e.s)} recorded="${dLong(v.e.s.startedAt)}">\n${src.texts[i]}\n</recording>`)).join('\n\n');
         batchIds=mine.map(x=>x.it.id).concat(wp.map(v=>v.x.it.id));
         if(!body)continue;
       }else if(proj){
@@ -4226,7 +4504,7 @@ async function qzStart(){
       }else{
         const part=K>1?use.map(x=>Object.assign({},x,{segs:sliceSegs(x.segs,k,K)})).filter(x=>x.segs.length):use;
         const src=quizSource(part,Math.floor(QZ_BUDGET/K));if(src.sampled)sampled=true;
-        body=part.map((x,i)=>`<recording id="${x.s.id}" title="${safeTitle(x.s.title)}" recorded="${dLong(x.s.startedAt)}">\n${src.texts[i]}\n</recording>`).join('\n\n');
+        body=part.map((x,i)=>`<recording id="${x.s.id}" title="${safeTitle(x.s.title)}"${subjAttr(x.s)} recorded="${dLong(x.s.startedAt)}">\n${src.texts[i]}\n</recording>`).join('\n\n');
         batchIds=part.map(x=>x.s.id);
       }
       try{
