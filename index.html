@@ -809,7 +809,7 @@ mark.hit{background:var(--accent-soft);color:var(--accent);border-radius:4px;pad
   --go-fill:color-mix(in srgb,var(--bg) 62%,transparent);
 }}
 /* BOXES: cards and lists. Clear fill, lit edge, soft shadow. No blur (they sit on the plain page). */
-.card:not(.qz-hero),
+.card:not(.qz-hero):not(.rec-card),
 details.adv,
 #chat:not(:empty),
 .lib-group,
@@ -854,7 +854,7 @@ input[type=text],input[type=password],input[type=search],select,textarea,
 #chat-form,.qz-bar,#sheet,#ql,#drawer{background:var(--surface)}
 }
 @media (prefers-reduced-transparency:reduce){
-.card:not(.qz-hero),details.adv,#chat:not(:empty),.lib-group,.lib-sortbar,.res,.pick,.hist,.sq-open,.qa-hd,.pj-row:not(.pj-card),.row:not(.lrow),.opt.wrong,.opt:not(.right) .lt,.lrow .badge:not(.ok),.pj-paper{background:var(--surface)}
+.card:not(.qz-hero):not(.rec-card),details.adv,#chat:not(:empty),.lib-group,.lib-sortbar,.res,.pick,.hist,.sq-open,.qa-hd,.pj-row:not(.pj-card),.row:not(.lrow),.opt.wrong,.opt:not(.right) .lt,.lrow .badge:not(.ok),.pj-paper{background:var(--surface)}
 input[type=text],input[type=password],input[type=search],select,textarea,.title-input,.fb{background:var(--bg)}
 #chat-form,.qz-bar,#sheet,#ql,#drawer{background:var(--surface);-webkit-backdrop-filter:none;backdrop-filter:none}
 #chat-form textarea{background:transparent}
@@ -1221,7 +1221,7 @@ let toastT;
 function toast(m){const t=$('#toast');t.textContent=m;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>{t.hidden=true},4500)}
 
 /* ---------- settings ---------- */
-const BUILD='31 Oct 2026, Clear Liquid Glass';
+const BUILD='31 Oct 2026, Recorder without box';
 const DEF={apiKey:'',model:'claude-sonnet-5-5',lang:'',kbps:64,terms:'',aaiKey:'',speakers:false,sound:'natural',liveTx:true,meter:true,orb:true};
 const settings=Object.assign({},DEF);
 let savedSettings={};try{savedSettings=JSON.parse(localStorage.getItem('longtake.settings')||'{}')||{}}catch(e){}
