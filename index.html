@@ -675,21 +675,10 @@ mark.hit{background:var(--accent-soft);color:var(--accent);border-radius:4px;pad
 }
 @media (min-width:960px) and (min-height:540px) and (prefers-reduced-motion:reduce){body,#drawer{transition:none!important}}
 
-/* ---------- Liquid Glass: every grey button shares one look ----------
+/* ---------- Liquid Glass buttons (the colour tokens are in the Clear Liquid Glass block at the end) ----------
    A frosted, see-through grey with a lit top edge, a soft shadow below and a blur of whatever sits behind it.
    The shape, size and text colour of each button are left as they were; only its fill changes.
    Buttons that carry meaning keep their colour: the blue main button, red delete, the picked/right/wrong states. */
-:root{
-  --gl-tint:rgba(132,141,160,.16); --gl-tint-h:rgba(132,141,160,.30);
-  --gl-back:radial-gradient(130% 150% at 15% -35%,rgba(255,255,255,.80) 0%,rgba(255,255,255,0) 52%),linear-gradient(180deg,rgba(255,255,255,.55) 0%,rgba(255,255,255,.18) 100%);
-  --gl-box:inset 0 1px 0 rgba(255,255,255,.95),inset 0 0 0 1px rgba(255,255,255,.45),inset 0 -1px 0 rgba(30,40,70,.10),0 1px 2px rgba(30,40,70,.10),0 8px 18px -8px rgba(30,40,70,.30);
-  --gl-blur:blur(16px) saturate(180%);
-}
-@media (prefers-color-scheme:dark){:root{
-  --gl-tint:rgba(255,255,255,.05); --gl-tint-h:rgba(255,255,255,.14);
-  --gl-back:radial-gradient(130% 150% at 15% -35%,rgba(255,255,255,.28) 0%,rgba(255,255,255,0) 52%),linear-gradient(180deg,rgba(255,255,255,.14) 0%,rgba(255,255,255,.04) 100%);
-  --gl-box:inset 0 1px 0 rgba(255,255,255,.34),inset 0 0 0 1px rgba(255,255,255,.12),inset 0 -1px 0 rgba(0,0,0,.40),0 1px 2px rgba(0,0,0,.40),0 10px 22px -10px rgba(0,0,0,.70);
-}}
 .btn:not(.primary):not(.danger):not([aria-pressed=true]):not(#sheet-del):not(#lib-delbar .btn),
 .side,
 #quick .chip,
@@ -780,8 +769,96 @@ mark.hit{background:var(--accent-soft);color:var(--accent);border-radius:4px;pad
 }
 }
 /* the quiz answers are wide, so their glass is calmer: less sheen, same lit edge */
-.opt:not(.right):not(.wrong){--gl-back:radial-gradient(90% 130% at 12% -45%,rgba(255,255,255,.55),rgba(255,255,255,0) 55%),linear-gradient(180deg,rgba(255,255,255,.38),rgba(255,255,255,.12))}
-@media (prefers-color-scheme:dark){.opt:not(.right):not(.wrong){--gl-back:radial-gradient(90% 130% at 12% -45%,rgba(255,255,255,.14),rgba(255,255,255,0) 55%),linear-gradient(180deg,rgba(255,255,255,.08),rgba(255,255,255,.03))}}
+.opt:not(.right){--gl-back:radial-gradient(90% 130% at 12% -45%,rgba(255,255,255,.50),rgba(255,255,255,0) 55%),linear-gradient(180deg,rgba(255,255,255,.34),rgba(255,255,255,.08))}
+@media (prefers-color-scheme:dark){.opt:not(.right){--gl-tint:rgba(255,255,255,.02);--gl-back:radial-gradient(90% 130% at 12% -45%,rgba(255,255,255,.09),rgba(255,255,255,0) 55%),linear-gradient(180deg,rgba(255,255,255,.045),rgba(255,255,255,.012))}}
+/* ---------- Clear Liquid Glass (build 75) ----------
+   One see-through look for buttons, boxes and fields: a clear pane with a lit top edge, a thin bright rim and a soft shadow.
+   There is no grey tint any more. Buttons and small overlays blur what is behind them; the big boxes on the page do not
+   (they only sit on the plain page colour, so a blur would cost speed and show nothing).
+   The blue main button, red delete, picked/right/wrong answers and the blue accents keep their colours. */
+:root{
+  --gl-tint:rgba(255,255,255,.22); --gl-tint-h:rgba(255,255,255,.52);
+  --gl-back:radial-gradient(130% 150% at 15% -35%,rgba(255,255,255,.75) 0%,rgba(255,255,255,0) 52%),linear-gradient(180deg,rgba(255,255,255,.42) 0%,rgba(255,255,255,.08) 100%);
+  --gl-box:inset 0 1px 0 rgba(255,255,255,.95),inset 0 0 0 1px rgba(255,255,255,.50),inset 0 -1px 0 rgba(30,40,70,.08),0 1px 2px rgba(30,40,70,.10),0 8px 18px -8px rgba(30,40,70,.28);
+  --gl-blur:blur(16px) saturate(180%);
+  --gp-fill:rgba(255,255,255,.34);
+  --gp-back:radial-gradient(120% 100% at 8% -30%,rgba(255,255,255,.65),rgba(255,255,255,0) 55%),linear-gradient(180deg,rgba(255,255,255,.46),rgba(255,255,255,.08));
+  --gp-box:inset 0 1px 0 rgba(255,255,255,.95),inset 0 0 0 1px rgba(255,255,255,.55),inset 0 -1px 0 rgba(30,40,70,.07),0 1px 2px rgba(30,40,70,.08),0 12px 26px -14px rgba(30,40,70,.30);
+  --gp-hover:rgba(255,255,255,.50);
+  --gc-box:inset 0 1px 0 rgba(255,255,255,.90),inset 0 0 0 1px rgba(255,255,255,.40),0 1px 3px rgba(30,40,70,.22);
+  --gc-fill:rgba(255,255,255,.55);
+  --gf-fill:rgba(255,255,255,.46);
+  --gf-box:inset 0 1px 2px rgba(30,40,70,.10),inset 0 0 0 1px rgba(255,255,255,.60),0 1px 0 rgba(255,255,255,.70);
+  --gf-line:rgba(30,40,70,.16);
+  --go-fill:color-mix(in srgb,var(--bg) 58%,transparent);
+  --go-blur:blur(22px) saturate(180%);
+}
+@media (prefers-color-scheme:dark){:root{
+  --gl-tint:rgba(255,255,255,.04); --gl-tint-h:rgba(255,255,255,.14);
+  --gl-back:radial-gradient(130% 150% at 15% -35%,rgba(255,255,255,.26) 0%,rgba(255,255,255,0) 52%),linear-gradient(180deg,rgba(255,255,255,.12) 0%,rgba(255,255,255,.03) 100%);
+  --gl-box:inset 0 1px 0 rgba(255,255,255,.34),inset 0 0 0 1px rgba(255,255,255,.12),inset 0 -1px 0 rgba(0,0,0,.40),0 1px 2px rgba(0,0,0,.40),0 10px 22px -10px rgba(0,0,0,.70);
+  --gp-fill:rgba(255,255,255,.035);
+  --gp-back:radial-gradient(120% 100% at 8% -30%,rgba(255,255,255,.11),rgba(255,255,255,0) 55%),linear-gradient(180deg,rgba(255,255,255,.065),rgba(255,255,255,.015));
+  --gp-box:inset 0 1px 0 rgba(255,255,255,.24),inset 0 0 0 1px rgba(255,255,255,.07),inset 0 -1px 0 rgba(0,0,0,.35),0 1px 2px rgba(0,0,0,.35),0 14px 28px -16px rgba(0,0,0,.70);
+  --gp-hover:rgba(255,255,255,.075);
+  --gc-box:inset 0 1px 0 rgba(255,255,255,.30),inset 0 0 0 1px rgba(255,255,255,.10),0 1px 3px rgba(0,0,0,.50);
+  --gc-fill:rgba(255,255,255,.10);
+  --gf-fill:rgba(255,255,255,.055);
+  --gf-box:inset 0 1px 3px rgba(0,0,0,.40),inset 0 0 0 1px rgba(255,255,255,.07),0 1px 0 rgba(255,255,255,.07);
+  --gf-line:rgba(255,255,255,.15);
+  --go-fill:color-mix(in srgb,var(--bg) 62%,transparent);
+}}
+/* BOXES: cards and lists. Clear fill, lit edge, soft shadow. No blur (they sit on the plain page). */
+.card:not(.qz-hero),
+details.adv,
+#chat:not(:empty),
+.lib-group,
+.lib-sortbar,
+.res,
+.pick,
+.hist,
+.sq-open,
+.qa-hd,
+.pj-row:not(.pj-card),
+.row:not(.lrow){background:var(--gp-back);background-color:var(--gp-fill);box-shadow:var(--gp-box)}
+.qz-hero{box-shadow:inset 0 1px 0 rgba(255,255,255,.6),inset 0 0 0 1px rgba(255,255,255,.28),0 12px 26px -14px rgba(30,40,70,.30)}
+.pick:has(input:checked){box-shadow:var(--gp-box),0 0 0 2px var(--accent)}
+@media (hover:hover){
+.row:not(.lrow):hover,
+.pj-row:not(.pj-card):hover{background-color:var(--gp-hover)}
+.row.lrow:hover{background:var(--gp-hover)}
+}
+/* small pieces: answer letters, the "No transcript" tag, the little page on a project tile */
+.opt:not(.right) .lt,
+.lrow .badge:not(.ok){background:var(--gp-back);background-color:var(--gc-fill);box-shadow:var(--gc-box)}
+.opt.wrong{background:var(--gl-back);background-color:color-mix(in srgb,var(--rec) 10%,var(--gl-tint));box-shadow:var(--gl-box),inset 0 0 0 2px var(--rec)}
+.lrow:hover .badge:not(.ok){background-color:var(--gc-fill)}
+.pj-paper{background:var(--gp-back);background-color:var(--gc-fill);-webkit-backdrop-filter:blur(10px) saturate(160%);backdrop-filter:blur(10px) saturate(160%);box-shadow:var(--gc-box),0 8px 16px -8px rgba(0,0,0,.28)}
+/* FIELDS: the same pane, a little brighter and pressed in. */
+input[type=text],input[type=password],input[type=search],select,textarea,
+.qz-hero .qz-bar-field input[type=text],
+.title-input,#d-title,#pj-name,#pj-new-name,#qz-focus{background:none;background-color:var(--gf-fill);border-color:var(--gf-line);box-shadow:var(--gf-box)}
+.qz-hero .qz-bar-field input[type=text],#pj-new-name,#qz-focus{border-color:transparent;-webkit-backdrop-filter:var(--gl-blur);backdrop-filter:var(--gl-blur)}
+.qz-bar-field svg{z-index:1}
+#chat-form textarea,#chat-form textarea:focus{background:transparent;box-shadow:none;border:0}
+.fb{background:var(--gf-fill);box-shadow:var(--gf-box)}
+/* BIG OVERLAYS: they sit over moving content, so they get the blur and a stronger base. */
+#chat-form{background:var(--gp-back);background-color:var(--go-fill);-webkit-backdrop-filter:var(--go-blur);backdrop-filter:var(--go-blur);box-shadow:var(--gp-box),0 0 0 10px var(--bg)}
+.qz-bar{background:var(--gp-back);background-color:var(--go-fill);-webkit-backdrop-filter:var(--go-blur);backdrop-filter:var(--go-blur);box-shadow:var(--gp-box),0 10px 30px -10px rgba(0,0,0,.35)}
+#sheet,#ql{background:var(--gp-back);background-color:color-mix(in srgb,var(--surface) 93%,transparent);-webkit-backdrop-filter:var(--go-blur);backdrop-filter:var(--go-blur);box-shadow:var(--gp-box),0 -12px 40px rgba(0,0,0,.28)}
+#drawer{background:var(--gp-back);background-color:color-mix(in srgb,var(--surface) 90%,transparent);-webkit-backdrop-filter:var(--go-blur);backdrop-filter:var(--go-blur)}
+#drawer.open{box-shadow:var(--gp-box),0 0 40px rgba(0,0,0,.3)}
+@media (min-width:960px) and (min-height:540px){#drawer,#drawer.open{background:var(--bg);-webkit-backdrop-filter:none;backdrop-filter:none;box-shadow:none}}
+/* If the device cannot blur, or the person asked for less transparency, use solid panes. */
+@supports not ((-webkit-backdrop-filter:blur(1px)) or (backdrop-filter:blur(1px))){
+#chat-form,.qz-bar,#sheet,#ql,#drawer{background:var(--surface)}
+}
+@media (prefers-reduced-transparency:reduce){
+.card:not(.qz-hero),details.adv,#chat:not(:empty),.lib-group,.lib-sortbar,.res,.pick,.hist,.sq-open,.qa-hd,.pj-row:not(.pj-card),.row:not(.lrow),.opt.wrong,.opt:not(.right) .lt,.lrow .badge:not(.ok),.pj-paper{background:var(--surface)}
+input[type=text],input[type=password],input[type=search],select,textarea,.title-input,.fb{background:var(--bg)}
+#chat-form,.qz-bar,#sheet,#ql,#drawer{background:var(--surface);-webkit-backdrop-filter:none;backdrop-filter:none}
+#chat-form textarea{background:transparent}
+}
 </style>
 </head>
 <body>
@@ -1144,7 +1221,7 @@ let toastT;
 function toast(m){const t=$('#toast');t.textContent=m;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>{t.hidden=true},4500)}
 
 /* ---------- settings ---------- */
-const BUILD='31 Oct 2026, Liquid Glass buttons';
+const BUILD='31 Oct 2026, Clear Liquid Glass';
 const DEF={apiKey:'',model:'claude-sonnet-5-5',lang:'',kbps:64,terms:'',aaiKey:'',speakers:false,sound:'natural',liveTx:true,meter:true,orb:true};
 const settings=Object.assign({},DEF);
 let savedSettings={};try{savedSettings=JSON.parse(localStorage.getItem('longtake.settings')||'{}')||{}}catch(e){}
