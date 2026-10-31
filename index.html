@@ -674,6 +674,114 @@ mark.hit{background:var(--accent-soft);color:var(--accent);border-radius:4px;pad
   .rv-h{font-size:1.95rem}
 }
 @media (min-width:960px) and (min-height:540px) and (prefers-reduced-motion:reduce){body,#drawer{transition:none!important}}
+
+/* ---------- Liquid Glass: every grey button shares one look ----------
+   A frosted, see-through grey with a lit top edge, a soft shadow below and a blur of whatever sits behind it.
+   The shape, size and text colour of each button are left as they were; only its fill changes.
+   Buttons that carry meaning keep their colour: the blue main button, red delete, the picked/right/wrong states. */
+:root{
+  --gl-tint:rgba(132,141,160,.16); --gl-tint-h:rgba(132,141,160,.30);
+  --gl-back:radial-gradient(130% 150% at 15% -35%,rgba(255,255,255,.80) 0%,rgba(255,255,255,0) 52%),linear-gradient(180deg,rgba(255,255,255,.55) 0%,rgba(255,255,255,.18) 100%);
+  --gl-box:inset 0 1px 0 rgba(255,255,255,.95),inset 0 0 0 1px rgba(255,255,255,.45),inset 0 -1px 0 rgba(30,40,70,.10),0 1px 2px rgba(30,40,70,.10),0 8px 18px -8px rgba(30,40,70,.30);
+  --gl-blur:blur(16px) saturate(180%);
+}
+@media (prefers-color-scheme:dark){:root{
+  --gl-tint:rgba(255,255,255,.05); --gl-tint-h:rgba(255,255,255,.14);
+  --gl-back:radial-gradient(130% 150% at 15% -35%,rgba(255,255,255,.28) 0%,rgba(255,255,255,0) 52%),linear-gradient(180deg,rgba(255,255,255,.14) 0%,rgba(255,255,255,.04) 100%);
+  --gl-box:inset 0 1px 0 rgba(255,255,255,.34),inset 0 0 0 1px rgba(255,255,255,.12),inset 0 -1px 0 rgba(0,0,0,.40),0 1px 2px rgba(0,0,0,.40),0 10px 22px -10px rgba(0,0,0,.70);
+}}
+.btn:not(.primary):not(.danger):not([aria-pressed=true]):not(#sheet-del):not(#lib-delbar .btn),
+.side,
+#quick .chip,
+.qz-hero .chip:not(.on),
+.opt:not(.right):not(.wrong){background:var(--gl-back);background-color:var(--gl-tint);-webkit-backdrop-filter:var(--gl-blur);backdrop-filter:var(--gl-blur);box-shadow:var(--gl-box);transition:transform .16s cubic-bezier(.2,.8,.2,1),background-color .16s ease}
+@media (hover:hover){
+.btn:not(.primary):not(.danger):not([aria-pressed=true]):not(#sheet-del):not(#lib-delbar .btn):not(:disabled):hover,
+.side:not(:disabled):hover,
+#quick .chip:not(:disabled):hover,
+.qz-hero .chip:not(.on):not(:disabled):hover,
+.opt:not(.right):not(.wrong):not(:disabled):hover{background-color:var(--gl-tint-h)}
+}
+.btn:not(.primary):not(.danger):not([aria-pressed=true]):not(#sheet-del):not(#lib-delbar .btn):not(:disabled):active,
+.side:not(:disabled):active,
+#quick .chip:not(:disabled):active,
+.qz-hero .chip:not(.on):not(:disabled):active,
+.opt:not(.right):not(.wrong):not(:disabled):active{background-color:var(--gl-tint-h);transform:scale(.97)}
+@supports not ((-webkit-backdrop-filter:blur(1px)) or (backdrop-filter:blur(1px))){
+.btn:not(.primary):not(.danger):not([aria-pressed=true]):not(#sheet-del):not(#lib-delbar .btn),
+.side,
+#quick .chip,
+.qz-hero .chip:not(.on),
+.opt:not(.right):not(.wrong){background-color:var(--raised)}
+}
+@media (prefers-reduced-transparency:reduce){
+.btn:not(.primary):not(.danger):not([aria-pressed=true]):not(#sheet-del):not(#lib-delbar .btn),
+.side,
+#quick .chip,
+.qz-hero .chip:not(.on),
+.opt:not(.right):not(.wrong){-webkit-backdrop-filter:none;backdrop-filter:none;background-color:var(--raised)}
+}
+@media (prefers-reduced-motion:reduce){
+.btn:not(.primary):not(.danger):not([aria-pressed=true]):not(#sheet-del):not(#lib-delbar .btn),
+.side,
+#quick .chip,
+.qz-hero .chip:not(.on),
+.opt:not(.right):not(.wrong){transition:none}
+.btn:not(.primary):not(.danger):not([aria-pressed=true]):not(#sheet-del):not(#lib-delbar .btn):not(:disabled):active,
+.side:not(:disabled):active,
+#quick .chip:not(:disabled):active,
+.qz-hero .chip:not(.on):not(:disabled):active,
+.opt:not(.right):not(.wrong):not(:disabled):active{transform:none}
+}
+#chat-form:has(#chat-input:placeholder-shown) #chat-send[type=submit]{background:var(--gl-back);background-color:var(--gl-tint);-webkit-backdrop-filter:var(--gl-blur);backdrop-filter:var(--gl-blur);box-shadow:var(--gl-box);transition:transform .16s cubic-bezier(.2,.8,.2,1),background-color .16s ease}
+@media (hover:hover){
+#chat-form:has(#chat-input:placeholder-shown) #chat-send[type=submit]:not(:disabled):hover{background-color:var(--gl-tint-h)}
+}
+#chat-form:has(#chat-input:placeholder-shown) #chat-send[type=submit]:not(:disabled):active{background-color:var(--gl-tint-h);transform:scale(.97)}
+@supports not ((-webkit-backdrop-filter:blur(1px)) or (backdrop-filter:blur(1px))){
+#chat-form:has(#chat-input:placeholder-shown) #chat-send[type=submit]{background-color:var(--raised)}
+}
+@media (prefers-reduced-transparency:reduce){
+#chat-form:has(#chat-input:placeholder-shown) #chat-send[type=submit]{-webkit-backdrop-filter:none;backdrop-filter:none;background-color:var(--raised)}
+}
+@media (prefers-reduced-motion:reduce){
+#chat-form:has(#chat-input:placeholder-shown) #chat-send[type=submit]{transition:none}
+#chat-form:has(#chat-input:placeholder-shown) #chat-send[type=submit]:not(:disabled):active{transform:none}
+}
+@media (min-width:960px) and (min-height:540px){
+.appbar .iconbtn,
+#dr-search,
+.dr-circ:not(.on){background:var(--gl-back);background-color:var(--gl-tint);-webkit-backdrop-filter:var(--gl-blur);backdrop-filter:var(--gl-blur);box-shadow:var(--gl-box);transition:transform .16s cubic-bezier(.2,.8,.2,1),background-color .16s ease}
+@media (hover:hover){
+.appbar .iconbtn:hover,
+#dr-search:hover,
+.dr-circ:not(.on):hover{background-color:var(--gl-tint-h)}
+}
+.appbar .iconbtn:active,
+#dr-search:active,
+.dr-circ:not(.on):active{background-color:var(--gl-tint-h);transform:scale(.97)}
+@supports not ((-webkit-backdrop-filter:blur(1px)) or (backdrop-filter:blur(1px))){
+.appbar .iconbtn,
+#dr-search,
+.dr-circ:not(.on){background-color:var(--raised)}
+}
+@media (prefers-reduced-transparency:reduce){
+.appbar .iconbtn,
+#dr-search,
+.dr-circ:not(.on){-webkit-backdrop-filter:none;backdrop-filter:none;background-color:var(--raised)}
+}
+@media (prefers-reduced-motion:reduce){
+.appbar .iconbtn,
+#dr-search,
+.dr-circ:not(.on){transition:none}
+.appbar .iconbtn:active,
+#dr-search:active,
+.dr-circ:not(.on):active{transform:none}
+}
+}
+/* the quiz answers are wide, so their glass is calmer: less sheen, same lit edge */
+.opt:not(.right):not(.wrong){--gl-back:radial-gradient(90% 130% at 12% -45%,rgba(255,255,255,.55),rgba(255,255,255,0) 55%),linear-gradient(180deg,rgba(255,255,255,.38),rgba(255,255,255,.12))}
+@media (prefers-color-scheme:dark){.opt:not(.right):not(.wrong){--gl-back:radial-gradient(90% 130% at 12% -45%,rgba(255,255,255,.14),rgba(255,255,255,0) 55%),linear-gradient(180deg,rgba(255,255,255,.08),rgba(255,255,255,.03))}}
 </style>
 </head>
 <body>
@@ -1036,7 +1144,7 @@ let toastT;
 function toast(m){const t=$('#toast');t.textContent=m;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>{t.hidden=true},4500)}
 
 /* ---------- settings ---------- */
-const BUILD='31 Oct 2026, No more spot-the-error questions';
+const BUILD='31 Oct 2026, Liquid Glass buttons';
 const DEF={apiKey:'',model:'claude-sonnet-5-5',lang:'',kbps:64,terms:'',aaiKey:'',speakers:false,sound:'natural',liveTx:true,meter:true,orb:true};
 const settings=Object.assign({},DEF);
 let savedSettings={};try{savedSettings=JSON.parse(localStorage.getItem('longtake.settings')||'{}')||{}}catch(e){}
