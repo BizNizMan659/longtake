@@ -501,13 +501,15 @@ details.donebox .stack{padding-bottom:4px}
 /* the review list after a quiz matters most, so its heading is large */
 .rv-h{font-size:1.65rem;line-height:1.2;font-weight:700;letter-spacing:-.01em;margin:2px 0 6px}
 #pj-name{font-size:1.25rem}
-#sheet-scrim{position:fixed;inset:0;background:rgba(0,0,0,.5);opacity:0;visibility:hidden;transition:opacity .2s,visibility 0s .2s;z-index:30}
-#sheet-scrim.open{opacity:1;visibility:visible;transition:opacity .2s}
-#sheet{position:fixed;left:0;right:0;bottom:0;margin:0 auto;max-width:560px;max-height:85vh;max-height:85dvh;overflow:auto;background:var(--surface);border-radius:24px 24px 0 0;padding:10px 18px calc(16px + env(safe-area-inset-bottom,0px));z-index:31;transform:translateY(105%);visibility:hidden;transition:transform .24s cubic-bezier(.2,.8,.2,1),visibility 0s .24s;box-shadow:0 -10px 40px rgba(0,0,0,.25)}
-#sheet.open{transform:none;visibility:visible;transition:transform .24s cubic-bezier(.2,.8,.2,1)}
-@media (prefers-reduced-motion:reduce){#sheet,#sheet-scrim{transition:none!important}}
+#sheet-scrim,#ql-scrim{position:fixed;inset:0;background:rgba(0,0,0,.5);opacity:0;visibility:hidden;transition:opacity .2s,visibility 0s .2s;z-index:30}
+#sheet-scrim.open,#ql-scrim.open{opacity:1;visibility:visible;transition:opacity .2s}
+#sheet,#ql{position:fixed;left:0;right:0;bottom:0;margin:0 auto;max-width:560px;max-height:85vh;max-height:85dvh;overflow:auto;background:var(--surface);border-radius:24px 24px 0 0;padding:10px 18px calc(16px + env(safe-area-inset-bottom,0px));z-index:31;transform:translateY(105%);visibility:hidden;transition:transform .24s cubic-bezier(.2,.8,.2,1),visibility 0s .24s;box-shadow:0 -10px 40px rgba(0,0,0,.25)}
+#sheet.open,#ql.open{transform:none;visibility:visible;transition:transform .24s cubic-bezier(.2,.8,.2,1)}
+@media (prefers-reduced-motion:reduce){#sheet,#sheet-scrim,#ql,#ql-scrim{transition:none!important}}
+.ql-btns{display:flex;flex-direction:column;gap:8px;margin-top:14px}
+.ql-btns .btn{width:100%;min-height:50px;border-radius:25px;font-size:1rem}
 .sheet-grab{width:40px;height:4px;border-radius:2px;background:var(--line);margin:0 auto 12px}
-#sheet h2{font-size:1.1rem}
+#sheet h2,#ql h2{font-size:1.1rem}
 #sheet-new{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:12px 0 4px}
 #sheet-new input{flex:1 1 170px;min-width:0}
 .sh-list{margin:6px 0 10px}
@@ -1007,6 +1009,13 @@ mark.hit{background:var(--accent-soft);color:var(--accent);border-radius:4px;pad
   <div class="sh-list" id="sheet-list"></div>
   <div class="btns"><button class="btn" id="sheet-del" type="button" hidden>Delete</button><button class="btn" id="sheet-close" type="button">Cancel</button></div>
 </div>
+<div id="ql-scrim"></div>
+<div id="ql" role="alertdialog" aria-modal="true" aria-labelledby="ql-title" aria-describedby="ql-sub">
+  <div class="sheet-grab" aria-hidden="true"></div>
+  <h2 id="ql-title">Leave this quiz?</h2>
+  <p class="meta" id="ql-sub" style="margin:2px 0 0"></p>
+  <div class="ql-btns"><button class="btn primary" id="ql-save" type="button">Save and quit</button><button class="btn danger" id="ql-drop" type="button">Discard quiz</button><button class="btn" id="ql-stay" type="button">Keep going</button></div>
+</div>
 <div id="toast" role="status" hidden></div>
 
 <script>
@@ -1027,7 +1036,7 @@ let toastT;
 function toast(m){const t=$('#toast');t.textContent=m;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>{t.hidden=true},4500)}
 
 /* ---------- settings ---------- */
-const BUILD='29 Oct 2026, Recording survives a lost microphone';
+const BUILD='30 Oct 2026, Leave a quiz: save and quit or discard';
 const DEF={apiKey:'',model:'claude-sonnet-5-5',lang:'',kbps:64,terms:'',aaiKey:'',speakers:false,sound:'natural',liveTx:true,meter:true,orb:true};
 const settings=Object.assign({},DEF);
 let savedSettings={};try{savedSettings=JSON.parse(localStorage.getItem('longtake.settings')||'{}')||{}}catch(e){}
@@ -2157,7 +2166,7 @@ function updateAppbar(){
   c.hidden=!on;
   if(on)c.textContent=(R.paused?'Paused ':'Recording ')+fmtDur(elapsed());
 }
-$('#rec-chip').onclick=()=>show('home');
+$('#rec-chip').onclick=()=>{if(!qzLeaveAsk(()=>show('home')))show('home')};
 const drawerOpen=()=>drawer.classList.contains('open');
 let DRSIG='';
 async function renderDrawer(){
@@ -2212,13 +2221,14 @@ document.addEventListener('keydown',e=>{
     else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus()}
   }
 });
-function goNav(v){if(v==='quiz'&&CUR!=='quiz')qzDropFinished();if(v==='library'){LV.folder=null;LV.q='';LV.year=0;LV.restore=null;LV.useRestore=false}show(v)}
+function goNav(v){if(v!=='quiz'&&qzLeaveAsk(()=>goNav(v)))return; /* a quiz that is not finished asks first: save and quit, discard, or keep going */
+  if(v==='quiz'&&CUR!=='quiz')qzDropFinished();if(v==='library'){LV.folder=null;LV.q='';LV.year=0;LV.restore=null;LV.useRestore=false}show(v)}
 $$('.dr-item').forEach(b=>b.onclick=()=>goNav(b.dataset.view));
 $('#dr-all').onclick=()=>goNav('library');
 $('#dr-set').onclick=()=>goNav('settings');
 $('#dr-new').onclick=()=>goNav('home');
 $('#dr-search').onclick=()=>{goNav('library');$('#lib-q').focus()};
-$('#dr-recents').addEventListener('click',e=>{const r=e.target.closest('[data-id]');if(r)openDetail(r.dataset.id,CUR==='detail'?BACK:CUR)});
+$('#dr-recents').addEventListener('click',e=>{const r=e.target.closest('[data-id]');if(!r)return;const go=()=>openDetail(r.dataset.id,CUR==='detail'?BACK:CUR);if(!qzLeaveAsk(go))go()});
 let swipeX=null;
 drawer.addEventListener('touchstart',e=>{swipeX=e.touches[0].clientX},{passive:true});
 drawer.addEventListener('touchend',e=>{if(swipeX!==null&&e.changedTouches[0].clientX-swipeX<-60)closeDrawer();swipeX=null},{passive:true});
@@ -4624,8 +4634,8 @@ $('#pj-quiz').addEventListener('click',async()=>{
 });
 
 /* ---------- Quiz ---------- */
-const QZ_HARD='Teach for understanding, not for memorizing the speaker\'s words. Ask about the concepts, not the wording: do not quote the speaker, do not write \"what did the speaker say about X\" or \"according to the speaker\", and do not ask who said what. Mix these kinds of question across the whole quiz, and use every kind at least once when there are enough questions. Explain: why does X happen, or what is the difference between X and Y. Apply: give a new example that was not in the material and ask how the idea applies to it; the idea must come from the material and the right answer must follow from it. Compare: ask how two ideas relate or differ. Spot the error: show a short claim with exactly one mistake and ask the student to find it; the four options each point to a different part of the claim, only one of them is the real mistake, and the other three are parts that are correct according to the material. Cover the main ideas rather than small details, and make the quiz genuinely challenging and impossible to pass by guessing. Make the options hard to guess without knowing the material. First, all four options must be about the same length, in the same style and with the same level of detail; no option may stand out by being longer, more specific, more complete or more carefully qualified than the others, and across the whole quiz the right answer should be the shortest option about as often as it is the longest. Second, except in a spot-the-error question, every wrong option must be a believable mistake: a common misconception, a true statement that answers a different question, two real ideas from the material mixed up, or the right idea with one key detail changed (a number, a name, a direction, a condition or an order). Third, wrong options should use the same words and terms from the material as the right one, so a student cannot pick by matching keywords, and they must not sound extreme (\"always\", \"never\", \"only\") unless the right option does too. Do not let the question itself give the answer away.';
-const QZ_SYS='You are a patient tutor writing quiz questions that help a student learn from recordings of lectures, meetings and talks. A recording can name its subject; when it does, write the questions in the terms of that subject. Use only the ideas the speaker actually presents in the transcripts; never rely on outside knowledge for the substance of a question or for its correct answer. The transcripts come from automatic speech recognition and can contain misheard words, so quietly fix obvious errors. Write clear multiple-choice questions, each with exactly four options and exactly one correct answer. The wrong options must be plausible but clearly wrong according to the transcript. Never use options such as \"all of the above\" or \"none of the above\". Test understanding of the real ideas, definitions, steps, examples, numbers, names and decisions, not trivia. Spread the questions across the material in the order it was taught. For each question, write a short explanation in the voice of a patient tutor: one or two sentences that teach the idea and say why the answer is right, in your own words rather than the speaker\'s. For a spot-the-error question, state the corrected claim.\n\n'+QZ_HARD+'\n\nReturn one JSON object and nothing else, in exactly this shape: {"questions":[{"q":"the question","options":["first option","second option","third option","fourth option"],"answer":0,"why":"the explanation","rec":"the id of the recording the question comes from","time":"hh:mm:ss where the speaker said it"}]}. \"answer\" is the zero-based position of the correct option. Do not put letters such as A) in front of the options.';
+const QZ_HARD='Teach for understanding, not for memorizing the speaker\'s words. Ask about the concepts, not the wording. Four rules apply to every question you write.\n\nRule A, ask about the idea, not the speaker. Do not quote the speaker, do not ask who said what, and never mention the speaker, lecturer, presenter, recording, transcript or lecture in a question or in its options. Never begin a question with "the speaker", "according to the speaker", "according to the lecture", "why does he say" or "what did they mean". Do not build a question around an example, story or metaphor that was used in the material. If an example helps, restate it neutrally inside the question, then ask about the principle behind it. Bad: "Why does the speaker say the car is \'not a car\'?" Good: "A broken-down car still has all its parts. What makes it stop counting as a car in the sense that matters?" (This pair only shows the style; do not reuse its topic.)\n\nRule B, every question must stand alone. A student who never heard the material but knows the subject must be able to understand and answer it. Define any term the question depends on, and never refer to "the example", "the story", "the passage" or "what was said earlier". Leave out anything that only makes sense to someone who was there, such as announcements, who spoke when, or one class\'s own schedule.\n\nRule C, every wrong option must be plausible. Each wrong option must be a misconception a real student could hold, or a near miss of the right idea. No joking, absurd or stereotyped options, and no option a student could rule out without knowing the subject. Wrong options use the same kind of vocabulary as the right one.\n\nRule D, check before you answer. For each question confirm: 1. it contains no speaker reference; 2. it makes sense without the lecture; 3. every wrong option is a believable misconception; 4. the right answer cannot be spotted by its length, its wording or a metaphor. Rewrite any question that fails a check, and replace it with another question if it cannot be fixed. Do not show this check; return only the JSON.\n\nMix these kinds of question across the whole quiz, and use every kind at least once when there are enough questions. Explain: why does X happen, or what is the difference between X and Y. Apply: give a new example that was not in the material and ask how the idea applies to it; the idea must come from the material and the right answer must follow from it. Compare: ask how two ideas relate or differ. Spot the error: show a short claim with exactly one mistake and ask the student to find it; the four options each point to a different part of the claim, only one of them is the real mistake, and the other three are parts that are correct according to the material. Cover the main ideas rather than small details, and make the quiz genuinely challenging and impossible to pass by guessing. Make the options hard to guess without knowing the material. First, all four options must be about the same length, in the same style and with the same level of detail; no option may stand out by being longer, more specific, more complete or more carefully qualified than the others, and across the whole quiz the right answer should be the shortest option about as often as it is the longest. Second, except in a spot-the-error question, every wrong option must be a believable mistake: a common misconception, two real ideas from the material mixed up, or the right idea with one key detail changed (a number, a name, a direction, a condition or an order). Third, wrong options should use the same words and terms from the material as the right one, so a student cannot pick by matching keywords, and they must not sound extreme ("always", "never", "only") unless the right option does too. Do not let the question itself give the answer away.';
+const QZ_SYS='You are a patient tutor writing quiz questions that help a student learn from recordings of lectures, meetings and talks. A recording can name its subject; when it does, write the questions in the terms of that subject. Use only the ideas the transcripts actually present; never rely on outside knowledge for the substance of a question or for its correct answer. The transcripts come from automatic speech recognition and can contain misheard words, so quietly fix obvious errors. Write clear multiple-choice questions, each with exactly four options and exactly one correct answer. The wrong options must be plausible but clearly wrong according to the transcript. Never use options such as \"all of the above\" or \"none of the above\". Test understanding of the real ideas, definitions, steps, numbers, names and decisions, not trivia. Spread the questions across the material in the order it was taught. For each question, write a short explanation in the voice of a patient tutor: one or two sentences that teach the idea and say why the answer is right, in your own words, without referring to the speaker or the lecture. For a spot-the-error question, state the corrected claim.\n\n'+QZ_HARD+'\n\nReturn one JSON object and nothing else, in exactly this shape: {"questions":[{"q":"the question","options":["first option","second option","third option","fourth option"],"answer":0,"why":"the explanation","rec":"the id of the recording the question comes from","time":"hh:mm:ss where the idea is discussed"}]}. \"answer\" is the zero-based position of the correct option. Do not put letters such as A) in front of the options.';
 const QZ={data:null,mode:null,busy:false,abort:null,err:'',errKey:false,tok:0,count:0,part:null,what:'',pre:null,about:null,aboutBusy:false,aboutFail:new Set()};
 /* The setup choices (source, recordings, projects, topic, number of questions) belong to one visit. They start clean on every launch and after a long time away. Saved quizzes, the quiz in progress and the history are kept. */
 function qzFresh(d){d.sel=[];d.psel=[];d.focus='';d.count=10;d.src='proj'}
@@ -4742,6 +4752,35 @@ function quizSource(use,budget){
 /* The right answer must not be spotted by its length. The assistant is told to match the options; if several right answers are still much longer than every wrong option, those questions get their options rewritten once. */
 const lenTell=q=>{const L=q.opts[q.ans].length;let mx=0;q.opts.forEach((o,i)=>{if(i!==q.ans&&o.length>mx)mx=o.length});return L>=mx*1.2&&L-mx>=20};
 const QZ_BAL_SYS='You fix multiple-choice quiz questions so that a student cannot find the right answer by its length or style. You are given questions, each with its options, which option is right, and a short explanation of why. Rewrite the options of each question. Keep the right answer correct and keep its meaning. Make every wrong option about as long, detailed and specific as the right one, within about 15 percent in length, and make each one a believable mistake that is clearly wrong according to the explanation: a common misconception, two real ideas mixed up, or the right idea with one key detail changed. You may trim unneeded words from the right option, but keep every fact it needs. Never use \"all of the above\" or \"none of the above\". Do not put letters such as A) in front of options.\n\nReturn one JSON object and nothing else, in exactly this shape: {"fixes":[{"i":0,"options":["first option","second option","third option","fourth option"],"answer":0}]}. \"i\" is the number of the question as given and \"answer\" is the zero-based position of the right option. Return every question you were given.';
+/* Rules A and B are checked in code as well as asked for: a question that still points at "the speaker" or "the lecture" is sent back to be rewritten so it stands alone, and is left out if it still does. */
+const QZ_SPK_STRONG=[
+  /\b(?:according to|as (?:stated|said|mentioned|described|explained|discussed|defined) (?:by|in))\s+(?:the|this|that)\s+(?:speaker|lecturer|lecture|professor|instructor|teacher|presenter|narrator|recording|transcript|talk|video|discussion|class|session|material|passage|text)\b/i,
+  /\b(?:why|what|how|when|where|which)\s+(?:does|did|do|would|is|was)\s+(?:he|she|they|the\s+(?:speaker|lecturer|presenter|narrator))\s+(?:say|said|mean|meant|claim|argue|suggest|describe|mention|state|imply|call|use)\b/i,
+  /\b(?:the|this)\s+(?:lecture|lecturer)\b/i,
+  /\b(?:the|this)\s+(?:example|story|metaphor|analogy|passage)\s+(?:above|given|used|mentioned|described|earlier)\b|\bwhat was said\b|\b(?:mentioned|discussed|covered)\s+(?:earlier|before|above)\b|\bin the (?:example|story|passage)\b/i
+];
+const QZ_SPK_WEAK=[/^\s*(?:the|this)\s+(?:speaker|lecturer|presenter|narrator)\b/i]; /* a question may begin with these when they are the subject itself (a loudspeaker, a public speaker), so they ask for a rewrite but never remove a question */
+const spkHit=(q,list)=>list.some(r=>r.test(q.q)||q.opts.some(o=>r.test(o)));
+const spkTell=q=>spkHit(q,QZ_SPK_STRONG)||spkHit(q,QZ_SPK_WEAK);
+const QZ_SA_SYS='You fix multiple-choice quiz questions so that each one stands alone and tests the subject, not a lecture. You are given questions, each with its options, which option is right, and a short explanation. Rewrite each question so that it never refers to a speaker, lecturer, presenter, recording, transcript or lecture, and never to \"the example\", \"the story\" or \"what was said earlier\". If a question depends on an example, story or metaphor from the material, restate the situation neutrally inside the question, then ask about the principle behind it. Define any term the question depends on, so that a student who knows the subject but never heard the material can answer it. Keep the same idea and the same right answer. Keep every wrong option a believable misconception or near miss of the right idea, about as long as the right option and free of speaker references too. Never use \"all of the above\" or \"none of the above\". Do not put letters such as A) in front of options.\n\nReturn one JSON object and nothing else, in exactly this shape: {"fixes":[{"i":0,"q":"the rewritten question","options":["first option","second option","third option","fourth option"],"answer":0,"why":"the explanation, also free of speaker references"}]}. \"i\" is the number of the question as given and \"answer\" is the zero-based position of the right option. Return every question you were given.';
+async function qzStandalone(qs,signal){
+  const bad=qs.map((q,i)=>({q,i})).filter(({q})=>spkTell(q));
+  if(!bad.length)return qs;
+  const pt=$('#qz-prog-t');if(pt)pt.textContent='Making the questions stand on their own.';
+  const body=bad.map(({q,i})=>`Question ${i}: ${q.q}\nOptions:\n${q.opts.map((o,k)=>`${k}. ${o}`).join('\n')}\nRight option: ${q.ans}\nWhy it is right: ${q.why||'(none given)'}`).join('\n\n');
+  let j=null;
+  try{j=parseJson(await callClaude({system:QZ_SA_SYS,messages:[{role:'user',content:body}],max:Math.max(2000,600+bad.length*420),signal}))}
+  catch(e){if(e&&e.name==='AbortError')throw e} /* the questions as written are kept or dropped below */
+  const out=qs.slice();
+  for(const f of (j&&Array.isArray(j.fixes)?j.fixes:[])){
+    const i=f&&Number.isInteger(f.i)?f.i:-1,q=out[i];
+    if(!q||!spkTell(q)||typeof f.q!=='string'||!Array.isArray(f.options)||f.options.length!==q.opts.length)continue; /* only the questions that were asked about, with the same number of options */
+    const opts=f.options.map(o=>typeof o==='string'||typeof o==='number'?clip(String(o),300):''),a=f.answer,text=clip(f.q,400);
+    if(!text||opts.some(o=>!o||FIXED.test(o))||new Set(opts.map(o=>o.toLowerCase())).size!==opts.length||!Number.isInteger(a)||a<0||a>=opts.length)continue;
+    out[i]=shuffleQ(Object.assign({},q,{q:text,opts,ans:a,why:typeof f.why==='string'&&f.why.trim()?clip(f.why,500):q.why}));
+  }
+  return out.filter(q=>!spkHit(q,QZ_SPK_STRONG));
+}
 async function qzBalance(qs,signal){
   const bad=qs.map((q,i)=>({q,i})).filter(({q})=>lenTell(q));
   if(bad.length<2||bad.length<qs.length*0.25)return qs;
@@ -4766,8 +4805,8 @@ const QZ_WORDS={30:500,45:800}; /* a project also needs this much saved text, so
 const QZ_PART=15; /* long quizzes are written in parts of up to 15 questions */
 const splitN=(n,k)=>Array.from({length:k},(_,i)=>Math.floor(n/k)+(i<n%k?1:0));
 const wordsIn=t=>(String(t).match(/\S+/g)||[]).length;
-const QZ_SYS_P='You are a patient tutor writing quiz questions that help a student learn from answers they saved to a study project. The saved answers were written by a teaching assistant from recordings of lectures, meetings and talks. Use only what the saved answers say; never rely on outside knowledge for a question or for its correct answer. Write clear multiple-choice questions, each with exactly four options and exactly one correct answer. The wrong options must be plausible but clearly wrong according to the saved answers. Never use options such as \"all of the above\" or \"none of the above\". Test understanding of the real ideas, definitions, steps, examples, numbers, names and decisions, not trivia. Spread the questions across the saved answers. For each question, write a short explanation in the voice of a patient tutor: one or two sentences that teach the idea and say why the answer is right. For a spot-the-error question, state the corrected claim.\n\n'+QZ_HARD+'\n\nReturn one JSON object and nothing else, in exactly this shape: {"questions":[{"q":"the question","options":["first option","second option","third option","fourth option"],"answer":0,"why":"the explanation","rec":"the id of the saved answer the question comes from"}]}. \"answer\" is the zero-based position of the correct option. Do not put letters such as A) in front of the options.';
-const QZ_SYS_PR='You are a patient tutor writing quiz questions that help a student learn from the material in a study project. The project holds two kinds of material. A <saved_answer> is an answer a teaching assistant wrote from a recording. A <recording> is the full transcript of a recording the student added, with the time of each line, and it can name its subject. Use only what the saved answers and the recordings say; never rely on outside knowledge for a question or for its correct answer. The transcripts come from automatic speech recognition and can contain misheard words, so quietly fix obvious errors. Write clear multiple-choice questions, each with exactly four options and exactly one correct answer. The wrong options must be plausible but clearly wrong according to the material. Never use options such as \"all of the above\" or \"none of the above\". Test understanding of the real ideas, definitions, steps, examples, numbers, names and decisions, not trivia. Spread the questions across the material in the order it was taught. For each question, write a short explanation in the voice of a patient tutor: one or two sentences that teach the idea and say why the answer is right. For a spot-the-error question, state the corrected claim.\n\n'+QZ_HARD+'\n\nReturn one JSON object and nothing else, in exactly this shape: {"questions":[{"q":"the question","options":["first option","second option","third option","fourth option"],"answer":0,"why":"the explanation","rec":"the id of the saved answer or recording the question comes from","time":"hh:mm:ss where the speaker said it, only for a recording"}]}. \"answer\" is the zero-based position of the correct option. Do not put letters such as A) in front of the options.';
+const QZ_SYS_P='You are a patient tutor writing quiz questions that help a student learn from answers they saved to a study project. The saved answers were written by a teaching assistant from recordings of lectures, meetings and talks. Use only what the saved answers say; never rely on outside knowledge for a question or for its correct answer. Write clear multiple-choice questions, each with exactly four options and exactly one correct answer. The wrong options must be plausible but clearly wrong according to the saved answers. Never use options such as \"all of the above\" or \"none of the above\". Test understanding of the real ideas, definitions, steps, numbers, names and decisions, not trivia. Spread the questions across the saved answers. For each question, write a short explanation in the voice of a patient tutor: one or two sentences that teach the idea and say why the answer is right, without referring to the speaker or the lecture. For a spot-the-error question, state the corrected claim.\n\n'+QZ_HARD+'\n\nReturn one JSON object and nothing else, in exactly this shape: {"questions":[{"q":"the question","options":["first option","second option","third option","fourth option"],"answer":0,"why":"the explanation","rec":"the id of the saved answer the question comes from"}]}. \"answer\" is the zero-based position of the correct option. Do not put letters such as A) in front of the options.';
+const QZ_SYS_PR='You are a patient tutor writing quiz questions that help a student learn from the material in a study project. The project holds two kinds of material. A <saved_answer> is an answer a teaching assistant wrote from a recording. A <recording> is the full transcript of a recording the student added, with the time of each line, and it can name its subject. Use only what the saved answers and the recordings say; never rely on outside knowledge for a question or for its correct answer. The transcripts come from automatic speech recognition and can contain misheard words, so quietly fix obvious errors. Write clear multiple-choice questions, each with exactly four options and exactly one correct answer. The wrong options must be plausible but clearly wrong according to the material. Never use options such as \"all of the above\" or \"none of the above\". Test understanding of the real ideas, definitions, steps, numbers, names and decisions, not trivia. Spread the questions across the material in the order it was taught. For each question, write a short explanation in the voice of a patient tutor: one or two sentences that teach the idea and say why the answer is right, without referring to the speaker or the lecture. For a spot-the-error question, state the corrected claim.\n\n'+QZ_HARD+'\n\nReturn one JSON object and nothing else, in exactly this shape: {"questions":[{"q":"the question","options":["first option","second option","third option","fourth option"],"answer":0,"why":"the explanation","rec":"the id of the saved answer or recording the question comes from","time":"hh:mm:ss where the idea is discussed, only for a recording"}]}. \"answer\" is the zero-based position of the correct option. Do not put letters such as A) in front of the options.';
 const wholeOk=(it,list)=>list.some(x=>x.s.id===it.sid&&x.segs.length&&!x.live); /* a recording in a project can be quizzed on once it has a transcript */
 function sliceSegs(segs,k,K){ /* the k-th of K stretches of a recording, cut by amount of text */
   if(K<=1)return segs;
@@ -4878,6 +4917,7 @@ async function qzStart(){
       }
     }
     if(!qs.length)throw Object.assign(new Error(d.focus?`No questions could be written about that from the chosen ${proj?'projects':'recordings'}. Try clearing the focus or choosing other ${proj?'projects':'recordings'}.`:'No usable questions came back. Please try again.'),{bad:true});
+    {const sa=await qzStandalone(qs,signal);if(!sa.length)throw Object.assign(new Error('No usable questions came back. Please try again.'),{bad:true});qs.splice(0,qs.length,...sa)}
     {const bal=await qzBalance(qs,signal);bal.forEach((q,i)=>{qs[i]=q})}
     if(proj){ /* tie each question back to the saved answer it came from */
       const by=new Map(items.map(x=>[x.it.id,x]));
@@ -4967,7 +5007,7 @@ function qzSync(d,list){ /* keep the summary line, the question counts and the S
 function busyHtml(d){return `<div class="card" role="status"><h2>Writing your quiz</h2><div class="prog"><div class="bar ind"><span></span></div><div class="meta" id="qz-prog-t">${qzProgText()}</div></div><div class="btns" style="margin-top:12px"><button class="btn" type="button" data-q="cancel">Stop</button></div></div>`}
 function questionHtml(c){
   const q=c.qs[c.idx],pick=c.picks[c.idx],answered=pick!=null,last=c.idx===c.qs.length-1;
-  let h=`<div class="card"><div class="qz-top"><span class="meta">Question ${c.idx+1} of ${c.qs.length}${c.retry?' · missed questions':''}</span><button class="linkbtn" type="button" data-q="new">Save and exit</button></div><div class="prog" aria-hidden="true"><div class="bar"><span style="width:${Math.round((c.idx+(answered?1:0))/c.qs.length*100)}%"></span></div></div>`;
+  let h=`<div class="card"><div class="qz-top"><span class="meta">Question ${c.idx+1} of ${c.qs.length}${c.retry?' · missed questions':''}</span><button class="linkbtn" type="button" data-q="leave">Leave quiz</button></div><div class="prog" aria-hidden="true"><div class="bar"><span style="width:${Math.round((c.idx+(answered?1:0))/c.qs.length*100)}%"></span></div></div>`;
   if(c.idx===0&&!answered&&c.asked&&c.qs.length<c.asked&&!c.retry)h+=`<p class="meta" style="margin:8px 0 0">The assistant wrote ${c.qs.length} of the ${c.asked} questions you asked for.${c.note?' '+esc(c.note):''}</p>`;
   if(c.idx===0&&!answered&&c.sampled)h+=`<p class="meta" style="margin:8px 0 0">These recordings are long, so the questions come from passages spread across them.</p>`;
   h+=`<h2 class="qz-q" id="qz-q" tabindex="-1">${esc(q.q)}</h2><div class="opts" role="group" aria-labelledby="qz-q">`;
@@ -5003,6 +5043,54 @@ function qzDropFinished(){
   if(c&&c.idx>=c.qs.length){qzFinish(d);d.cur=null;QZ.mode='setup';qzSave();return true}
   return false;
 }
+/* Leaving a quiz that is not finished (the Leave quiz button, the menu, the sidebar, the recording chip) always asks first: save and quit (it goes under Saved quizzes with its answers), discard (it is thrown away), or keep going. A finished quiz leaves without asking. */
+const QL={then:null,opener:null,busy:false};
+const qlBox=$('#ql'),qlScrim=$('#ql-scrim');
+const qzIsOpen=()=>{const d=QZ.data,c=d&&d.cur;return !!(CUR==='quiz'&&QZ.mode==='play'&&!QZ.busy&&c&&c.idx<c.qs.length)};
+function qzLeaveAsk(then){ /* true when the question took over; `then` is what the person was trying to do and runs after they choose */
+  if(qlBox.classList.contains('open'))return true;
+  if(!qzIsOpen())return false;
+  const c=QZ.data.cur,n=c.picks.filter(p=>p!=null).length;
+  QL.then=then||null;QL.opener=document.activeElement;
+  $('#ql-sub').textContent=`You are on question ${c.idx+1} of ${c.qs.length}`+(n?` and have answered ${n}`:'')+'. Save it to finish later, or discard it'+(n?' with your answers':'')+'.';
+  closeDrawer();
+  qlBox.classList.add('open');qlScrim.classList.add('open');document.body.classList.add('lock');
+  setTimeout(()=>{const f=$('#ql-save');if(f&&qlBox.classList.contains('open'))f.focus({preventScroll:true})},60);
+  return true;
+}
+function qzLeaveClose(){
+  if(!qlBox.classList.contains('open'))return;
+  qlBox.classList.remove('open');qlScrim.classList.remove('open');
+  if(!drawerOpen())document.body.classList.remove('lock');
+}
+async function qzLeaveDo(how){
+  if(QL.busy||!qlBox.classList.contains('open'))return;
+  QL.busy=true;
+  try{
+    const then=QL.then,op=QL.opener;QL.then=null;QL.opener=null;
+    qzLeaveClose();
+    if(how==='stay'){if(op&&op.isConnected&&typeof op.focus==='function')try{op.focus({preventScroll:true})}catch(e){}return}
+    const d=await qzLoad();
+    if(how==='save'){if(qzPause(d)){await qzSave();toast('Saved. Pick it up again under Saved quizzes.')}}
+    else{d.cur=null;await qzSave();toast('Quiz discarded.')}
+    QZ.mode='setup';QZ.err='';
+    if(then)then();else{renderQuiz();window.scrollTo(0,0)}
+  }finally{QL.busy=false}
+}
+$('#ql-save').onclick=()=>qzLeaveDo('save');
+$('#ql-drop').onclick=()=>qzLeaveDo('drop');
+$('#ql-stay').onclick=()=>qzLeaveDo('stay');
+qlScrim.onclick=()=>qzLeaveDo('stay');
+document.addEventListener('keydown',e=>{
+  if(!qlBox.classList.contains('open'))return;
+  if(e.key==='Escape'){qzLeaveDo('stay');return}
+  if(e.key==='Tab'){
+    const f=[...qlBox.querySelectorAll('button')].filter(x=>!x.disabled&&x.offsetParent!==null);if(!f.length)return;
+    const first=f[0],last=f[f.length-1];
+    if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus()}
+    else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus()}
+  }
+});
 async function renderQuiz(focus){
   const tok=++QZ.tok,root=$('#qz-root');
   let d,list;try{d=await qzLoad();list=await textSessions();await refreshTitles();await pjLoad()}catch(e){root.innerHTML='<p class="empty">Could not read your recordings.</p>';return}
@@ -5060,6 +5148,7 @@ $('#qz-root').addEventListener('click',async e=>{
     QZ.mode='play';renderQuiz('top');
   }
   else if(act==='drop')twoTap(a,'Tap again to delete',async()=>{d.paused=d.paused.filter(x=>x.id!==a.dataset.qid);await qzSave();renderQuiz()});
+  else if(act==='leave'){if(!qzLeaveAsk(null)){QZ.mode='setup';QZ.err='';renderQuiz();window.scrollTo(0,0)}}
   else if(act==='new'){
     const saved=qzPause(d);if(saved){await qzSave();toast('Saved. Pick it up again under Saved quizzes.')}
     QZ.mode='setup';QZ.err='';renderQuiz();window.scrollTo(0,0);
