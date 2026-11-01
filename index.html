@@ -859,6 +859,52 @@ input[type=text],input[type=password],input[type=search],select,textarea,.title-
 #chat-form,.qz-bar,#sheet,#ql,#drawer{background:var(--surface);-webkit-backdrop-filter:none;backdrop-filter:none}
 #chat-form textarea{background:transparent}
 }
+/* ---------- Record pill (between Pause and Mark): a little bigger, red Liquid Glass while recording ---------- */
+:root{
+  --gr-fill:color-mix(in srgb,var(--rec) 94%,transparent); --gr-fill-h:color-mix(in srgb,var(--rec) 100%,transparent); --gr-fill-p:color-mix(in srgb,var(--rec) 86%,transparent);
+  --gr-back:radial-gradient(130% 150% at 15% -35%,rgba(255,255,255,.36) 0%,rgba(255,255,255,0) 52%),linear-gradient(180deg,rgba(255,255,255,.12) 0%,rgba(255,255,255,0) 100%);
+  --gr-box:inset 0 1px 0 rgba(255,255,255,.65),inset 0 0 0 1px rgba(255,255,255,.22),inset 0 -1px 0 rgba(90,10,0,.28),0 1px 2px rgba(120,20,10,.30),0 10px 22px -8px rgba(196,45,24,.55);
+}
+@media (prefers-color-scheme:dark){:root{
+  --gr-fill:color-mix(in srgb,var(--rec) 62%,transparent); --gr-fill-h:color-mix(in srgb,var(--rec) 74%,transparent); --gr-fill-p:color-mix(in srgb,var(--rec) 36%,transparent);
+  --gr-back:radial-gradient(130% 150% at 15% -35%,rgba(255,255,255,.30) 0%,rgba(255,255,255,0) 52%),linear-gradient(180deg,rgba(255,255,255,.10) 0%,rgba(255,255,255,0) 100%);
+  --gr-box:inset 0 1px 0 rgba(255,255,255,.42),inset 0 0 0 1px rgba(255,255,255,.14),inset 0 -1px 0 rgba(0,0,0,.40),0 1px 2px rgba(0,0,0,.40),0 10px 24px -8px rgba(255,107,94,.45);
+}}
+.controls .side.m{min-width:112px;height:54px;padding:0 24px;border-radius:27px;font-size:1.08em;font-weight:650;display:inline-flex;align-items:center;justify-content:center;gap:9px}
+.side.m:disabled{opacity:1}
+.side.m .rd{flex:none;width:11px;height:11px;border-radius:50%;background:var(--rec);box-shadow:0 0 0 3px color-mix(in srgb,var(--rec) 24%,transparent)}
+.side.m.on{background:var(--gr-back);background-color:var(--gr-fill-p);color:#fff;box-shadow:var(--gr-box)}
+.side.m.on.run{background-color:var(--gr-fill)}
+.side.m.on .rd{width:10px;height:10px;border-radius:3px;background:currentColor;box-shadow:none}
+@media (hover:hover){.side.m.on:not(:disabled):hover{background-color:var(--gr-fill-h)}}
+.side.m.on:not(:disabled):active{background-color:var(--gr-fill-h)}
+@media (max-width:360px){.controls{gap:8px}.controls .side{min-width:72px;padding:0 12px}.controls .side.m{min-width:96px;padding:0 18px}}
+@media (prefers-reduced-transparency:reduce){.side.m.on,.side.m.on.run{background:var(--rec);color:var(--rec-ink);box-shadow:none;-webkit-backdrop-filter:none;backdrop-filter:none}}
+/* ---------- Ask bar on Home: no solid box behind it; the field and the Ask button are glass that float over the page ---------- */
+:root{
+  --gb-fill:color-mix(in srgb,var(--accent) 92%,transparent); --gb-fill-h:var(--accent);
+  --gb-box:inset 0 1px 0 rgba(255,255,255,.60),inset 0 0 0 1px rgba(255,255,255,.20),inset 0 -1px 0 rgba(10,20,70,.30),0 1px 2px rgba(20,40,120,.30),0 10px 22px -8px rgba(40,72,184,.55);
+}
+@media (prefers-color-scheme:dark){:root{
+  --gb-fill:color-mix(in srgb,var(--accent) 80%,transparent); --gb-fill-h:color-mix(in srgb,var(--accent) 92%,transparent);
+  --gb-box:inset 0 1px 0 rgba(255,255,255,.55),inset 0 0 0 1px rgba(255,255,255,.18),inset 0 -1px 0 rgba(0,0,0,.30),0 1px 2px rgba(0,0,0,.40),0 10px 24px -8px rgba(168,193,255,.40);
+}}
+.composer:not(#chat-form){background:none}
+.composer:not(#chat-form) textarea{border-color:transparent;background:var(--gp-back);background-color:color-mix(in srgb,var(--bg) 90%,transparent);-webkit-backdrop-filter:var(--go-blur);backdrop-filter:var(--go-blur);box-shadow:var(--gp-box)}
+.composer .btn.primary:not(:disabled){background:var(--gr-back);background-color:var(--gb-fill);color:var(--accent-ink);-webkit-backdrop-filter:var(--go-blur);backdrop-filter:var(--go-blur);box-shadow:var(--gb-box);filter:none;transition:transform .16s cubic-bezier(.2,.8,.2,1),background-color .16s ease}
+@media (hover:hover){.composer .btn.primary:not(:disabled):hover{background-color:var(--gb-fill-h);box-shadow:var(--gb-box);filter:none}}
+.composer .btn.primary:not(:disabled):active{background-color:var(--gb-fill-h);transform:scale(.97)}
+@media (prefers-reduced-motion:reduce){.composer .btn.primary{transition:none}.composer .btn.primary:not(:disabled):active{transform:none}}
+@supports not ((-webkit-backdrop-filter:blur(1px)) or (backdrop-filter:blur(1px))){
+.composer:not(#chat-form){background:var(--bg)}
+.composer:not(#chat-form) textarea{background:var(--surface)}
+.composer .btn.primary:not(:disabled){background:var(--accent)}
+}
+@media (prefers-reduced-transparency:reduce){
+.composer:not(#chat-form){background:var(--bg)}
+.composer:not(#chat-form) textarea{background:var(--surface);-webkit-backdrop-filter:none;backdrop-filter:none}
+.composer .btn.primary:not(:disabled){background:var(--accent);-webkit-backdrop-filter:none;backdrop-filter:none;box-shadow:none}
+}
 </style>
 </head>
 <body>
@@ -880,6 +926,7 @@ input[type=text],input[type=password],input[type=search],select,textarea,.title-
       <div class="cap" id="cap">Tap to record</div>
       <div class="controls">
         <button class="side l" id="btn-pause" disabled>Pause</button>
+        <button class="side m" id="btn-rec" type="button" aria-label="Start recording"><span class="rd" aria-hidden="true"></span><span id="btn-rec-t">Record</span></button>
         <button class="side r" id="btn-mark" disabled>Mark</button>
       </div>
       <p class="err" id="rec-warn" role="alert" hidden></p>
@@ -1221,7 +1268,7 @@ let toastT;
 function toast(m){const t=$('#toast');t.textContent=m;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>{t.hidden=true},4500)}
 
 /* ---------- settings ---------- */
-const BUILD='31 Oct 2026, Recorder without box';
+const BUILD='31 Oct 2026, Ask bar glass';
 const DEF={apiKey:'',model:'claude-sonnet-5-5',lang:'',kbps:64,terms:'',aaiKey:'',speakers:false,sound:'natural',liveTx:true,meter:true,orb:true};
 const settings=Object.assign({},DEF);
 let savedSettings={};try{savedSettings=JSON.parse(localStorage.getItem('longtake.settings')||'{}')||{}}catch(e){}
@@ -2279,6 +2326,8 @@ function updateRecUI(){
   m.setAttribute('aria-label',R.active?'Stop recording':'Start recording');
   $('#btn-pause').disabled=!R.active;$('#btn-mark').disabled=!R.active;
   $('#btn-pause').textContent=R.paused?'Resume':'Pause';
+  const rb=$('#btn-rec');rb.classList.toggle('on',R.active);rb.classList.toggle('run',R.active&&!R.paused);
+  rb.setAttribute('aria-label',R.active?'Stop recording':'Start recording');$('#btn-rec-t').textContent=R.active?'Stop':'Record';
   st.className='state'+(R.active&&!R.paused?' live':'');
   st.textContent=!R.active?'Ready':R.paused?'Paused':'Recording';
   cap.className='cap';
@@ -2288,12 +2337,14 @@ function updateRecUI(){
 }
 /* One tap starts, one tap stops. The second tap of a double tap is ignored, so it cannot end the recording it just began (1.2 s) or start another one right after a stop (0.6 s). */
 const STOP_GUARD=1200,START_GUARD=600;let lastTap=-1e9;
-$('#btn-main').onclick=()=>{
+function recTap(){
   const now=performance.now();
   if(R.active){if(now-lastTap<STOP_GUARD)return;lastTap=now;stopRecording();return}
   if(R.starting||R.stopping||now-lastTap<START_GUARD)return;
   lastTap=now;startRecording();
-};
+}
+$('#btn-main').onclick=recTap;
+$('#btn-rec').onclick=recTap; /* the Record pill does exactly what the big button does, with the same double-tap guard */
 $('#btn-pause').onclick=togglePause;
 $('#btn-mark').onclick=markMoment;
 
