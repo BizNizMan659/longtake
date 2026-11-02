@@ -911,6 +911,49 @@ input[type=text],input[type=password],input[type=search],select,textarea,.title-
 #chat-form{background:var(--surface);-webkit-backdrop-filter:none;backdrop-filter:none;box-shadow:var(--gp-box),0 0 0 10px var(--bg)}
 .composer .btn.primary:not(:disabled){background:var(--accent);-webkit-backdrop-filter:none;backdrop-filter:none;box-shadow:none}
 }
+/* Progress cards: a percent, a bar and a checklist wherever the app waits */
+.pg{display:block;text-align:left}
+.pg-title{font-weight:600;font-size:15px;color:var(--ink);margin:0 0 2px}
+.pg-pct{font-size:36px;line-height:1.05;font-weight:700;letter-spacing:-.02em;font-variant-numeric:tabular-nums;color:var(--ink)}
+.pg-pct small{font-size:.5em;font-weight:600;margin-left:2px;color:var(--muted)}
+.pg-bar{position:relative;height:14px;border-radius:999px;margin:10px 0 16px;overflow:hidden;background:color-mix(in srgb,var(--ink) 12%,transparent);box-shadow:inset 0 1px 3px rgba(30,40,70,.24),inset 0 0 0 1px rgba(255,255,255,.34)}
+.pg-bar span{position:absolute;left:0;top:0;bottom:0;display:block;border-radius:999px;background:linear-gradient(180deg,color-mix(in srgb,var(--accent) 80%,#fff) 0%,var(--accent) 100%);box-shadow:inset 0 1px 0 rgba(255,255,255,.55),0 0 10px color-mix(in srgb,var(--accent) 42%,transparent);transition:width .45s cubic-bezier(.3,.7,.2,1);overflow:hidden}
+.pg-bar span::after{content:"";position:absolute;inset:0;border-radius:inherit;background:linear-gradient(100deg,transparent 30%,rgba(255,255,255,.55) 50%,transparent 70%);background-size:220% 100%;animation:pgshine 1.8s linear infinite}
+@keyframes pgshine{from{background-position:220% 0}to{background-position:-220% 0}}
+.pg .pg-steps{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+.pg .pg-steps li{display:flex;align-items:flex-start;gap:12px;margin:0;padding:0;font-size:15px;line-height:1.35;color:var(--muted);overflow-wrap:anywhere}
+.pg-steps li.done{color:var(--ink)}
+.pg-steps li.cur{color:var(--ink);font-weight:600}
+.pg .pg-steps li.pg-more{display:block;font-size:13px;padding-left:34px}
+.pg-ic{flex:none;box-sizing:border-box;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;margin-top:-1px}
+.pg-steps .wait .pg-ic{border:2px solid color-mix(in srgb,var(--ink) 24%,transparent)}
+.pg-steps .done .pg-ic{background:var(--accent);color:var(--accent-ink)}
+.pg-ic svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:3.2;stroke-linecap:round;stroke-linejoin:round}
+.pg-steps .cur .pg-ic{border:2.5px solid color-mix(in srgb,var(--accent) 24%,transparent);border-top-color:var(--accent);animation:pgspin .85s linear infinite}
+@keyframes pgspin{to{transform:rotate(360deg)}}
+.pg-tx small{display:block;margin-top:1px;font-size:13px;font-weight:400;color:var(--muted)}
+.pg-note{margin:12px 0 0}
+.pg-note[hidden]{display:none}
+.pg.sm .pg-pct{font-size:24px}
+.pg.sm .pg-bar{height:10px;margin:8px 0 12px}
+.pg.sm .pg-steps{gap:8px}
+.pg.sm .pg-steps li{font-size:14px;gap:10px}
+.pg.sm .pg-ic{width:18px;height:18px}
+.pg.sm .pg-ic svg{width:11px;height:11px}
+.pg.sm .pg-steps li.pg-more{padding-left:28px}
+.pg.sm .pg-note{margin-top:8px}
+#as-pg:not(:empty){margin-top:14px}
+#d-pg:not(:empty){margin:14px 0 8px}
+#lib-sort-pg{flex:1 0 100%}
+#lib-sort-pg[hidden]{display:none}
+@media (prefers-reduced-motion:reduce){
+  .pg-bar span{transition:none}
+  .pg-bar span::after{animation:none;background:none}
+  .pg-steps .cur .pg-ic{animation:none;border-color:var(--accent)}
+}
+@media (prefers-reduced-transparency:reduce){
+  .pg-bar{box-shadow:inset 0 0 0 1px var(--line)}
+}
 </style>
 </head>
 <body>
@@ -972,7 +1015,7 @@ input[type=text],input[type=password],input[type=search],select,textarea,.title-
         <p class="meta" id="lib-fmeta"></p>
         <div class="btns" id="lib-factions"><button class="btn" id="lib-ren" type="button">Rename</button><button class="btn danger" id="lib-rm" type="button">Remove folder</button></div>
       </div>
-      <div class="lib-sortbar" id="lib-sort" hidden><span class="meta" id="lib-sort-t"></span><button class="btn" id="lib-sort-go" type="button">Sort into folders</button></div>
+      <div class="lib-sortbar" id="lib-sort" hidden><span class="meta" id="lib-sort-t"></span><button class="btn" id="lib-sort-go" type="button">Sort into folders</button><div id="lib-sort-pg" hidden></div></div>
       <div id="lib-folders" hidden></div>
       <p class="meta" id="lib-tip" hidden>Tip: swipe a recording right to add it to a project, or left to delete it. <button class="linkbtn" id="lib-tip-x" type="button">Got it</button></p>
       <div id="lib-selrow" hidden><button class="linkbtn" id="lib-sel-go" type="button">Select</button><button class="linkbtn" id="lib-sel-cancel" type="button" hidden>Cancel</button><span id="lib-sel-n" role="status" hidden></span><button class="linkbtn" id="lib-sel-all" type="button" hidden>Select all</button></div>
@@ -992,7 +1035,7 @@ input[type=text],input[type=password],input[type=search],select,textarea,.title-
     <div class="card" id="as-head">
       <p class="meta" id="as-status" style="margin:0 0 10px"></p>
       <div class="btns"><button class="btn primary" id="as-scan" type="button">Find assignments</button><button class="btn" id="as-stop" type="button" hidden>Stop</button></div>
-      <div class="prog" id="as-prog" hidden><div class="bar ind"><span></span></div><div class="meta" id="as-prog-t"></div></div>
+      <div class="prog" id="as-prog" hidden><div id="as-pg"></div><div class="meta" id="as-prog-t"></div></div>
       <div class="err" id="as-err" hidden></div>
     </div>
     <div class="stack" id="as-list"></div>
@@ -1121,7 +1164,7 @@ input[type=text],input[type=password],input[type=search],select,textarea,.title-
               <button class="btn" id="d-restore" hidden>Switch version</button>
             </div>
             <div class="meta" id="d-improve-note"></div>
-            <div class="prog" id="d-prog" hidden><div class="bar"><span id="d-bar"></span></div><div class="meta" id="d-prog-text"></div></div>
+            <div class="prog" id="d-prog" hidden><div id="d-pg"></div><div class="meta" id="d-prog-text"></div></div>
             <div class="err" id="d-improve-err" hidden></div>
           </div>
         </div>
@@ -1274,7 +1317,7 @@ let toastT;
 function toast(m){const t=$('#toast');t.textContent=m;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>{t.hidden=true},4500)}
 
 /* ---------- settings ---------- */
-const BUILD='1 Nov 2026, See-through Ask bar';
+const BUILD='2 Nov 2026, Loading progress';
 const DEF={apiKey:'',model:'claude-sonnet-5-5',lang:'',kbps:64,terms:'',aaiKey:'',speakers:false,sound:'natural',liveTx:true,meter:true,orb:true};
 const settings=Object.assign({},DEF);
 let savedSettings={};try{savedSettings=JSON.parse(localStorage.getItem('longtake.settings')||'{}')||{}}catch(e){}
@@ -2690,14 +2733,18 @@ async function autoFolder(sid){ /* files one recording that has no folder yet; n
 const sortable=x=>!x.folder&&x.folderBy!=='me'&&x.status!=='recording'&&(titleFolder(x)||(settings.apiKey&&x.words>=25));
 async function sortAll(){
   if(LV.sorting)return;LV.sorting=true;
-  const go=$('#lib-sort-go');
+  const go=$('#lib-sort-go');let okS=false;
   try{
     const todo=(await idb.all('sessions')).filter(sortable).sort((a,b)=>b.startedAt-a.startedAt).slice(0,60);let done=0;
     go.disabled=true;
-    for(let i=0;i<todo.length;i++){go.textContent=`Sorting ${i+1} of ${todo.length}…`;if(await autoFolder(todo[i].id))done++}
+    const nS=Math.max(1,todo.length);
+    LV.pg=pgNew({sm:true,label:'Sorting into folders',list:false,stop:'',steps:[{id:'sort',label:'Sorting your recordings',w:1}]});
+    {const sp=$('#lib-sort-pg');if(sp){sp.innerHTML=pgHtml(LV.pg);sp.hidden=false}}
+    for(let i=0;i<todo.length;i++){go.textContent=`Sorting ${i+1} of ${todo.length}…`;pgFrac(LV.pg,i/nS,{room:1/nS,tau:3500});if(await autoFolder(todo[i].id))done++}
+    okS=true;
     toast(done?`Sorted ${plural(done,'recording','recordings')} into folders.`:'Nothing could be sorted yet. Open a recording and tap its folder button.');
   }catch(e){toast('Sorting stopped. Try again in a moment.')}
-  finally{LV.sorting=false;go.disabled=false;go.textContent='Sort into folders';if(CUR==='library')renderLibrary()}
+  finally{LV.sorting=false;pgEnd(LV.pg,okS);LV.pg=null;{const sp=$('#lib-sort-pg');if(sp){sp.innerHTML='';sp.hidden=true}}go.disabled=false;go.textContent='Sort into folders';if(CUR==='library')renderLibrary()}
 }
 $('#lib-sort-go').onclick=sortAll;
 
@@ -3086,7 +3133,96 @@ Format with Markdown: bullets with "-" (indent sub-bullets by two spaces) and **
 const CONDENSE='You condense one part of a long speech-recognition transcript into detailed notes that must still teach the material. Keep the specific content in the speaker\'s order: ideas, definitions, steps, examples, stories, advice, names, numbers, decisions and tasks. Never describe a topic when you can state what was said. Quietly fix obvious recognition errors. Keep the [hh:mm:ss] timestamp on every point. Output the notes only.';
 const LIMIT=300000;
 
-async function claudeOnce({system,messages,signal,onText},max,thinking){ /* one request; says how it ended, so an answer with no words can be told apart from a normal one */
+/* ---------- progress cards ----------
+   Every wait in the app shows a percent, a bar and a short checklist, so a slow connection looks like work being done and not like a stall.
+   The percent is honest. It comes from real signals where there are some (parts finished, bytes sent, questions written), and it eases
+   toward the end of a step where there are none. It never goes backwards, and it only reaches 100 when the work is finished. */
+let PG_N=0;
+const PG_EASE=(ms,tau)=>1-Math.exp(-Math.max(0,ms)/tau);
+const PG_CHECK='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+function pgNew(o){ /* steps: [{id,label,w (weight),tau (ms, how slowly an unmeasured step eases toward its end)}] */
+  const p={n:'pg'+(++PG_N),title:o.title||'',label:o.label||o.title||'Progress',sm:!!o.sm,list:o.list!==false,stop:o.stop===undefined?'Stop':o.stop,
+    steps:o.steps.map(s=>({id:s.id,label:s.label,w:s.w||1,tau:s.tau||9000,detail:'',frac:null,room:0,rt:0,rtau:6000,t0:0,st:'wait'})),
+    shown:0,ended:false,ok:false,t0:Date.now(),last:Date.now(),tm:0};
+  if(p.steps.length){p.steps[0].st='cur';p.steps[0].t0=p.t0}
+  p.tm=setInterval(()=>pgPaint(p),250);
+  return p;
+}
+const pgCur=p=>p.steps.findIndex(s=>s.st==='cur');
+function pgGo(p,id,detail){ /* begin a step; every step before it is finished. A step never starts again once it is behind. */
+  if(!p||p.ended)return;
+  const k=typeof id==='number'?id:p.steps.findIndex(s=>s.id===id),c=pgCur(p);
+  if(k<0||k<c)return;
+  p.steps.forEach((s,i)=>{if(i<k)s.st='done';else if(i===k&&s.st!=='cur'){s.st='cur';s.t0=Date.now();s.frac=null;s.room=0;p.last=Date.now()}});
+  if(detail!==undefined)p.steps[k].detail=detail;
+  pgPaint(p);
+}
+function pgFrac(p,f,o){ /* a real measure of the step under way (0 to 1). o.room: the slice the work in flight may creep through while it runs */
+  if(!p||p.ended)return;
+  const s=p.steps[pgCur(p)];if(!s)return;o=o||{};
+  const nf=Math.max(s.frac||0,Math.min(1,f));
+  if(nf!==s.frac||o.room!=null){s.frac=nf;s.room=o.room||0;s.rt=Date.now();s.rtau=o.tau||6000}
+  if(o.detail!==undefined)s.detail=o.detail;
+  p.last=Date.now();
+}
+const pgPing=p=>{if(p)p.last=Date.now()}; /* the connection answered, so nothing is stuck */
+function pgEnd(p,ok){ /* the work is over: 100 if it worked, otherwise the bar simply stops */
+  if(!p||p.ended)return;
+  p.ended=true;p.ok=!!ok;
+  if(ok)p.steps.forEach(s=>{s.st='done'});
+  pgPaint(p);clearInterval(p.tm);
+}
+function pgPct(p){
+  if(p.ended&&p.ok)return 100;
+  const T=p.steps.reduce((n,s)=>n+s.w,0)||1,now=Date.now();let a=0;
+  for(const s of p.steps){
+    if(s.st==='done')a+=s.w;
+    else if(s.st==='cur'){
+      const f=s.frac==null?PG_EASE(now-s.t0,s.tau)*.9:s.frac+(s.room?s.room*PG_EASE(now-s.rt,s.rtau)*.9:0);
+      a+=s.w*Math.min(.98,f);
+    }
+  }
+  p.shown=Math.max(p.shown,Math.min(99,Math.floor(a/T*100)));
+  return p.shown;
+}
+function pgNote(p){ /* proof of life: how long it has been going, and a plain word when it has gone quiet or the phone is offline */
+  const now=Date.now(),sec=Math.round((now-p.t0)/1000);
+  if(typeof navigator!=='undefined'&&navigator.onLine===false)return 'You seem to be offline. Reconnect to keep going.';
+  let t=sec>=4?'Working for '+(sec>=60?Math.floor(sec/60)+' min '+(sec%60)+' s':sec+' s')+'.':'';
+  if(now-p.last>45000)t+=(t?' ':'')+'This is taking longer than usual.'+(p.stop?' Tap '+p.stop+' to cancel and try again.':'');
+  return t;
+}
+const pgNow=p=>{const s=p.steps[pgCur(p)];return s?s.label:''};
+const pgSig=p=>p.steps.map(s=>s.st+s.detail).join('|')+(p.steps.length>6?'#'+pgCur(p):'');
+function pgRows(p){
+  const n=p.steps.length,c=Math.max(0,pgCur(p));let a=0,b=n;
+  if(n>6){a=Math.max(0,Math.min(c-1,n-6));b=a+6}
+  let h=a>0?`<li class="pg-more">${a} done</li>`:'';
+  for(let i=a;i<b;i++){const s=p.steps[i];h+=`<li class="${s.st}" data-step="${esc(String(s.id))}"><span class="pg-ic">${s.st==='done'?PG_CHECK:''}</span><span class="pg-tx">${esc(s.label)}${s.detail?`<small>${esc(s.detail)}</small>`:''}</span></li>`}
+  if(b<n)h+=`<li class="pg-more">${n-b} more to go</li>`;
+  return h;
+}
+function pgHtml(p){
+  const pct=pgPct(p),nt=pgNote(p);
+  return `<div class="pg${p.sm?' sm':''}" data-pg="${p.n}" data-v="${pct}" data-s="${esc(pgSig(p))}">`+(p.title?`<div class="pg-title">${esc(p.title)}</div>`:'')+
+    `<div class="pg-pct" aria-hidden="true">${pct}<small>%</small></div>`+
+    `<div class="pg-bar" role="progressbar" aria-label="${esc(p.label)}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}"><span style="width:${pct}%"></span></div>`+
+    (p.list?`<ul class="pg-steps">${pgRows(p)}</ul>`:'')+
+    `<p class="meta pg-note"${nt?'':' hidden'}>${esc(nt)}</p>`+
+    `<span class="qz-sr pg-live" role="status">${esc(pgNow(p))}</span></div>`;
+}
+function pgPaint(p){ /* changes only what changed, so nothing blinks and the spinner keeps turning */
+  const els=$$(`[data-pg="${p.n}"]`);
+  if(!els.length)return;
+  const pct=pgPct(p),nt=pgNote(p),sg=pgSig(p);
+  for(const el of els){
+    if(el.dataset.v!==String(pct)){el.dataset.v=pct;el.querySelector('.pg-pct').innerHTML=pct+'<small>%</small>';const b=el.querySelector('.pg-bar');b.setAttribute('aria-valuenow',pct);b.firstElementChild.style.width=pct+'%'}
+    if(el.dataset.s!==sg){el.dataset.s=sg;const u=el.querySelector('.pg-steps');if(u)u.innerHTML=pgRows(p);const lv=el.querySelector('.pg-live'),t=pgNow(p);if(lv&&lv.textContent!==t)lv.textContent=t}
+    const n=el.querySelector('.pg-note');if(n&&n.textContent!==nt){n.textContent=nt;n.hidden=!nt}
+  }
+}
+
+async function claudeOnce({system,messages,signal,onText,onStart},max,thinking){ /* one request; says how it ended, so an answer with no words can be told apart from a normal one */
   const body={model:settings.model||DEF.model,max_tokens:max,system,messages,stream:true};
   if(thinking)body.thinking=thinking;
   const r=await fetch('https://api.anthropic.com/v1/messages',{
@@ -3104,7 +3240,8 @@ async function claudeOnce({system,messages,signal,onText},max,thinking){ /* one 
       const ev=buf.slice(0,i);buf=buf.slice(i+2);
       const line=ev.split('\n').find(l=>l.startsWith('data:'));if(!line)continue;
       let j;try{j=JSON.parse(line.slice(5))}catch(e){continue}
-      if(j.type==='content_block_delta'&&j.delta&&j.delta.type==='text_delta'){full+=j.delta.text;if(onText)onText(full)}
+      if(j.type==='message_start'){if(onStart)onStart()}
+      else if(j.type==='content_block_delta'&&j.delta&&j.delta.type==='text_delta'){full+=j.delta.text;if(onText)onText(full)}
       else if(j.type==='content_block_delta'&&j.delta&&j.delta.type==='thinking_delta')think=true;
       else if(j.type==='content_block_start'&&j.content_block&&(j.content_block.type==='thinking'||j.content_block.type==='redacted_thinking'))think=true;
       else if(j.type==='message_delta'&&j.delta&&j.delta.stop_reason)stop=j.delta.stop_reason;
@@ -3207,10 +3344,9 @@ function revealQA(p){
   const el=$(`#chat .qa[data-p="${p}"]`);if(!el)return;
   const r=el.getBoundingClientRect();if(r.top<barH()+46||r.top>innerHeight-160)el.scrollIntoView({block:'start'});
 }
-const WAIT={s:0};
-const waitHtml=()=>'<span class="meta">Thinking…'+(WAIT.s>=4?' '+WAIT.s+' s':'')+(WAIT.s>=45?' This is taking long. Tap Stop to cancel and try again.':'')+'</span>';
+const waitHtml=()=>D.pg?pgHtml(D.pg):'<span class="meta">Working on it…</span>';
 let paintT=0; /* while an answer is being written, only its own text is redrawn, a few times a second, and the page is never moved */
-function paintChat(){paintT=0;const ps=pairsOf(),p=ps.length-1;if(p<0)return;const el=$(`#chat .qa[data-p="${p}"] .qa-md`);if(!el)return;const a=ps[p].a;el.innerHTML=a.content?md(a.content):waitHtml()}
+function paintChat(){paintT=0;const ps=pairsOf(),p=ps.length-1;if(p<0)return;const el=$(`#chat .qa[data-p="${p}"] .qa-md`);if(!el)return;const a=ps[p].a;if(a.content)el.innerHTML=md(a.content);else if(!el.querySelector('[data-pg]'))el.innerHTML=waitHtml()}
 const schedChat=()=>{if(!paintT)paintT=setTimeout(paintChat,100)};
 $('#chat').addEventListener('click',async e=>{
   const mb=e.target.closest('.qa-more');
@@ -3239,25 +3375,28 @@ async function ask(q,opt){
   if(!settings.apiKey){showErr(friendlyErr(new Error('NOKEY')));return}
   if(!D.segs.some(s=>!s.mark)){showErr('This recording has no transcript for the assistant to work from.');return}
   setBusy(true);
+  D.pg=pgNew({sm:true,title:'Studying your recording',label:'Preparing your answer',steps:[
+    {id:'read',label:'Reading the transcript',w:30,tau:3500},
+    {id:'find',label:'Finding the relevant parts',w:55,tau:9000},
+    {id:'write',label:'Writing your answer',w:15,tau:3000}]});
   let was=null,wasAt=-1; /* "Ask again" swaps the old answer out, and puts it back if the new one fails */
   if(opt&&opt.replace){wasAt=D.chat.indexOf(opt.replace);if(wasAt>=0)was=D.chat.splice(wasAt,2)}
   D.chat.push(opt&&opt.chip?{role:'user',content:q,label:opt.label}:{role:'user',content:q});const reply={role:'assistant',content:''};D.chat.push(reply);
   D.open=pairsOf().length-1;renderChat();revealQA(D.open);
   D.abort=new AbortController();const signal=D.abort.signal;
-  WAIT.s=0;const w0=Date.now(),wt=setInterval(()=>{if(!reply.content){WAIT.s=Math.round((Date.now()-w0)/1000);schedChat()}},1000);
   try{
-    const ctx=await contextText((i,n)=>{reply.content=`Reading a long recording: part ${i} of ${n}…`;schedChat()},signal);
+    const ctx=await contextText((i,n)=>{pgFrac(D.pg,(i-1)/n,{room:1/n,tau:25000,detail:`Long recording: part ${i} of ${n}`})},signal);
     reply.content='';
     $('#d-ctx').textContent=ctx.condensed?'Long recording: working from condensed notes':'';
     const tr=`<transcript${ctx.condensed?' condensed="true"':''}>\n${ctx.text}\n</transcript>\n\n`;
     /* a button is its own request: it gets the transcript and nothing from earlier answers, so it gives one clean result */
     const msgs=opt&&opt.chip?[{role:'user',content:tr+q}]:D.chat.slice(0,-1).map((m,i)=>({role:m.role,content:i===0?tr+m.content:m.content}));
-    await callClaude({system:sysPrompt(SYS),messages:msgs,max:(opt&&opt.max)||6000,signal,need:true,onRetry:()=>{reply.content='That took more thinking than it had room for. Trying again with more room…';schedChat()},onText:t=>{reply.content=t;schedChat()}});
+    await callClaude({system:sysPrompt(SYS),messages:msgs,max:(opt&&opt.max)||6000,signal,need:true,onStart:()=>pgGo(D.pg,'find'),onRetry:()=>{reply.content='That took more thinking than it had room for. Trying again with more room…';schedChat()},onText:t=>{reply.content=t;schedChat()}});
   }catch(e){
     const back=()=>{if(was){D.chat.splice(wasAt,0,...was);D.open=pairsOf().findIndex(x=>x.u===was[0])}}; /* the old answer returns, and is the row left open */
     if(e.name==='AbortError'){if(!reply.content){D.chat.splice(-2,2);back()}}
     else{D.chat.splice(-2,2);back();showErr(friendlyErr(e));if(!(opt&&opt.chip)){$('#chat-input').value=q;growChat()}}
-  }finally{clearInterval(wt);clearTimeout(paintT);paintT=0;D.abort=null;setBusy(false);renderChat();persistNotes()}
+  }finally{pgEnd(D.pg,false);D.pg=null;clearTimeout(paintT);paintT=0;D.abort=null;setBusy(false);renderChat();persistNotes()}
 }
 function growChat(){const t=$('#chat-input');t.style.height='auto';t.style.height=Math.min(t.scrollHeight,128)+'px'}
 $('#chat-input').addEventListener('input',growChat);
@@ -3456,10 +3595,10 @@ function aaiErr(e){
   if(e.status===401||e.status===403)return 'AssemblyAI rejected the key. Check it in Settings.';
   return e.message||'Something went wrong.';
 }
-function prog(label,frac){
-  const has=typeof frac==='number',bar=$('#d-bar');
+function prog(label,frac,step){ /* the line under the checklist says exactly where it is; the checklist and bar come from the progress card */
+  const has=typeof frac==='number';
   $('#d-prog').hidden=false;$('#d-prog-text').textContent=label+(has?' · '+Math.round(frac*100)+'%':'');
-  bar.parentElement.classList.toggle('ind',!has);bar.style.width=has?Math.round(frac*100)+'%':'';
+  if(J.pg){if(step)pgGo(J.pg,step);if(has)pgFrac(J.pg,frac)}
 }
 function updateImproveUI(){
   const s=D.session;if(!s)return;
@@ -3731,13 +3870,21 @@ async function improve(){
     if(!J.arm){J.arm=true;updateImproveUI();J.armT=setTimeout(()=>{J.arm=false;updateImproveUI()},4000);return}
   }
   clearTimeout(J.armT);J.arm=false;J.running=true;J.ctl=new AbortController();
+  J.pg=pgNew({label:'Checking your transcript against the audio',stop:'Cancel',steps:[
+    {id:'up',label:'Uploading your audio',w:20,tau:20000},
+    {id:'listen',label:'Listening to the lecture',w:50,tau:Math.max(15000,(sess.durationMs||0)*.03)},
+    {id:'stamp',label:'Adding timestamps and speakers',w:10,tau:3000},
+    {id:'fix',label:'Fixing names and terms',w:20,tau:6000}]});
+  if(pending)pgGo(J.pg,'listen');
+  {const dg=$('#d-pg');if(dg)dg.innerHTML=pgHtml(J.pg)}
+  let okI=false;
   const ctl=J.ctl,signal=ctl.signal;updateImproveUI();
   try{
     let id=pending?sess.aai.id:null;
     if(!id){
-      prog('Uploading audio',0);
-      const url=await aaiUpload(D.blob,p=>prog('Uploading audio',p),ctl);
-      prog('Starting transcription');
+      prog('Uploading audio',0,'up');
+      const url=await aaiUpload(D.blob,p=>prog('Uploading audio',p,'up'),ctl);
+      prog('Starting transcription',undefined,'listen');
       const body={audio_url:url,speech_models:['universal-3-5-pro','universal-2'],language_detection:true};
       if(settings.speakers)body.speaker_labels=true;
       const kt=termsPhrases();if(kt.length)body.keyterms_prompt=kt;
@@ -3750,10 +3897,10 @@ async function improve(){
       last=await aaiFetch('/transcript/'+id,{signal});
       if(last.status==='completed')break;
       if(last.status==='error')throw Object.assign(new Error(last.error||'AssemblyAI could not transcribe this audio.'),{fatal:true});
-      prog('Transcribing · '+fmtDur(Date.now()-t0));
+      pgPing(J.pg);prog((last.status==='queued'?'Waiting in line · ':'Transcribing · ')+fmtDur(Date.now()-t0),undefined,'listen');
       await waitMs(4000,signal);
     }
-    prog('Fetching the transcript');
+    prog('Fetching the transcript',undefined,'stamp');
     const sj=await aaiFetch('/transcript/'+id+'/sentences',{signal});
     let prevSp=null;const fresh=[];
     for(const x of (sj.sentences||[])){
@@ -3764,11 +3911,12 @@ async function improve(){
     if(!fresh.length&&last.text)fresh.push({t:0,text:last.text.trim()});
     if(!fresh.length)throw Object.assign(new Error('AssemblyAI found no speech in this recording.'),{fatal:true});
     if(D.sid!==sid)return;
+    pgGo(J.pg,'fix');
     const rv=await edReview(sess,fresh); /* lines it up with the live transcript; writes the change record first */
     if(!rv)return;
     D.prev=D.segs;D.segs=rv.segs;
     sess.aai.done=true;sess.improvedAt=Date.now();
-    await saveEdits();renderTx();renderChg();
+    await saveEdits();renderTx();renderChg();okI=true;
     toast(rv.merged?(rv.counts.total?'Checked against the audio: '+rv.counts.applied+' fixed, '+rv.counts.flagged+' to check. Your live transcript is kept.':'Checked against the audio: nothing needed changing.'):'Transcript improved. Your earlier version is kept.');
     if(!sess.folder)autoFolder(sid).then(n=>{if(n&&D.sid===sid)updateFolderBtn()}).catch(()=>{});
   }catch(e){
@@ -3778,7 +3926,7 @@ async function improve(){
       if(e.fatal||e.status===404){sess.aai=null;try{await idb.put('sessions',sess)}catch(x){}}
       err(aaiErr(e));
     }
-  }finally{J.running=false;J.ctl=null;$('#d-prog').hidden=true;updateImproveUI()}
+  }finally{J.running=false;J.ctl=null;pgEnd(J.pg,okI);J.pg=null;{const dg=$('#d-pg');if(dg)dg.innerHTML=''}$('#d-prog').hidden=true;updateImproveUI()}
 }
 $('#d-improve').onclick=()=>{if(J.running){if(J.ctl)J.ctl.abort();return}improve()};
 $('#d-restore').onclick=async()=>{
@@ -4042,7 +4190,7 @@ function libTerms(lib){
 
 function renderLib(newMsg){
   const box=$('#lib-chat');
-  box.innerHTML=LIB.chat.map((m,i)=>m.role==='user'?`<div class="msg user">${esc(m.content)}</div>`:`<div class="msg bot">${m.content?md(m.content,true)+(LIB.busy&&i===LIB.chat.length-1?'':`<div class="msg-act"><button class="qa-more" type="button" data-i="${i}" aria-label="Save this answer to a project" aria-haspopup="dialog">${DOTS}</button></div>`):'<span class="meta">Searching your library…</span>'}</div>`).join('');
+  box.innerHTML=LIB.chat.map((m,i)=>m.role==='user'?`<div class="msg user">${esc(m.content)}</div>`:`<div class="msg bot">${m.content?md(m.content,true)+(LIB.busy&&i===LIB.chat.length-1?'':`<div class="msg-act"><button class="qa-more" type="button" data-i="${i}" aria-label="Save this answer to a project" aria-haspopup="dialog">${DOTS}</button></div>`):libWait()}</div>`).join('');
   $('#lib-hint').hidden=LIB.chat.length>0;
   $('#lib-new').hidden=!LIB.chat.length||LIB.busy;
   if(newMsg&&box.children.length>=2){ /* bring the new question into view once, then leave the scrolling to the reader */
@@ -4051,7 +4199,8 @@ function renderLib(newMsg){
   }
 }
 let libPaintT=0;
-function paintLib(){libPaintT=0;const el=$('#lib-chat').lastElementChild,a=LIB.chat[LIB.chat.length-1];if(!el||!a||a.role!=='assistant')return;el.innerHTML=a.content?md(a.content,true):'<span class="meta">Searching your library…</span>'}
+const libWait=()=>LIB.pg?pgHtml(LIB.pg):'<span class="meta">Searching your library…</span>';
+function paintLib(){libPaintT=0;const el=$('#lib-chat').lastElementChild,a=LIB.chat[LIB.chat.length-1];if(!el||!a||a.role!=='assistant')return;if(a.content)el.innerHTML=md(a.content,true);else if(!el.querySelector('[data-pg]'))el.innerHTML=libWait()}
 const schedLib=()=>{if(!libPaintT)libPaintT=setTimeout(paintLib,100)};
 function setLibBusy(b){
   LIB.busy=b;const sb=$('#lib-send');sb.textContent=b?'Stop':'Ask';sb.type=b?'button':'submit';
@@ -4070,6 +4219,10 @@ async function askLib(q){
   libErr('');
   if(!settings.apiKey){libErr('Add your Anthropic API key in Settings to use the assistant.',true);$('#lib-input').value=q;growInput();return}
   setLibBusy(true);
+  LIB.pg=pgNew({sm:true,title:'Searching your recordings',label:'Searching your recordings',steps:[
+    {id:'search',label:'Finding the right lectures',w:25,tau:3000},
+    {id:'read',label:'Reading the best passages',w:35,tau:6000},
+    {id:'think',label:'Connecting the ideas',w:40,tau:9000}]});
   LIB.chat.push({role:'user',content:q});const reply={role:'assistant',content:''};LIB.chat.push(reply);renderLib(true);
   LIB.abort=new AbortController();const signal=LIB.abort.signal;
   try{
@@ -4084,15 +4237,16 @@ async function askLib(q){
       if(plan.recordings.length&&BROAD_RE.test(q))plan.full=true;
     }
     const sel=selectPassages(q,lib,plan);
+    pgGo(LIB.pg,'read');
     const user=`<recordings>\nid | title | recorded | length | words\n${lib.slice(0,150).map(idxLine).join('\n')}\n</recordings>\n\n<excerpts note="${sel.note}">\n${formatPassages(sel.chosen)}</excerpts>\n\n${q}${refNew?`\n\n<context>The question is about the newest recording: ${newest.s.id}, \u201c${safeTitle(newest.s.title)}\u201d.</context>`:''}`;
     const hist=LIB.chat.slice(0,-2).slice(-8);while(hist.length&&hist[0].role!=='user')hist.shift();
     const tl=libTerms(lib);
     const system=LIBSYS_FULL(tl);
-    await callClaude({system,messages:[...hist.map(m=>({role:m.role,content:m.content})),{role:'user',content:user}],max:4500,signal,need:true,onRetry:()=>{reply.content='That took more thinking than it had room for. Trying again with more room…';schedLib()},onText:t=>{reply.content=t;schedLib()}});
+    await callClaude({system,messages:[...hist.map(m=>({role:m.role,content:m.content})),{role:'user',content:user}],max:4500,signal,need:true,onStart:()=>pgGo(LIB.pg,'think'),onRetry:()=>{reply.content='That took more thinking than it had room for. Trying again with more room…';schedLib()},onText:t=>{reply.content=t;schedLib()}});
   }catch(e){
     if(e.name==='AbortError'){if(!reply.content)LIB.chat.splice(-2,2)}
     else{LIB.chat.splice(-2,2);libErr(e.plain?e.message:friendlyErr(e),e.message==='NOKEY');$('#lib-input').value=q;growInput()}
-  }finally{clearTimeout(libPaintT);libPaintT=0;LIB.abort=null;setLibBusy(false);renderLib();persistLib();if(LIB.pendingArchive){LIB.pendingArchive=false;if(!HOMECTX)archiveLib('left')}}
+  }finally{pgEnd(LIB.pg,false);LIB.pg=null;clearTimeout(libPaintT);libPaintT=0;LIB.abort=null;setLibBusy(false);renderLib();persistLib();if(LIB.pendingArchive){LIB.pendingArchive=false;if(!HOMECTX)archiveLib('left')}}
 }
 function LIBSYS_FULL(tl){
   return SYS+'\n\n'+LIBSYS+'\n\nToday is '+nowLong()+'.'+(tl?'\n\nThe student supplied these names, terms and spellings. The transcripts may have them wrong. Use these spellings, and treat close misspellings in the transcripts as these terms:\n'+tl:'');
@@ -4389,20 +4543,20 @@ function asLocate(it,segs){ /* no usable time from the assistant: find the spoke
   }
   return bs>=2&&bs>=Math.ceil(want.length*0.34)?best:null;
 }
+const asUnits=x=>Math.max(1,partsOf(linesOf(x.segs),AS_PART).length+partsOf(asWindows(x.segs),30000).slice(0,3).length); /* the model calls one recording takes, for the progress bar */
 async function extractFrom(x,signal,onPart){
-  const parts=partsOf(linesOf(x.segs),AS_PART),found=[];
+  const parts=partsOf(linesOf(x.segs),AS_PART),wins=partsOf(asWindows(x.segs),30000).slice(0,3),tot=parts.length+wins.length,found=[];
   const base=`This recording was made on ${dLong(x.s.startedAt)}. Title: "${safeTitle(x.s.title)}".`;
   for(let i=0;i<parts.length;i++){
-    if(onPart)onPart(i+1,parts.length);
+    if(onPart)onPart(i+1,parts.length,undefined,i,tot);
     const head=base+(parts.length>1?` This is part ${i+1} of ${parts.length} of the transcript.`:'');
     const txt=await callClaude({system:withTerms(AS_SYS,[x.s]),messages:[{role:'user',content:`${head}\n\n<transcript>\n${parts[i]}\n</transcript>`}],max:4000,signal});
     const j=parseJson(txt);if(!j||!Array.isArray(j.items))throw badJson();
     for(const r of j.items){const it=cleanItem(r,x.s);if(it){if(it.t==null)it.t=asLocate(it,x.segs);asAdd(found,it)}}
   }
   /* second look: go back to every place a quiz, test, exam or deadline is mentioned and make sure each one made the list */
-  const wins=partsOf(asWindows(x.segs),30000).slice(0,3);
   for(let i=0;i<wins.length;i++){
-    if(onPart)onPart(i+1,wins.length,'double-checking quiz and test mentions');
+    if(onPart)onPart(i+1,wins.length,'double-checking quiz and test mentions',parts.length+i,tot);
     const known=found.slice(0,40).map(v=>`- ${v.kind}: ${v.title}${v.details?' - '+v.details:''}${v.due?' (due '+v.due+')':''}`).join('\n')||'(nothing yet)';
     const txt=await callClaude({system:withTerms(AS_SYS+AS_SECOND,[x.s]),messages:[{role:'user',content:`${base}\n\nAlready found:\n${known}\n\n<passages>\n${wins[i]}\n</passages>`}],max:3000,signal});
     const j=parseJson(txt);if(!j||!Array.isArray(j.items))throw badJson();
@@ -4417,13 +4571,15 @@ async function asScan(force,only){ /* only: a set of recording ids, used by the 
   let d,list;try{d=await asLoad();list=await textSessions()}catch(e){AS.busy=false;AS.err='Could not read your recordings.';renderAssign();return}
   const todo=list.filter(x=>x.segs.length&&!x.live&&(only?only.has(x.s.id):(force||!d.scanned[x.s.id]||d.scanned[x.s.id].sig!==x.sig)));
   if(!todo.length){AS.busy=false;renderAssign();return}
-  AS.abort=new AbortController();AS.msg='Starting…';renderAssign();
+  AS.abort=new AbortController();AS.msg='Starting…';
+  AS.pg=pgNew({label:'Finding your assignments',steps:todo.map(x=>({id:x.s.id,label:x.s.title||'Recording',w:asUnits(x),tau:20000}))});
+  renderAssign();
   let done=0,added=0,improvedN=0;
   try{
     for(let i=0;i<todo.length;i++){
       const x=todo[i],label=`Checking “${x.s.title}” (${i+1} of ${todo.length})`;
-      AS.msg=label;asProgress();
-      const items=await extractFrom(x,AS.abort.signal,(p,n,w)=>{AS.msg=label+(w?', '+w:n>1?`, part ${p} of ${n}`:'');asProgress()});
+      AS.msg=label;asProgress();pgGo(AS.pg,i);
+      const items=await extractFrom(x,AS.abort.signal,(p,n,w,u,tot)=>{AS.msg=label+(w?', '+w:n>1?`, part ${p} of ${n}`:'');pgFrac(AS.pg,u/tot,{room:1/tot,tau:15000,detail:w?'Double-checking quizzes and tests':n>1?`Reading part ${p} of ${n}`:'Finding assignments and due dates'});asProgress()});
       const old=new Map(d.items.filter(it=>it.sid===x.s.id).map(it=>[it.id,it])),prev=d.scanned[x.s.id];
       added+=prev?items.filter(it=>!old.has(it.id)&&![...old.values()].some(o=>o.kind===it.kind&&asSimilar(o,it))).length:items.length;
       if(prev&&x.s.improvedAt&&x.s.improvedAt>prev.at)improvedN++;
@@ -4435,7 +4591,7 @@ async function asScan(force,only){ /* only: a set of recording ids, used by the 
   }catch(e){
     if(e.name!=='AbortError'){AS.err=e.bad?e.message:friendlyErr(e);AS.errKey=e.message==='NOKEY'}
   }
-  AS.busy=false;AS.abort=null;AS.msg='';
+  AS.busy=false;AS.abort=null;AS.msg='';pgEnd(AS.pg,done===todo.length&&!AS.err);AS.pg=null;
   if(CUR==='assign')renderAssign();
   else if(only){if(added)toast('Yukon found '+plural(added,'new assignment or test','new assignments or tests')+'. Open Assignments in the menu to see '+(added===1?'it.':'them.'));else if(improvedN)toast('Assignments updated from your improved transcript.')}
   else if(done)toast('Assignments updated.');
@@ -4486,6 +4642,7 @@ async function renderAssign(){
   scan.dataset.force=(everScanned&&!pending.length)?'1':'';
   scan.disabled=AS.busy||!ready.length;scan.hidden=AS.busy;$('#as-stop').hidden=!AS.busy;
   $('#as-prog').hidden=!AS.busy;if(AS.busy)$('#as-prog-t').textContent=AS.msg;
+  {const g=$('#as-pg');if(AS.busy&&AS.pg){if(!g.querySelector(`[data-pg="${AS.pg.n}"]`))g.innerHTML=pgHtml(AS.pg)}else g.innerHTML=''}
   const er=$('#as-err');er.hidden=!AS.err;
   er.innerHTML=AS.err?esc(AS.err)+(AS.errKey?' <button class="linkbtn" type="button" data-go="settings">Open Settings</button>':''):'';
   let html='';
@@ -5011,7 +5168,6 @@ async function qzStandalone(qs,signal){
   qs=qs.filter(q=>!qzIsSpot(q));
   const bad=qs.map((q,i)=>({q,i})).filter(({q})=>spkTell(q));
   if(!bad.length)return qs;
-  const pt=$('#qz-prog-t');if(pt)pt.textContent='Making the questions stand on their own.';
   const body=bad.map(({q,i})=>`Question ${i}: ${q.q}\nOptions:\n${q.opts.map((o,k)=>`${k}. ${o}`).join('\n')}\nRight option: ${q.ans}\nWhy it is right: ${q.why||'(none given)'}`).join('\n\n');
   let j=null;
   try{j=parseJson(await callClaude({system:QZ_SA_SYS,messages:[{role:'user',content:body}],max:Math.max(2000,600+bad.length*420),signal}))}
@@ -5029,7 +5185,6 @@ async function qzStandalone(qs,signal){
 async function qzBalance(qs,signal){
   const bad=qs.map((q,i)=>({q,i})).filter(({q})=>lenTell(q));
   if(bad.length<2||bad.length<qs.length*0.25)return qs;
-  const pt=$('#qz-prog-t');if(pt)pt.textContent='Making the answers harder to guess.';
   const body=bad.map(({q,i})=>`Question ${i}: ${q.q}\nOptions:\n${q.opts.map((o,k)=>`${k}. ${o}`).join('\n')}\nRight option: ${q.ans}\nWhy it is right: ${q.why||'(none given)'}`).join('\n\n');
   let j;
   try{j=parseJson(await callClaude({system:QZ_BAL_SYS,messages:[{role:'user',content:body}],max:Math.max(2000,500+bad.length*340),signal}))}
@@ -5116,8 +5271,16 @@ async function qzStart(){
   if(!qzAllowed(qzMaterial(d,list)).includes(d.count)){QZ.busy=false;QZ.err='That many questions is not available for this choice yet. Pick a smaller number.';renderQuiz();return}
   const answers=items.filter(x=>x.it.kind!=='whole'),wholes=items.filter(x=>x.it.kind==='whole'),hasW=wholes.length>0;
   QZ.what=proj?(hasW?(answers.length?'saved answers and recordings':'recordings'):'saved answers'):'recordings';
-  QZ.count=d.count;QZ.abort=new AbortController();renderQuiz();
-  const signal=QZ.abort.signal;
+  QZ.count=d.count;QZ.abort=new AbortController();
+  QZ.pg=pgNew({label:'Writing your quiz',steps:[
+    {id:'read',label:'Reading your '+QZ.what,w:8,tau:2500},
+    {id:'ideas',label:'Finding the key ideas',w:10,tau:5000},
+    {id:'write',label:'Writing the questions',w:58,tau:40000},
+    {id:'alone',label:'Checking each question stands on its own',w:8,tau:4000},
+    {id:'hard',label:'Making the answer choices fair',w:9,tau:4000},
+    {id:'ready',label:'Getting your quiz ready',w:7,tau:1500}]});
+  renderQuiz();
+  const signal=QZ.abort.signal;let okq=false;
   try{
     const K=d.count<=20?1:Math.max(1,Math.min(Math.ceil(d.count/QZ_PART),proj&&!hasW?items.length:99)),sizes=splitN(d.count,K);
     const termSrc=proj?list.filter(x=>items.some(y=>y.it.srcs.some(s=>s.sid===x.s.id)||(y.it.kind==='whole'&&y.it.sid===x.s.id))).map(x=>x.s):use.map(x=>x.s);
@@ -5153,16 +5316,19 @@ async function qzStart(){
         batchIds=part.map(x=>x.s.id);
       }
       try{
-        const out=await callClaude({system,messages:[{role:'user',content:`Write ${sizes[k]} multiple-choice questions from the ${what} below.${focus}${avoid}${where}\n\n${body}`}],max:K===1&&d.count<=20?8000:Math.max(6000,1500+sizes[k]*320),signal});
+        const out=await callClaude({system,messages:[{role:'user',content:`Write ${sizes[k]} multiple-choice questions from the ${what} below.${focus}${avoid}${where}\n\n${body}`}],max:K===1&&d.count<=20?8000:Math.max(6000,1500+sizes[k]*320),signal,...qzStream(QZ.pg,qs.length,sizes[k],d.count)});
         const j=parseJson(out)||salvageJson(out);if(!j||!Array.isArray(j.questions))throw badJson();
         qs.push(...cleanQuiz(j,batchIds,sizes[k],seenQ));
+        pgFrac(QZ.pg,Math.min(1,qs.length/d.count),{detail:'Question '+Math.min(d.count,qs.length)+' of '+d.count}); /* the part is in: the count is exact now, whatever the streaming caught */
       }catch(e){
         if(e.name==='AbortError'||!qs.length)throw e;
         partial=e.bad?e.message:friendlyErr(e);break; /* keep the questions already written */
       }
     }
     if(!qs.length)throw Object.assign(new Error(d.focus?`No questions could be written about that from the chosen ${proj?'projects':'recordings'}. Try clearing the focus or choosing other ${proj?'projects':'recordings'}.`:'No usable questions came back. Please try again.'),{bad:true});
+    pgGo(QZ.pg,'alone');
     {const sa=await qzStandalone(qs,signal);if(!sa.length)throw Object.assign(new Error('No usable questions came back. Please try again.'),{bad:true});qs.splice(0,qs.length,...sa)}
+    pgGo(QZ.pg,'hard');
     {const bal=await qzBalance(qs,signal);bal.forEach((q,i)=>{qs[i]=q})}
     if(proj){ /* tie each question back to the saved answer it came from */
       const by=new Map(items.map(x=>[x.it.id,x]));
@@ -5172,14 +5338,15 @@ async function qzStart(){
         else{q.rec='';q.t=null}
       });
     }
+    pgGo(QZ.pg,'ready');
     qzPause(d);
     d.cur={id:qzNewId(),at:Date.now(),titles:proj?chosen.map(p=>p.name):use.map(x=>x.s.title),qs,idx:0,picks:qs.map(()=>null),sampled,asked:d.count,retry:false,logged:false,src:d.src,note:partial};
     d.seen=d.seen.concat(qs.map(q=>q.q)).slice(-40);
-    QZ.mode='play';await qzSave();
+    QZ.mode='play';await qzSave();okq=true;
   }catch(e){
     if(e.name!=='AbortError'){QZ.err=e.bad?e.message:friendlyErr(e);QZ.errKey=e.message==='NOKEY'}
   }
-  QZ.busy=false;QZ.abort=null;QZ.part=null;
+  QZ.busy=false;QZ.abort=null;QZ.part=null;pgEnd(QZ.pg,okq);QZ.pg=null;
   if(CUR==='quiz')renderQuiz('top');else if(QZ.mode==='play'&&d.cur&&d.cur.idx===0&&!d.cur.picks.some(p=>p!=null))toast('Your quiz is ready.');
 }
 const LET='ABCDEF';
@@ -5249,7 +5416,20 @@ function qzSync(d,list){ /* keep the summary line, the question counts and the S
   if(s)s.textContent=m.proj?(m.n?`${plural(m.n,'project','projects')} chosen · ${pjCount(Array.from({length:m.r},()=>({kind:'whole'})).concat(Array.from({length:m.a},()=>({kind:'rec'}))))}`:'Choose at least one project.'):(m.n?`${plural(m.n,'recording','recordings')} chosen${m.words?' · about '+m.words.toLocaleString()+' words':''}`:'Choose at least one recording.');
   const b=$('#qz-start');if(b)b.disabled=!m.n;
 }
-function busyHtml(d){return `<div class="card" role="status"><h2>Writing your quiz</h2><div class="prog"><div class="bar ind"><span></span></div><div class="meta" id="qz-prog-t">${qzProgText()}</div></div><div class="btns" style="margin-top:12px"><button class="btn" type="button" data-q="cancel">Stop</button></div></div>`}
+function qzStream(pg,done,size,total){ /* progress for one part of a quiz, read from the questions as they stream in */
+  let lastAt=0;
+  return {
+    onStart:()=>pgGo(pg,'ideas'),
+    onText:t=>{
+      const now=Date.now();if(now-lastAt<120)return;lastAt=now;
+      const m=t.match(/"q"\s*:/g),b=m?m.length:0;if(!b)return;
+      pgGo(pg,'write');
+      const per=b>1?t.lastIndexOf('"q"')/(b-1):650,f=Math.min(.97,t.length/Math.max(1,per*size));
+      pgFrac(pg,(done+f*size)/total,{detail:'Question '+Math.min(total,done+b)+' of '+total});
+    }
+  };
+}
+function busyHtml(d){return `<div class="card"><h2>Writing your quiz</h2>${QZ.pg?pgHtml(QZ.pg):''}<div class="meta" id="qz-prog-t" role="status" style="margin-top:12px">${qzProgText()}</div><div class="btns" style="margin-top:12px"><button class="btn" type="button" data-q="cancel">Stop</button></div></div>`}
 function questionHtml(c){
   const q=c.qs[c.idx],pick=c.picks[c.idx],answered=pick!=null,last=c.idx===c.qs.length-1;
   let h=`<div class="card"><div class="qz-top"><span class="meta">Question ${c.idx+1} of ${c.qs.length}${c.retry?' · missed questions':''}</span><button class="linkbtn" type="button" data-q="leave">Leave quiz</button></div><div class="prog" aria-hidden="true"><div class="bar"><span style="width:${Math.round((c.idx+(answered?1:0))/c.qs.length*100)}%"></span></div></div>`;
