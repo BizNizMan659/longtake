@@ -883,14 +883,18 @@ input[type=text],input[type=password],input[type=search],select,textarea,.title-
 /* ---------- Ask bar on Home: no solid box behind it; the field and the Ask button are glass that float over the page ---------- */
 :root{
   --gb-fill:color-mix(in srgb,var(--accent) 92%,transparent); --gb-fill-h:var(--accent);
+  --ga-fill:rgba(255,255,255,.34); --ga-blur:blur(28px) saturate(180%);
   --gb-box:inset 0 1px 0 rgba(255,255,255,.60),inset 0 0 0 1px rgba(255,255,255,.20),inset 0 -1px 0 rgba(10,20,70,.30),0 1px 2px rgba(20,40,120,.30),0 10px 22px -8px rgba(40,72,184,.55);
 }
 @media (prefers-color-scheme:dark){:root{
+  --ga-fill:rgba(23,24,27,.34);
   --gb-fill:color-mix(in srgb,var(--accent) 80%,transparent); --gb-fill-h:color-mix(in srgb,var(--accent) 92%,transparent);
   --gb-box:inset 0 1px 0 rgba(255,255,255,.55),inset 0 0 0 1px rgba(255,255,255,.18),inset 0 -1px 0 rgba(0,0,0,.30),0 1px 2px rgba(0,0,0,.40),0 10px 24px -8px rgba(168,193,255,.40);
 }}
 .composer:not(#chat-form){background:none}
-.composer:not(#chat-form) textarea{border-color:transparent;background:var(--gp-back);background-color:color-mix(in srgb,var(--bg) 90%,transparent);-webkit-backdrop-filter:var(--go-blur);backdrop-filter:var(--go-blur);box-shadow:var(--gp-box)}
+.composer:not(#chat-form) textarea{border-color:transparent;background:var(--gp-back);background-color:var(--ga-fill);-webkit-backdrop-filter:var(--ga-blur);backdrop-filter:var(--ga-blur);box-shadow:var(--gp-box)}
+/* the recording chat bar is the same see-through pane (and loses its solid halo) */
+#chat-form{background-color:var(--ga-fill);-webkit-backdrop-filter:var(--ga-blur);backdrop-filter:var(--ga-blur);box-shadow:var(--gp-box)}
 .composer .btn.primary:not(:disabled){background:var(--gr-back);background-color:var(--gb-fill);color:var(--accent-ink);-webkit-backdrop-filter:var(--go-blur);backdrop-filter:var(--go-blur);box-shadow:var(--gb-box);filter:none;transition:transform .16s cubic-bezier(.2,.8,.2,1),background-color .16s ease}
 @media (hover:hover){.composer .btn.primary:not(:disabled):hover{background-color:var(--gb-fill-h);box-shadow:var(--gb-box);filter:none}}
 .composer .btn.primary:not(:disabled):active{background-color:var(--gb-fill-h);transform:scale(.97)}
@@ -898,11 +902,13 @@ input[type=text],input[type=password],input[type=search],select,textarea,.title-
 @supports not ((-webkit-backdrop-filter:blur(1px)) or (backdrop-filter:blur(1px))){
 .composer:not(#chat-form){background:var(--bg)}
 .composer:not(#chat-form) textarea{background:var(--surface)}
+#chat-form{background:var(--surface);box-shadow:var(--gp-box),0 0 0 10px var(--bg)}
 .composer .btn.primary:not(:disabled){background:var(--accent)}
 }
 @media (prefers-reduced-transparency:reduce){
 .composer:not(#chat-form){background:var(--bg)}
 .composer:not(#chat-form) textarea{background:var(--surface);-webkit-backdrop-filter:none;backdrop-filter:none}
+#chat-form{background:var(--surface);-webkit-backdrop-filter:none;backdrop-filter:none;box-shadow:var(--gp-box),0 0 0 10px var(--bg)}
 .composer .btn.primary:not(:disabled){background:var(--accent);-webkit-backdrop-filter:none;backdrop-filter:none;box-shadow:none}
 }
 </style>
@@ -1268,7 +1274,7 @@ let toastT;
 function toast(m){const t=$('#toast');t.textContent=m;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>{t.hidden=true},4500)}
 
 /* ---------- settings ---------- */
-const BUILD='31 Oct 2026, Ask bar glass';
+const BUILD='1 Nov 2026, See-through Ask bar';
 const DEF={apiKey:'',model:'claude-sonnet-5-5',lang:'',kbps:64,terms:'',aaiKey:'',speakers:false,sound:'natural',liveTx:true,meter:true,orb:true};
 const settings=Object.assign({},DEF);
 let savedSettings={};try{savedSettings=JSON.parse(localStorage.getItem('longtake.settings')||'{}')||{}}catch(e){}
