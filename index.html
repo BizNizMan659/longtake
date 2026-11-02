@@ -1317,7 +1317,7 @@ let toastT;
 function toast(m){const t=$('#toast');t.textContent=m;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>{t.hidden=true},4500)}
 
 /* ---------- settings ---------- */
-const BUILD='2 Nov 2026, Loading progress';
+const BUILD='2 Nov 2026, Quiz stall fix';
 const DEF={apiKey:'',model:'claude-sonnet-5-5',lang:'',kbps:64,terms:'',aaiKey:'',speakers:false,sound:'natural',liveTx:true,meter:true,orb:true};
 const settings=Object.assign({},DEF);
 let savedSettings={};try{savedSettings=JSON.parse(localStorage.getItem('longtake.settings')||'{}')||{}}catch(e){}
@@ -3253,7 +3253,10 @@ async function claudeOnce({system,messages,signal,onText,onStart},max,thinking){
 async function callClaude(o){
   if(!settings.apiKey)throw new Error('NOKEY');
   const base=o.max||2000;
-  let r=await claudeOnce(o,base,null);
+  const off=o.think===false?{type:'disabled'}:null; /* work that only writes out structured text does not need to think first, and a long think can use up the whole allowance */
+  let r;
+  try{r=await claudeOnce(o,base,off)}
+  catch(e){if(off&&e.status===400)r=await claudeOnce(o,base,null);else throw e} /* a model that does not accept the setting gets the plain request */
   if(!o.need||r.text.trim())return r.text;
   /* it ended without a single word: usually it spent its whole allowance thinking. Try once more with a much bigger allowance and the thinking turned off */
   if(r.stop==='max_tokens'||r.think){
@@ -5170,7 +5173,7 @@ async function qzStandalone(qs,signal){
   if(!bad.length)return qs;
   const body=bad.map(({q,i})=>`Question ${i}: ${q.q}\nOptions:\n${q.opts.map((o,k)=>`${k}. ${o}`).join('\n')}\nRight option: ${q.ans}\nWhy it is right: ${q.why||'(none given)'}`).join('\n\n');
   let j=null;
-  try{j=parseJson(await callClaude({system:QZ_SA_SYS,messages:[{role:'user',content:body}],max:Math.max(2000,600+bad.length*420),signal}))}
+  try{j=parseJson(await callClaude({system:QZ_SA_SYS,messages:[{role:'user',content:body}],max:Math.max(2000,600+bad.length*420),signal,think:false}))}
   catch(e){if(e&&e.name==='AbortError')throw e} /* the questions as written are kept or dropped below */
   const out=qs.slice();
   for(const f of (j&&Array.isArray(j.fixes)?j.fixes:[])){
@@ -5187,7 +5190,7 @@ async function qzBalance(qs,signal){
   if(bad.length<2||bad.length<qs.length*0.25)return qs;
   const body=bad.map(({q,i})=>`Question ${i}: ${q.q}\nOptions:\n${q.opts.map((o,k)=>`${k}. ${o}`).join('\n')}\nRight option: ${q.ans}\nWhy it is right: ${q.why||'(none given)'}`).join('\n\n');
   let j;
-  try{j=parseJson(await callClaude({system:QZ_BAL_SYS,messages:[{role:'user',content:body}],max:Math.max(2000,500+bad.length*340),signal}))}
+  try{j=parseJson(await callClaude({system:QZ_BAL_SYS,messages:[{role:'user',content:body}],max:Math.max(2000,500+bad.length*340),signal,think:false}))}
   catch(e){if(e&&e.name==='AbortError')throw e;return qs} /* the questions as written are still good; keep them */
   const out=qs.slice();
   for(const f of (j&&Array.isArray(j.fixes)?j.fixes:[])){
@@ -5316,8 +5319,21 @@ async function qzStart(){
         batchIds=part.map(x=>x.s.id);
       }
       try{
-        const out=await callClaude({system,messages:[{role:'user',content:`Write ${sizes[k]} multiple-choice questions from the ${what} below.${focus}${avoid}${where}\n\n${body}`}],max:K===1&&d.count<=20?8000:Math.max(6000,1500+sizes[k]*320),signal,...qzStream(QZ.pg,qs.length,sizes[k],d.count)});
-        const j=parseJson(out)||salvageJson(out);if(!j||!Array.isArray(j.questions))throw badJson();
+        const msgs=[{role:'user',content:`Write ${sizes[k]} multiple-choice questions from the ${what} below.${focus}${avoid}${where}\n\n${body}`}],mx=K===1&&d.count<=20?8000:Math.max(6000,1500+sizes[k]*320);
+        const ask=async(m,msg)=>{ /* one try at this part; null when nothing readable came back */
+          let out='';
+          try{out=await callClaude({system,messages:msg,max:m,signal,think:false,need:true,...qzStream(QZ.pg,qs.length,sizes[k],d.count)})}
+          catch(e){if(!e.empty)throw e} /* an empty answer is the same as an unreadable one: try again below */
+          const r=parseJson(out)||salvageJson(out);
+          return r&&Array.isArray(r.questions)?r:null; /* a readable answer with no questions in it is the model's answer: it is not retried */
+        };
+        let j=await ask(mx,msgs);
+        if(!j){ /* cut off or not in the format asked for: once more, with room to spare, before giving up */
+          pgPing(QZ.pg);
+          const again=[{role:'user',content:msgs[0].content+'\n\nReply with only the one JSON object described above, with nothing before or after it.'}];
+          j=await ask(Math.min(16000,mx*2),again);
+        }
+        if(!j)throw badJson();
         qs.push(...cleanQuiz(j,batchIds,sizes[k],seenQ));
         pgFrac(QZ.pg,Math.min(1,qs.length/d.count),{detail:'Question '+Math.min(d.count,qs.length)+' of '+d.count}); /* the part is in: the count is exact now, whatever the streaming caught */
       }catch(e){
