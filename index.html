@@ -1317,7 +1317,7 @@ let toastT;
 function toast(m){const t=$('#toast');t.textContent=m;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>{t.hidden=true},4500)}
 
 /* ---------- settings ---------- */
-const BUILD='2 Nov 2026, Quiz stall fix';
+const BUILD='2 Nov 2026, Quiz speed fix';
 const DEF={apiKey:'',model:'claude-sonnet-5-5',lang:'',kbps:64,terms:'',aaiKey:'',speakers:false,sound:'natural',liveTx:true,meter:true,orb:true};
 const settings=Object.assign({},DEF);
 let savedSettings={};try{savedSettings=JSON.parse(localStorage.getItem('longtake.settings')||'{}')||{}}catch(e){}
@@ -3250,20 +3250,27 @@ async function claudeOnce({system,messages,signal,onText,onStart},max,thinking){
   }
   return {text:full,stop,think};
 }
+/* "Do not think before answering" is spelled differently by different models: the newest (Sonnet 5.5) takes between_tools and refuses disabled with a 400, older ones take disabled.
+   Try the newest spelling first, then the older one, then a plain request; a refusal costs a fraction of a second. Remember what each model accepted, so only the first request pays for it. */
+const THINK_OFF=[{type:'between_tools'},{type:'disabled'},null],thinkOk=new Map();
+async function claudeNoThink(o,max){
+  const m=settings.model||DEF.model;let i=thinkOk.has(m)?thinkOk.get(m):0;
+  for(;;){
+    try{const r=await claudeOnce(o,max,THINK_OFF[i]);thinkOk.set(m,i);return r}
+    catch(e){if(e&&e.status===400&&i<THINK_OFF.length-1){i++;continue}throw e}
+  }
+}
 async function callClaude(o){
   if(!settings.apiKey)throw new Error('NOKEY');
   const base=o.max||2000;
-  const off=o.think===false?{type:'disabled'}:null; /* work that only writes out structured text does not need to think first, and a long think can use up the whole allowance */
-  let r;
-  try{r=await claudeOnce(o,base,off)}
-  catch(e){if(off&&e.status===400)r=await claudeOnce(o,base,null);else throw e} /* a model that does not accept the setting gets the plain request */
+  /* work that only writes out structured text does not need to think first, and a long think can use up the whole allowance */
+  let r=o.think===false?await claudeNoThink(o,base):await claudeOnce(o,base,null);
   if(!o.need||r.text.trim())return r.text;
   /* it ended without a single word: usually it spent its whole allowance thinking. Try once more with a much bigger allowance and the thinking turned off */
   if(r.stop==='max_tokens'||r.think){
     if(o.onRetry)o.onRetry();
     const big=Math.min(Math.max(base*3,9000),16000);
-    try{r=await claudeOnce(o,big,{type:'disabled'})}
-    catch(e){if(e.status===400)r=await claudeOnce(o,big,null);else throw e} /* a model that does not accept the setting gets the plain request */
+    r=await claudeNoThink(o,big);
     if(r.text.trim())return r.text;
   }
   throw Object.assign(new Error('The assistant did not send back an answer'+(r.stop?' (it stopped with: '+r.stop+')':'')+'. Tap Ask to try again, or ask for one part of it at a time.'),{empty:true});
